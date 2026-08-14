@@ -1,0 +1,57 @@
+{
+    "version": 1,
+    "name": "MenuControls",
+    "maps": [
+        {
+            "name": "UI",
+            "id": "d35e67d8-807c-48d2-83ab-84a57fa99388",
+            "actions": [
+                {
+                    "name": "Pause",
+                    "type": "Button",
+                    "id": "3db779c7-827e-4fdb-9e64-bc9ee11fcb12",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                },
+                {
+                    "name": "Forge",
+                    "type": "Button",
+                    "id": "4c681157-ac3e-4bc6-b117-1376c492ae8a",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "387d850a-bf2e-41cc-bb55-502f1c04330a",
+                    "path": "<Keyboard>/escape",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Pause",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "ae8e33e4-5ffb-4a8b-a48e-cee8d9820716",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Forge",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

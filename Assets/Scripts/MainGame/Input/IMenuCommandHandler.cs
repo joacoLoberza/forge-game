@@ -9,5 +9,6 @@ namespace ForjaGame.Input
     {
         void TogglePause();
         void ToggleForge();
+        void ToggleInventory();
     }
 }

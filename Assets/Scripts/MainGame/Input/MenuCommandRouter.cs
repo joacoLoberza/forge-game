@@ -23,16 +23,22 @@ namespace ForjaGame.Input
         [Tooltip("Debe implementar IUIPanel (ej: ForgeMenuPanel).")]
         [SerializeField] private MonoBehaviour forgePanelSource;
 
+        [Tooltip("Debe implementar IUIPanel (ej: InventoryPanel).")]
+        [SerializeField] private MonoBehaviour inventoryPanelSource;
+
         private IUIPanel _pausePanel;
         private IUIPanel _forgePanel;
+        private IUIPanel _inventoryPanel;
 
         private void Awake()
         {
             _pausePanel = pausePanelSource as IUIPanel;
             _forgePanel = forgePanelSource as IUIPanel;
+            _inventoryPanel = inventoryPanelSource as IUIPanel;
         }
 
         public void TogglePause() => _pausePanel?.Toggle();
         public void ToggleForge() => _forgePanel?.Toggle();
+        public void ToggleInventory() => _inventoryPanel?.Toggle();
     }
 }

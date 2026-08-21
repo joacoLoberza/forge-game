@@ -14,7 +14,7 @@ namespace ForjaGame.Input
     /// Multiplayer local "de verdad" (varios gamepads):
     /// cuando migren al nuevo Input System, cada jugador tiene un
     /// PlayerInput (Unity) con "Invoke Unity Events", y sus eventos
-    /// OnPause/OnForge llaman a estos mismos métodos públicos de acá abajo.
+    /// OnPause/OnForge/OnInventory llaman a estos mismos métodos públicos de acá abajo.
     /// Ni MenuCommandRouter ni los paneles se enteran del cambio (DIP).
     
     /// Refactorizado para el Nuevo Input System.
@@ -36,5 +36,6 @@ namespace ForjaGame.Input
         // Estos métodos serán llamados por los eventos del componente PlayerInput
         public void RequestPause() => _handler?.TogglePause();
         public void RequestForge() => _handler?.ToggleForge();
+        public void RequestInventory() => _handler?.ToggleInventory();
     }
 }

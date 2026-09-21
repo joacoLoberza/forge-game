@@ -102,7 +102,8 @@ namespace ForjaGame.Combat
                 GameObject fallbackPrefab = GetPrefabForWeapon(weapon.weaponType);
                 _spawnedWeaponInstance = WeaponVisualBuilder.BuildWeaponVisual(weapon, null, fallbackPrefab);
                 proceduralCombat.EquipWeapon(weapon, _spawnedWeaponInstance);
-                SetCombatLayerWeights(0.0f, 0.0f);
+                // Upper body desactivado (conducido por IK procedural), Hands activado al 100% (puños cerrados sobre el mango)
+                SetCombatLayerWeights(0.0f, 1.0f);
             }
             else
             {

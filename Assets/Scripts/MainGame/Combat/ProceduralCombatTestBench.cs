@@ -34,6 +34,7 @@ namespace ForjaGame.Combat
         private float _sliderSharpness = 0.90f;
         private float _sliderLateralExtent = 0.02f;
         private float _sliderMass = 1.6f;
+        private float _sliderGuardDistanceOffset = 0f;
 
         // Estilos GUI
         private GUIStyle _panelStyle;
@@ -163,7 +164,16 @@ namespace ForjaGame.Combat
             }
 
             GUILayout.Space(10);
-            GUILayout.Label("<b>3. Utilidades de Depuración:</b>", _labelStyle);
+            GUILayout.Label("<b>3. Ajuste de Postura / Distancia al Cuerpo:</b>", _labelStyle);
+            float prevOffset = _sliderGuardDistanceOffset;
+            _sliderGuardDistanceOffset = DrawSlider("Distancia Frontal", _sliderGuardDistanceOffset, -0.15f, 0.35f, "m");
+            if (Mathf.Abs(prevOffset - _sliderGuardDistanceOffset) > 0.001f && proceduralCombat != null)
+            {
+                proceduralCombat.SetDynamicGuardOffset(new Vector3(0f, 0f, _sliderGuardDistanceOffset));
+            }
+
+            GUILayout.Space(10);
+            GUILayout.Label("<b>4. Utilidades de Depuración:</b>", _labelStyle);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button(_isSlowMotionActive ? "Normal (1.0x)" : "Cámara Lenta [F2]", GUILayout.Height(26)))
             {
@@ -301,6 +311,8 @@ namespace ForjaGame.Combat
                 handleLength = hEnum,
                 customHandleMesh = handleMesh,
                 customMesh = headMesh,
+                bladeMountPosition = new Vector3(prof.handleLength, 0f, 0f),
+                gripCenterOffset = new Vector3(0.05f, 0f, 0f),
                 baseDamage = Mathf.RoundToInt(prof.mass * 8.5f),
                 attackSpeed = 1.0f,
                 attackRange = prof.length,
@@ -310,7 +322,7 @@ namespace ForjaGame.Combat
                 qualityPrefix = "TestBench"
             };
 
-            stats.CalculateProfile(cfg);
+            stats.SetProfile(prof);
             equipmentController.EquipWeapon(stats);
         }
 

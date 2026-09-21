@@ -24,6 +24,20 @@ MonoBehaviour:
   polearmRatioThreshold: 1.45
   maxReasonableLength: 2.4
   maxReasonableMass: 12
+  guardPosOneShort: {x: 0.22, y: -0.05, z: 0.48}
+  guardRotOneShort: {x: -12, y: 20, z: -10}
+  guardPosOneHand: {x: 0.22, y: -0.04, z: 0.52}
+  guardRotOneHand: {x: -20, y: 20, z: -12}
+  guardPosTwoHand: {x: 0.14, y: -0.1, z: 0.48}
+  guardRotTwoHand: {x: -24, y: 15, z: -8}
+  guardPosPole: {x: 0.18, y: -0.14, z: 0.46}
+  guardRotPole: {x: -32, y: 18, z: 12}
+  rightHandOffsetPos: {x: 0.035, y: 0.075, z: -0.015}
+  rightHandOffsetRot: {x: -90, y: 0, z: 90}
+  leftHandOffsetPos: {x: -0.035, y: 0.075, z: -0.015}
+  leftHandOffsetRot: {x: -90, y: 0, z: -90}
+  rightElbowHintOffset: {x: 0.22, y: -0.26, z: -0.1}
+  leftElbowHintOffset: {x: -0.22, y: -0.26, z: -0.1}
   armReachMinRatio: 0.25
   armReachMaxRatio: 0.95
   shoulderElevationMaxAngle: 85

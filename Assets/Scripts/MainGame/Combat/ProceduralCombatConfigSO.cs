@@ -39,6 +39,38 @@ namespace ForjaGame.Combat
         public float maxReasonableLength = 2.4f;
         public float maxReasonableMass = 12.0f;
 
+        [Header("Poses de Guardia Procedurales por Agarre (Espacio Chest)")]
+        [Tooltip("Posición y rotación de guardia para armas de una mano corta (Daga)")]
+        public Vector3 guardPosOneShort = new Vector3(0.22f, -0.05f, 0.48f);
+        public Vector3 guardRotOneShort = new Vector3(-12f, 20f, -10f);
+
+        [Tooltip("Posición y rotación de guardia para armas de una mano (Espada, Hacha, Maza)")]
+        public Vector3 guardPosOneHand = new Vector3(0.22f, -0.04f, 0.52f);
+        public Vector3 guardRotOneHand = new Vector3(-20f, 20f, -12f);
+
+        [Tooltip("Posición y rotación de guardia para armas de dos manos (Mandoble, Gran Mazo)")]
+        public Vector3 guardPosTwoHand = new Vector3(0.14f, -0.10f, 0.48f);
+        public Vector3 guardRotTwoHand = new Vector3(-24f, 15f, -8f);
+
+        [Tooltip("Posición y rotación de guardia para armas de asta (Guja, Alabarda)")]
+        public Vector3 guardPosPole = new Vector3(0.18f, -0.14f, 0.46f);
+        public Vector3 guardRotPole = new Vector3(-32f, 18f, 12f);
+
+        [Header("Calibración Anatómica de Manos para IK (Palma a Hueso Hand)")]
+        [Tooltip("Offset posición de hueso RightHand al centro del puño cerrado")]
+        public Vector3 rightHandOffsetPos = new Vector3(0.035f, 0.075f, -0.015f);
+        [Tooltip("Offset rotación de hueso RightHand al eje longitudinal del arma")]
+        public Vector3 rightHandOffsetRot = new Vector3(-90f, 0f, 90f);
+
+        [Tooltip("Offset posición de hueso LeftHand al centro del puño cerrado (simetría)")]
+        public Vector3 leftHandOffsetPos = new Vector3(-0.035f, 0.075f, -0.015f);
+        [Tooltip("Offset rotación de hueso LeftHand al eje longitudinal del arma (simetría)")]
+        public Vector3 leftHandOffsetRot = new Vector3(-90f, 0f, -90f);
+
+        [Header("Offsets de Codos (IK Hints)")]
+        public Vector3 rightElbowHintOffset = new Vector3(0.22f, -0.26f, -0.10f);
+        public Vector3 leftElbowHintOffset = new Vector3(-0.22f, -0.26f, -0.10f);
+
         [Header("Límites Anatómicos")]
         [Tooltip("Fracción mínima de la longitud del brazo (distancia hombro->mano)")]
         public float armReachMinRatio = 0.25f;

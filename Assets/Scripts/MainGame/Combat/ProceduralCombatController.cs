@@ -148,9 +148,9 @@ namespace ForjaGame.Combat
         {
             if (_weaponPivot == null) return;
 
-            _gripSocketR = FindOrCreateChild(_weaponPivot, "GripSocket_R", new Vector3(0.04f, 0.05f, 0f), Quaternion.Euler(-90f, 0f, 90f));
-            _gripSocketL = FindOrCreateChild(_weaponPivot, "GripSocket_L", new Vector3(0.03f, 0.22f, 0f), Quaternion.Euler(-85f, 15f, 85f));
-            _bladeBase = FindOrCreateChild(_weaponPivot, "BladeBasePoint", new Vector3(0f, 0.12f, 0f), Quaternion.identity);
+            _gripSocketR = FindOrCreateChild(_weaponPivot, "GripSocket_R", Vector3.zero, Quaternion.identity);
+            _gripSocketL = FindOrCreateChild(_weaponPivot, "GripSocket_L", new Vector3(0f, 0.20f, 0f), Quaternion.identity);
+            _bladeBase = FindOrCreateChild(_weaponPivot, "BladeBasePoint", new Vector3(0f, 0.50f, 0f), Quaternion.identity);
             _bladeTip = FindOrCreateChild(_weaponPivot, "BladeTipPoint", new Vector3(0f, 1.20f, 0f), Quaternion.identity);
         }
 
@@ -212,60 +212,91 @@ namespace ForjaGame.Combat
             float maxH = config != null ? config.maxHandleLength : 1.85f;
             float h = Mathf.Clamp01(Mathf.InverseLerp(minH, maxH, handleLen));
 
-            // Mano trasera (Right Hand): siempre en la base/pomo del mango
-            _gripSocketR.localPosition = new Vector3(0.02f, 0.05f, 0f);
-            _gripSocketR.localRotation = Quaternion.Euler(-90f, 0f, 90f);
+            // Mano trasera (Right Hand): alineada en el centro de la empuñadura del pomo
+            _gripSocketR.localPosition = Vector3.zero;
+            _gripSocketR.localRotation = Quaternion.identity;
 
             // Mano delantera (Left Hand): separación que crece con h
-            // Para armas cortas/1 mano, la mano izquierda está deshabilitada por IK weight = 0.
-            // Para TwoHand: separación compacta (0.16m - 0.24m).
-            // Para Pole: separación amplia sobre el asta (0.35m - 0.90m).
+            // Para TwoHand: separación compacta (0.16m - 0.26m).
+            // Para Pole: separación amplia sobre el asta (0.35m - 0.70m).
             float leftY;
             if (profile.grip == GripMode.Pole)
             {
-                leftY = Mathf.Lerp(0.35f, handleLen * 0.65f, h);
+                leftY = Mathf.Clamp(Mathf.Lerp(0.35f, handleLen * 0.65f, h), 0.35f, handleLen * 0.75f);
             }
             else
             {
-                leftY = Mathf.Clamp(0.14f + (handleLen * 0.15f), 0.14f, 0.28f);
+                leftY = Mathf.Clamp(0.15f + (handleLen * 0.12f), 0.15f, 0.28f);
             }
 
-            _gripSocketL.localPosition = new Vector3(0.02f, leftY, 0f);
-            _gripSocketL.localRotation = Quaternion.Euler(-85f, 15f, 85f);
+            _gripSocketL.localPosition = new Vector3(0f, leftY, 0f);
+            _gripSocketL.localRotation = Quaternion.identity;
 
-            // Posición de la punta y base del filo
+            // Posición de la base y punta de la cabeza metálica
             if (_bladeBase != null)
             {
                 _bladeBase.localPosition = new Vector3(0f, handleLen, 0f);
             }
             if (_bladeTip != null)
             {
-                float totalLength = profile.length > 0.1f ? profile.length : (handleLen + 0.85f);
+                float totalLength = profile.length > 0.1f ? profile.length : (handleLen + profile.headLength);
                 _bladeTip.localPosition = new Vector3(0f, totalLength, 0f);
             }
         }
 
         private void ConfigureGuardPoseForGrip(GripMode grip)
         {
-            switch (grip)
+            if (config != null)
             {
-                case GripMode.OneShort:
-                    _currentGuardLocalPos = new Vector3(0.20f, -0.06f, 0.36f);
-                    _currentGuardLocalRot = Quaternion.Euler(-15f, 25f, -12f);
-                    break;
-                case GripMode.OneHand:
-                    _currentGuardLocalPos = new Vector3(0.22f, -0.05f, 0.40f);
-                    _currentGuardLocalRot = Quaternion.Euler(-20f, 25f, -15f);
-                    break;
-                case GripMode.TwoHand:
-                    _currentGuardLocalPos = new Vector3(0.10f, -0.10f, 0.42f);
-                    _currentGuardLocalRot = Quaternion.Euler(-25f, 15f, -8f);
-                    break;
-                case GripMode.Pole:
-                    _currentGuardLocalPos = new Vector3(0.18f, -0.14f, 0.38f);
-                    _currentGuardLocalRot = Quaternion.Euler(-35f, 20f, 14f);
-                    break;
+                switch (grip)
+                {
+                    case GripMode.OneShort:
+                        _currentGuardLocalPos = config.guardPosOneShort;
+                        _currentGuardLocalRot = Quaternion.Euler(config.guardRotOneShort);
+                        break;
+                    case GripMode.OneHand:
+                        _currentGuardLocalPos = config.guardPosOneHand;
+                        _currentGuardLocalRot = Quaternion.Euler(config.guardRotOneHand);
+                        break;
+                    case GripMode.TwoHand:
+                        _currentGuardLocalPos = config.guardPosTwoHand;
+                        _currentGuardLocalRot = Quaternion.Euler(config.guardRotTwoHand);
+                        break;
+                    case GripMode.Pole:
+                        _currentGuardLocalPos = config.guardPosPole;
+                        _currentGuardLocalRot = Quaternion.Euler(config.guardRotPole);
+                        break;
+                }
             }
+            else
+            {
+                switch (grip)
+                {
+                    case GripMode.OneShort:
+                        _currentGuardLocalPos = new Vector3(0.22f, -0.05f, 0.48f);
+                        _currentGuardLocalRot = Quaternion.Euler(-12f, 20f, -10f);
+                        break;
+                    case GripMode.OneHand:
+                        _currentGuardLocalPos = new Vector3(0.22f, -0.04f, 0.52f);
+                        _currentGuardLocalRot = Quaternion.Euler(-20f, 20f, -12f);
+                        break;
+                    case GripMode.TwoHand:
+                        _currentGuardLocalPos = new Vector3(0.14f, -0.10f, 0.48f);
+                        _currentGuardLocalRot = Quaternion.Euler(-24f, 15f, -8f);
+                        break;
+                    case GripMode.Pole:
+                        _currentGuardLocalPos = new Vector3(0.18f, -0.14f, 0.46f);
+                        _currentGuardLocalRot = Quaternion.Euler(-32f, 18f, 12f);
+                        break;
+                }
+            }
+        }
+
+        private Vector3 _dynamicGuardOffset = Vector3.zero;
+
+        public void SetDynamicGuardOffset(Vector3 offset)
+        {
+            _dynamicGuardOffset = offset;
         }
 
         public void UnequipWeapon()
@@ -284,13 +315,15 @@ namespace ForjaGame.Combat
             if (!_isEquipped || _weaponPivot == null) return;
 
             // Mantener suavemente la pose de guardia del WeaponPivot
-            _weaponPivot.localPosition = Vector3.Lerp(_weaponPivot.localPosition, _currentGuardLocalPos, Time.deltaTime * 10f);
+            Vector3 targetGuardPos = _currentGuardLocalPos + _dynamicGuardOffset;
+            _weaponPivot.localPosition = Vector3.Lerp(_weaponPivot.localPosition, targetGuardPos, Time.deltaTime * 10f);
             _weaponPivot.localRotation = Quaternion.Slerp(_weaponPivot.localRotation, _currentGuardLocalRot, Time.deltaTime * 10f);
         }
 
         /// <summary>
         /// Callback ejecutado desde PlayerIKBridge en OnAnimatorIK.
-        /// Conecta las manos a los sockets del mango con Two-Bone IK, hints de codo y clamp de alcance anatómico.
+        /// Conecta las manos a los sockets del mango con Two-Bone IK, compensación de palma,
+        /// hints de codo y clamp de alcance anatómico.
         /// </summary>
         public void OnAnimatorIKCallback(int layerIndex)
         {
@@ -301,22 +334,33 @@ namespace ForjaGame.Combat
             float maxReachRatio = config != null ? config.armReachMaxRatio : 0.95f;
 
             // 1. MANO DERECHA (Siempre activa en guardia)
-            Vector3 rTargetPos = _gripSocketR.position;
+            Vector3 rSocketPos = _gripSocketR.position;
+            Quaternion rSocketRot = _gripSocketR.rotation;
+
+            Vector3 rOffsetPos = config != null ? config.rightHandOffsetPos : new Vector3(0.035f, 0.075f, -0.015f);
+            Vector3 rOffsetRotEuler = config != null ? config.rightHandOffsetRot : new Vector3(-90f, 0f, 90f);
+            Quaternion rOffsetRot = Quaternion.Euler(rOffsetRotEuler);
+
+            // Calcular rotación y posición del hueso RightHand (muñeca) para que la palma coincida exactamente con el mango
+            Quaternion targetHandRotR = rSocketRot * Quaternion.Inverse(rOffsetRot);
+            Vector3 targetHandPosR = rSocketPos - (targetHandRotR * rOffsetPos);
+
             if (_rightShoulder != null)
             {
-                _currentDistR = Vector3.Distance(_rightShoulder.position, rTargetPos);
-                rTargetPos = ClampArmReach(_rightShoulder.position, rTargetPos, _rightArmLength, minReachRatio, maxReachRatio);
+                _currentDistR = Vector3.Distance(_rightShoulder.position, targetHandPosR);
+                targetHandPosR = ClampArmReach(_rightShoulder.position, targetHandPosR, _rightArmLength, minReachRatio, maxReachRatio);
             }
 
-            characterAnimator.SetIKPosition(AvatarIKGoal.RightHand, rTargetPos);
-            characterAnimator.SetIKRotation(AvatarIKGoal.RightHand, _gripSocketR.rotation);
+            characterAnimator.SetIKPosition(AvatarIKGoal.RightHand, targetHandPosR);
+            characterAnimator.SetIKRotation(AvatarIKGoal.RightHand, targetHandRotR);
             characterAnimator.SetIKPositionWeight(AvatarIKGoal.RightHand, _ikWeight);
             characterAnimator.SetIKRotationWeight(AvatarIKGoal.RightHand, _ikWeight);
 
             // Hint de codo derecho: siempre hacia abajo y afuera
             if (_rightShoulder != null)
             {
-                Vector3 rHint = (_rightShoulder.position + rTargetPos) * 0.5f - chest.up * 0.24f + chest.right * 0.22f;
+                Vector3 rElbowOffset = config != null ? config.rightElbowHintOffset : new Vector3(0.22f, -0.26f, -0.10f);
+                Vector3 rHint = (_rightShoulder.position + targetHandPosR) * 0.5f + chest.TransformDirection(rElbowOffset);
                 characterAnimator.SetIKHintPosition(AvatarIKHint.RightElbow, rHint);
                 characterAnimator.SetIKHintPositionWeight(AvatarIKHint.RightElbow, _ikWeight);
             }
@@ -325,22 +369,32 @@ namespace ForjaGame.Combat
             bool isBimanual = _currentProfile.grip == GripMode.TwoHand || _currentProfile.grip == GripMode.Pole;
             if (isBimanual)
             {
-                Vector3 lTargetPos = _gripSocketL.position;
+                Vector3 lSocketPos = _gripSocketL.position;
+                Quaternion lSocketRot = _gripSocketL.rotation;
+
+                Vector3 lOffsetPos = config != null ? config.leftHandOffsetPos : new Vector3(-0.035f, 0.075f, -0.015f);
+                Vector3 lOffsetRotEuler = config != null ? config.leftHandOffsetRot : new Vector3(-90f, 0f, -90f);
+                Quaternion lOffsetRot = Quaternion.Euler(lOffsetRotEuler);
+
+                Quaternion targetHandRotL = lSocketRot * Quaternion.Inverse(lOffsetRot);
+                Vector3 targetHandPosL = lSocketPos - (targetHandRotL * lOffsetPos);
+
                 if (_leftShoulder != null)
                 {
-                    _currentDistL = Vector3.Distance(_leftShoulder.position, lTargetPos);
-                    lTargetPos = ClampArmReach(_leftShoulder.position, lTargetPos, _leftArmLength, minReachRatio, maxReachRatio);
+                    _currentDistL = Vector3.Distance(_leftShoulder.position, targetHandPosL);
+                    targetHandPosL = ClampArmReach(_leftShoulder.position, targetHandPosL, _leftArmLength, minReachRatio, maxReachRatio);
                 }
 
-                characterAnimator.SetIKPosition(AvatarIKGoal.LeftHand, lTargetPos);
-                characterAnimator.SetIKRotation(AvatarIKGoal.LeftHand, _gripSocketL.rotation);
+                characterAnimator.SetIKPosition(AvatarIKGoal.LeftHand, targetHandPosL);
+                characterAnimator.SetIKRotation(AvatarIKGoal.LeftHand, targetHandRotL);
                 characterAnimator.SetIKPositionWeight(AvatarIKGoal.LeftHand, _ikWeight);
                 characterAnimator.SetIKRotationWeight(AvatarIKGoal.LeftHand, _ikWeight);
 
                 // Hint de codo izquierdo: siempre hacia abajo y afuera a la izquierda
                 if (_leftShoulder != null)
                 {
-                    Vector3 lHint = (_leftShoulder.position + lTargetPos) * 0.5f - chest.up * 0.24f - chest.right * 0.22f;
+                    Vector3 lElbowOffset = config != null ? config.leftElbowHintOffset : new Vector3(-0.22f, -0.26f, -0.10f);
+                    Vector3 lHint = (_leftShoulder.position + targetHandPosL) * 0.5f + chest.TransformDirection(lElbowOffset);
                     characterAnimator.SetIKHintPosition(AvatarIKHint.LeftElbow, lHint);
                     characterAnimator.SetIKHintPositionWeight(AvatarIKHint.LeftElbow, _ikWeight);
                 }

@@ -50,6 +50,7 @@ namespace ForjaGame.Forge
 
         [SerializeField] private WeaponProfile _profile;
         public WeaponProfile Profile => _profile.mass > 0.01f ? _profile : CalculateProfile();
+        public void SetProfile(WeaponProfile profile) => _profile = profile;
 
         public WeaponProfile CalculateProfile(ProceduralCombatConfigSO config = null)
         {

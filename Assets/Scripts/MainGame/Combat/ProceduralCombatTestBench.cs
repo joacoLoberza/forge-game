@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using ForjaGame.Forge;
@@ -7,8 +8,12 @@ namespace ForjaGame.Combat
 {
     /// <summary>
     /// Banco de pruebas interactivo en tiempo de ejecución (Play mode) para el sistema de combate procedural.
-    /// Permite generar y equipar armas instantáneamente mediante presets o sliders sin pasar por la forja,
-    /// inspeccionar el WeaponProfile en un HUD en pantalla, activar cámara lenta y visualizar gizmos de articulaciones.
+    /// Bloque B (Fase 3):
+    /// - Genera y equipa armas instantáneamente mediante 9 presets o sliders libres.
+    /// - Ejecución directa de ataques y combos (Golpe 1, 2, 3) con monitor de fases (Windup/Strike/Recovery).
+    /// - Herramienta de captura de poses en vivo directamente en ScriptableObjects de ataque.
+    /// - Trazado de trayectorias (arcos de swing de la hoja y empuñadura) en Gizmos.
+    /// - Monitoreo en tiempo real de la cadena cinética (torsión de caderas y torso).
     /// </summary>
     public class ProceduralCombatTestBench : MonoBehaviour
     {
@@ -25,6 +30,7 @@ namespace ForjaGame.Combat
         private bool _isPanelVisible = true;
         private bool _isSlowMotionActive = false;
         private bool _drawGizmos = true;
+        private Vector2 _scrollPos = Vector2.zero;
 
         // Sliders de armas
         private float _sliderHandleLength = 0.35f;
@@ -36,13 +42,19 @@ namespace ForjaGame.Combat
         private float _sliderMass = 1.6f;
         private float _sliderGuardDistanceOffset = 0f;
 
+        // Ataques, Trayectoria y Captura de Poses (Fase 3)
+        private AttackSubPhase _selectedCapturePhase = AttackSubPhase.Windup;
+        private bool _showPoseCapture = false;
+        private readonly List<Vector3> _tipTrail = new();
+        private readonly List<Vector3> _handTrail = new();
+        private float _timeSinceLastAttack = 0f;
+
         // Estilos GUI
         private GUIStyle _panelStyle;
         private GUIStyle _hudBoxStyle;
         private GUIStyle _headerStyle;
         private GUIStyle _labelStyle;
         private GUIStyle _presetBtnStyle;
-        private GUIStyle _badgeStyle;
 
         private void Awake()
         {
@@ -79,6 +91,34 @@ namespace ForjaGame.Combat
             {
                 _drawGizmos = !_drawGizmos;
             }
+
+            // Registrar trayectoria de ataque para trazado de arco
+            if (proceduralCombat != null && proceduralCombat.IsEquipped)
+            {
+                if (proceduralCombat.CurrentSubPhase != AttackSubPhase.InGuard)
+                {
+                    _timeSinceLastAttack = 0f;
+                    if (proceduralCombat.BladeTip != null)
+                    {
+                        _tipTrail.Add(proceduralCombat.BladeTip.position);
+                        if (_tipTrail.Count > 80) _tipTrail.RemoveAt(0);
+                    }
+                    if (proceduralCombat.GripSocketR != null)
+                    {
+                        _handTrail.Add(proceduralCombat.GripSocketR.position);
+                        if (_handTrail.Count > 80) _handTrail.RemoveAt(0);
+                    }
+                }
+                else
+                {
+                    _timeSinceLastAttack += Time.deltaTime;
+                    if (_timeSinceLastAttack > 1.2f)
+                    {
+                        _tipTrail.Clear();
+                        _handTrail.Clear();
+                    }
+                }
+            }
         }
 
         private void OnGUI()
@@ -91,39 +131,132 @@ namespace ForjaGame.Combat
             // 2. Banner de Cámara Lenta si está activa
             if (_isSlowMotionActive)
             {
-                GUI.Box(new Rect((Screen.width - 240f) * 0.5f, 15f, 240f, 32f), "<color=#FFCC00><b>CAMARA LENTA (0.20x) [F2/T]</b></color>", _headerStyle);
+                GUI.Box(new Rect((Screen.width - 260f) * 0.5f, 15f, 260f, 32f), "<color=#FFCC00><b>CAMARA LENTA (0.20x) [F2/T]</b></color>", _headerStyle);
             }
 
             // 3. Panel de control desplegable
             if (!_isPanelVisible)
             {
-                if (GUI.Button(new Rect(10f, 10f, 160f, 28f), "Banco Pruebas [F1]"))
+                if (GUI.Button(new Rect(10f, 10f, 170f, 30f), "Banco Pruebas [F1]"))
                 {
                     _isPanelVisible = true;
                 }
                 return;
             }
 
-            float panelWidth = 440f;
+            float panelWidth = 470f;
             float panelHeight = Screen.height - 40f;
             Rect panelRect = new Rect(Screen.width - panelWidth - 15f, 20f, panelWidth, panelHeight);
 
             GUI.Box(panelRect, "", _panelStyle);
-            GUILayout.BeginArea(new Rect(panelRect.x + 15f, panelRect.y + 15f, panelWidth - 30f, panelHeight - 30f));
+            GUILayout.BeginArea(new Rect(panelRect.x + 12f, panelRect.y + 12f, panelWidth - 24f, panelHeight - 24f));
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("BANCO DE PRUEBAS DE ARMAS", _headerStyle);
+            GUILayout.Label("BANCO DE PRUEBAS PROCEDURAL", _headerStyle);
             if (GUILayout.Button("X", GUILayout.Width(28), GUILayout.Height(24)))
             {
                 _isPanelVisible = false;
             }
             GUILayout.EndHorizontal();
 
-            GUILayout.Label("<color=#CCCCCC>Genera armas extremas en Play sin forja previa.</color>", _labelStyle);
+            _scrollPos = GUILayout.BeginScrollView(_scrollPos);
+
+            GUILayout.Label("<color=#CCCCCC>Fase 3: Ataques base, cadena cinética, exclusión y captura.</color>", _labelStyle);
+            GUILayout.Space(6);
+
+            // ============================================
+            // SECCIÓN 1: ATAQUES Y COMBOS PROCEDURALES
+            // ============================================
+            GUILayout.Label("<b>1. Ejecución de Ataques y Combo (Fase 3):</b>", _labelStyle);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Golpe 1 (Combo 0)", GUILayout.Height(28)))
+            {
+                if (proceduralCombat != null && proceduralCombat.IsEquipped) proceduralCombat.ExecuteAttack(0);
+            }
+            if (GUILayout.Button("Golpe 2 (Combo 1)", GUILayout.Height(28)))
+            {
+                if (proceduralCombat != null && proceduralCombat.IsEquipped) proceduralCombat.ExecuteAttack(1);
+            }
+            if (GUILayout.Button("Golpe 3 (Combo 2)", GUILayout.Height(28)))
+            {
+                if (proceduralCombat != null && proceduralCombat.IsEquipped) proceduralCombat.ExecuteAttack(2);
+            }
+            GUILayout.EndHorizontal();
+
+            // Monitor en tiempo real de la fase activa
+            if (proceduralCombat != null && proceduralCombat.IsEquipped)
+            {
+                string phaseColor = proceduralCombat.CurrentSubPhase switch
+                {
+                    AttackSubPhase.InGuard => "#33FFAA",
+                    AttackSubPhase.Windup => "#FFCC00",
+                    AttackSubPhase.Strike => "#FF3344",
+                    AttackSubPhase.Recovery => "#33AAFF",
+                    _ => "#FFFFFF"
+                };
+
+                string atkName = proceduralCombat.CurrentAttackDef != null ? proceduralCombat.CurrentAttackDef.attackName : "En Guardia";
+                GUILayout.Label($"Ataque: <b>{atkName}</b>", _labelStyle);
+                GUILayout.Label($"Fase: <color={phaseColor}><b>{proceduralCombat.CurrentSubPhase}</b></color> ({proceduralCombat.PhaseNormalizedTime * 100f:F0}%) | Inercia k: <b>{proceduralCombat.InertiaScale:F2}x</b>", _labelStyle);
+
+                // Barra de progreso de la fase
+                Rect barRect = GUILayoutUtility.GetRect(panelWidth - 60f, 10f);
+                GUI.Box(barRect, "");
+                float fillW = barRect.width * proceduralCombat.PhaseNormalizedTime;
+                GUI.DrawTexture(new Rect(barRect.x, barRect.y, fillW, barRect.height), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, new Color(0.2f, 0.8f, 1.0f, 0.75f), 0, 0);
+
+                // Monitor Cadena Cinética
+                Vector3 hipsE = proceduralCombat.CurrentHipsEuler;
+                Vector3 chestE = proceduralCombat.CurrentChestEuler;
+                GUILayout.Label($"Cadena Cinética: Caderas: <b>{hipsE.y:F1}°</b> | Torso: Yaw <b>{chestE.y:F1}°</b>, Pitch <b>{chestE.x:F1}°</b>", _labelStyle);
+            }
+
             GUILayout.Space(8);
 
-            // Presets de armas (3x3 grid)
-            GUILayout.Label("<b>1. Presets de Armas (1 Click):</b>", _labelStyle);
+            // ============================================
+            // SECCIÓN 2: HERRAMIENTA DE CAPTURA DE POSES
+            // ============================================
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("<b>2. Captura de Poses (Autoría en Vivo):</b>", _labelStyle);
+            if (GUILayout.Button(_showPoseCapture ? "Ocultar" : "Mostrar Editor", GUILayout.Width(110), GUILayout.Height(22)))
+            {
+                _showPoseCapture = !_showPoseCapture;
+            }
+            GUILayout.EndHorizontal();
+
+            if (_showPoseCapture && proceduralCombat != null && proceduralCombat.IsEquipped)
+            {
+                GUILayout.Label("<color=#AAAAAA>Selecciona fase y guarda la pose actual en el Attack SO:</color>", _labelStyle);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Toggle(_selectedCapturePhase == AttackSubPhase.InGuard, "Guard", "Button")) _selectedCapturePhase = AttackSubPhase.InGuard;
+                if (GUILayout.Toggle(_selectedCapturePhase == AttackSubPhase.Windup, "Windup", "Button")) _selectedCapturePhase = AttackSubPhase.Windup;
+                if (GUILayout.Toggle(_selectedCapturePhase == AttackSubPhase.Strike, "Strike", "Button")) _selectedCapturePhase = AttackSubPhase.Strike;
+                if (GUILayout.Toggle(_selectedCapturePhase == AttackSubPhase.Recovery, "Recovery", "Button")) _selectedCapturePhase = AttackSubPhase.Recovery;
+                GUILayout.EndHorizontal();
+
+                if (proceduralCombat.WeaponPivot != null)
+                {
+                    Vector3 curPos = proceduralCombat.WeaponPivot.localPosition;
+                    Vector3 curRot = proceduralCombat.WeaponPivot.localEulerAngles;
+                    GUILayout.Label($"Pivot Pos: ({curPos.x:F2}, {curPos.y:F2}, {curPos.z:F2})", _labelStyle);
+                    GUILayout.Label($"Pivot Rot: ({curRot.x:F1}°, {curRot.y:F1}°, {curRot.z:F1}°)", _labelStyle);
+                }
+
+                if (GUILayout.Button("★ GUARDAR POSE EN EL ATTACK SO ★", GUILayout.Height(30)))
+                {
+                    if (proceduralCombat.CurrentAttackDef != null)
+                    {
+                        proceduralCombat.CaptureCurrentPoseTo(proceduralCombat.CurrentAttackDef, _selectedCapturePhase);
+                    }
+                }
+            }
+
+            GUILayout.Space(8);
+
+            // ============================================
+            // SECCIÓN 3: PRESETS DE ARMAS
+            // ============================================
+            GUILayout.Label("<b>3. Presets de Armas (1 Click):</b>", _labelStyle);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Daga", _presetBtnStyle)) ApplyPreset(0);
             if (GUILayout.Button("Espada", _presetBtnStyle)) ApplyPreset(1);
@@ -142,10 +275,12 @@ namespace ForjaGame.Combat
             if (GUILayout.Button("Martillo Asta", _presetBtnStyle)) ApplyPreset(8);
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(12);
+            GUILayout.Space(10);
 
-            // Sliders para personalización libre
-            GUILayout.Label("<b>2. Sliders Geométricos y Físicos:</b>", _labelStyle);
+            // ============================================
+            // SECCIÓN 4: SLIDERS GEOMÉTRICOS Y FÍSICOS
+            // ============================================
+            GUILayout.Label("<b>4. Sliders Geométricos y Físicos:</b>", _labelStyle);
 
             _sliderHandleLength = DrawSlider("Largo Mango", _sliderHandleLength, 0.15f, 1.85f, "m");
             _sliderHeadLength = DrawSlider("Largo Cabeza", _sliderHeadLength, 0.10f, 1.35f, "m");
@@ -155,8 +290,8 @@ namespace ForjaGame.Combat
             _sliderLateralExtent = DrawSlider("Extensión Lat.", _sliderLateralExtent, 0.0f, 0.45f, "m");
             _sliderMass = DrawSlider("Masa Total", _sliderMass, 0.4f, 10.0f, "kg");
 
-            GUILayout.Space(8);
-            if (GUILayout.Button("★ GENERAR Y EQUIPAR ARMA ★", GUILayout.Height(34)))
+            GUILayout.Space(6);
+            if (GUILayout.Button("★ GENERAR Y EQUIPAR ARMA ★", GUILayout.Height(32)))
             {
                 GenerateAndEquipCustomWeapon(
                     _sliderHandleLength, _sliderHeadLength, _sliderHeadWidth,
@@ -164,7 +299,11 @@ namespace ForjaGame.Combat
             }
 
             GUILayout.Space(10);
-            GUILayout.Label("<b>3. Ajuste de Postura / Distancia al Cuerpo:</b>", _labelStyle);
+
+            // ============================================
+            // SECCIÓN 5: AJUSTES Y UTILIDADES
+            // ============================================
+            GUILayout.Label("<b>5. Ajuste de Postura / Distancia al Cuerpo:</b>", _labelStyle);
             float prevOffset = _sliderGuardDistanceOffset;
             _sliderGuardDistanceOffset = DrawSlider("Distancia Frontal", _sliderGuardDistanceOffset, -0.15f, 0.35f, "m");
             if (Mathf.Abs(prevOffset - _sliderGuardDistanceOffset) > 0.001f && proceduralCombat != null)
@@ -172,8 +311,8 @@ namespace ForjaGame.Combat
                 proceduralCombat.SetDynamicGuardOffset(new Vector3(0f, 0f, _sliderGuardDistanceOffset));
             }
 
-            GUILayout.Space(10);
-            GUILayout.Label("<b>4. Utilidades de Depuración:</b>", _labelStyle);
+            GUILayout.Space(8);
+            GUILayout.Label("<b>6. Utilidades de Depuración:</b>", _labelStyle);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button(_isSlowMotionActive ? "Normal (1.0x)" : "Cámara Lenta [F2]", GUILayout.Height(26)))
             {
@@ -186,6 +325,7 @@ namespace ForjaGame.Combat
             }
             GUILayout.EndHorizontal();
 
+            GUILayout.EndScrollView();
             GUILayout.EndArea();
         }
 
@@ -424,6 +564,26 @@ namespace ForjaGame.Combat
 
             // 3. Cápsulas de exclusión corporal (torso, cabeza, piernas)
             DrawExclusionCapsules();
+
+            // 4. Trazado del arco de swing de la punta del arma (Cyan)
+            if (_tipTrail.Count > 1)
+            {
+                Gizmos.color = new Color(0.2f, 0.9f, 1.0f, 0.90f);
+                for (int i = 0; i < _tipTrail.Count - 1; i++)
+                {
+                    Gizmos.DrawLine(_tipTrail[i], _tipTrail[i + 1]);
+                }
+            }
+
+            // 5. Trazado del arco de swing de la mano (Amarillo)
+            if (_handTrail.Count > 1)
+            {
+                Gizmos.color = new Color(1.0f, 0.85f, 0.2f, 0.75f);
+                for (int i = 0; i < _handTrail.Count - 1; i++)
+                {
+                    Gizmos.DrawLine(_handTrail[i], _handTrail[i + 1]);
+                }
+            }
         }
 
         private void DrawArmReachGizmo(Transform shoulder, Transform socket, float armLength)
@@ -443,9 +603,11 @@ namespace ForjaGame.Combat
         {
             if (proceduralCombat.ChestBone == null) return;
             Transform chest = proceduralCombat.ChestBone;
+            Transform hips = proceduralCombat.HipsBone != null ? proceduralCombat.HipsBone : chest;
             var cfg = proceduralCombat.Config;
             float torsoR = cfg != null ? cfg.torsoRadius : 0.24f;
             float headR = cfg != null ? cfg.headRadius : 0.16f;
+            float legsR = cfg != null ? cfg.legsRadius : 0.22f;
 
             // Torso
             Gizmos.color = new Color(1.0f, 0.6f, 0.1f, 0.35f);
@@ -454,6 +616,10 @@ namespace ForjaGame.Combat
             // Cabeza
             Gizmos.color = new Color(1.0f, 0.8f, 0.2f, 0.35f);
             Gizmos.DrawWireSphere(chest.position + chest.up * 0.40f, headR);
+
+            // Piernas
+            Gizmos.color = new Color(0.3f, 0.8f, 0.2f, 0.25f);
+            Gizmos.DrawWireSphere(hips.position + Vector3.down * 0.35f, legsR);
         }
 
         private void EnsureStyles()

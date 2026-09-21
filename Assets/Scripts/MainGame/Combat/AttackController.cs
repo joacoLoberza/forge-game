@@ -138,6 +138,23 @@ namespace ForjaGame.Combat
             _currentAttackStartTime = Time.time;
             _lastAttackTime = Time.time;
 
+            if (useProceduralCombat && proceduralCombatController != null && proceduralCombatController.IsEquipped)
+            {
+                proceduralCombatController.ExecuteAttack(comboIndex);
+                var timings = proceduralCombatController.GetCurrentAttackTimings();
+                attackDuration = timings.totalDuration;
+                comboTransitionTime = timings.windupDuration + (timings.strikeDuration * 0.85f);
+                attackCooldown = attackDuration;
+
+                if (characterAnimator != null)
+                {
+                    characterAnimator.SetInteger("ComboIndex", comboIndex);
+                    characterAnimator.SetBool("IsAttacking", true);
+                }
+                return;
+            }
+
+            // Fallback a clips fijos de legado
             if (_rb == null) _rb = GetComponent<Rigidbody>();
             if (_rb != null)
             {
@@ -166,6 +183,14 @@ namespace ForjaGame.Combat
             PerformHitDetection();
         }
 
+        /// <summary>
+        /// Invocado por ProceduralCombatController en el momento en que se inicia el barrido de impacto (Strike).
+        /// </summary>
+        public void TriggerHitDetection()
+        {
+            PerformHitDetection();
+        }
+
         private void EndAttack()
         {
             _isAttacking = false;
@@ -173,6 +198,11 @@ namespace ForjaGame.Combat
             _hasBufferedNextStrike = false;
             _currentComboIndex = 0;
             _comboAvailableTime = Time.time + postComboCooldown;
+
+            if (useProceduralCombat && proceduralCombatController != null)
+            {
+                proceduralCombatController.ResetToGuard();
+            }
 
             if (characterAnimator != null)
             {

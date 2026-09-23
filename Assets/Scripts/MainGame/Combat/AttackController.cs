@@ -16,7 +16,6 @@ namespace ForjaGame.Combat
         [SerializeField] private int damage = 1;
         [SerializeField] private float attackRange = 2.2f;
         [SerializeField] private float attackCooldown = 0.8f;
-        [SerializeField] private float attackAngleCos = 0.35f;
         [SerializeField] private LayerMask targetLayers = ~0;
         [SerializeField] private GameStateController gameStateController;
 
@@ -30,6 +29,8 @@ namespace ForjaGame.Combat
         private float _lastAttackTime = -1f, _currentAttackStartTime = -1f, _comboAvailableTime = -1f;
         private int _currentComboIndex = 0, _maxComboSteps = 0, _lastAttackInputFrame = -1;
         private bool _isAttacking = false, _isCarryingAttackStep = false, _hasBufferedNextStrike = false;
+        private HitboxVisualizer _attackHitboxVisualizer;
+        private float _hitBlackTime = -1f;
 
         public bool HasPickaxeEquipped { get; set; } = false;
         public float AttackCooldown => attackCooldown;
@@ -43,6 +44,20 @@ namespace ForjaGame.Combat
         {
             _rb = GetComponent<Rigidbody>();
             if (gameStateController == null) gameStateController = FindFirstObjectByType<GameStateController>();
+
+            if (GetComponent<PlayerHealthController>() == null)
+                gameObject.AddComponent<PlayerHealthController>();
+
+            SetupAttackHitboxVisualizer();
+        }
+
+        private void SetupAttackHitboxVisualizer()
+        {
+            GameObject atkObj = new GameObject("PlayerAttackHitbox");
+            atkObj.transform.SetParent(transform, false);
+            _attackHitboxVisualizer = atkObj.AddComponent<HitboxVisualizer>();
+            _attackHitboxVisualizer.SetShape(HitboxShape.Box);
+            _attackHitboxVisualizer.IsVolumeActive = false;
         }
 
         private void Update()
@@ -55,6 +70,8 @@ namespace ForjaGame.Combat
                     HandleAttackInput();
                 }
             }
+
+            UpdateHitboxVisualizer();
 
             if (!_isAttacking) return;
             float elapsed = Time.time - _currentAttackStartTime;
@@ -177,6 +194,57 @@ namespace ForjaGame.Combat
             _comboAvailableTime = Time.time + postComboCooldown;
             PlayerCombatIKDriver.Instance?.SetAttackState(false, 0, 0f);
             WeaponComboAnimator.Instance?.CancelOrReturnToGuard();
+            if (_attackHitboxVisualizer != null)
+            {
+                _attackHitboxVisualizer.IsVolumeActive = false;
+                _attackHitboxVisualizer.IsConnecting = false;
+            }
+        }
+
+        private void UpdateHitboxVisualizer()
+        {
+            if (_attackHitboxVisualizer == null) return;
+
+            _attackHitboxVisualizer.IsVolumeActive = _isAttacking;
+            if (_isAttacking)
+            {
+                GetAttackHitboxParams(out Vector3 localCenter, out Vector3 boxSize);
+                _attackHitboxVisualizer.UpdateBox(localCenter, boxSize);
+                if (Time.time > _hitBlackTime)
+                {
+                    _attackHitboxVisualizer.IsConnecting = false;
+                }
+            }
+        }
+
+        public void GetAttackHitboxParams(out Vector3 localCenter, out Vector3 boxSize)
+        {
+            var style = _equippedWeapon != null ? _equippedWeapon.GetAnimationStyle() : WeaponAnimationStyle.Sword1H;
+            AttackMotionType motion = WeaponComboAnimator.GetMotionType(style, _currentComboIndex);
+            float range = Mathf.Max(1.6f, attackRange);
+
+            switch (motion)
+            {
+                case AttackMotionType.Thrust:
+                    // Estocada: Forma rectangular alargada desde el centro del personaje hasta el alcance máximo
+                    boxSize = new Vector3(0.75f, 0.80f, range);
+                    localCenter = new Vector3(0f, 0.90f, range * 0.5f);
+                    break;
+
+                case AttackMotionType.OverheadSlam:
+                    // Aplastamiento vertical: Volumen vertical enfocado al frente
+                    boxSize = new Vector3(0.95f, 1.50f, range * 0.85f);
+                    localCenter = new Vector3(0f, 0.75f, (range * 0.85f) * 0.5f);
+                    break;
+
+                default: // AttackMotionType.HorizontalSlash
+                    // Tajo horizontal: Mayor área lateral pero menor alcance frontal que la estocada
+                    float lateralWidth = range * 1.40f;
+                    float forwardDepth = range * 0.65f;
+                    boxSize = new Vector3(lateralWidth, 0.90f, forwardDepth);
+                    localCenter = new Vector3(0f, 0.95f, forwardDepth * 0.5f);
+                    break;
+            }
         }
 
         public void ApplyWeaponStats(WeaponStats weapon)
@@ -211,11 +279,15 @@ namespace ForjaGame.Combat
 
         private void PerformHitDetection()
         {
-            Vector3 origin = transform.position + Vector3.up * 0.8f;
-            Vector3 forward = transform.forward;
-            Collider[] targets = Physics.OverlapSphere(origin, attackRange, targetLayers, QueryTriggerInteraction.Ignore);
+            GetAttackHitboxParams(out Vector3 localCenter, out Vector3 boxSize);
+            Vector3 worldCenter = transform.TransformPoint(localCenter);
+            Vector3 halfExtents = boxSize * 0.5f;
+            Quaternion orientation = transform.rotation;
+
+            Collider[] targets = Physics.OverlapBox(worldCenter, halfExtents, orientation, targetLayers, QueryTriggerInteraction.Ignore);
             IDamageable closestTarget = null;
             float closestDist = float.PositiveInfinity;
+            bool hitConnected = false;
 
             foreach (Collider target in targets)
             {
@@ -223,11 +295,19 @@ namespace ForjaGame.Combat
                 IDamageable d = target.GetComponentInParent<IDamageable>() ?? target.GetComponentInChildren<IDamageable>();
                 if (d == null || !d.IsAlive) continue;
 
-                Vector3 toTarget = target.bounds.center - origin;
+                hitConnected = true;
+                Vector3 toTarget = target.bounds.center - worldCenter;
                 float dist = toTarget.magnitude;
-                if (dist > attackRange || Vector3.Dot(forward, toTarget / Mathf.Max(0.001f, dist)) < attackAngleCos) continue;
-
                 if (dist < closestDist) { closestTarget = d; closestDist = dist; }
+            }
+
+            if (_attackHitboxVisualizer != null)
+            {
+                _attackHitboxVisualizer.IsConnecting = hitConnected;
+                if (hitConnected)
+                {
+                    _hitBlackTime = Time.time + 0.35f;
+                }
             }
 
             if (closestTarget != null)

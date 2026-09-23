@@ -428,6 +428,12 @@ namespace ForjaGame.Combat
             _animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, 0f);
         }
 
+        private static float EaseInQuad(float t) => t * t;
+        private static float EaseOutQuad(float t) => 1f - (1f - t) * (1f - t);
+        private static float EaseInOutQuad(float t) => t < 0.5f ? 2f * t * t : 1f - Mathf.Pow(-2f * t + 2f, 2f) * 0.5f;
+        private static float EaseOutCubic(float t) => 1f - Mathf.Pow(1f - t, 3f);
+        private static float EaseInOutSine(float t) => -(Mathf.Cos(Mathf.PI * t) - 1f) * 0.5f;
+
         /// <summary>
         /// Modula la intensidad de torsión de cadera y pecho según el tipo, peso y longitud del arma equipada.
         /// Armas ligeras (Dagas) tienen acompañamiento sutil y ágil.
@@ -440,33 +446,34 @@ namespace ForjaGame.Combat
             var style = _currentWeapon.GetAnimationStyle();
             float baseMultiplier = style switch
             {
-                WeaponAnimationStyle.Dagger1H => 0.52f,   // Daga: ágil y sutil, perceptible pero nunca brusca
-                WeaponAnimationStyle.Sword1H => 0.90f,    // Espada 1H: equilibrada y atlética
-                WeaponAnimationStyle.Axe1H => 1.00f,      // Hacha 1H: corte directo con firmeza de tronco
-                WeaponAnimationStyle.Hammer1H => 1.10f,   // Martillo 1H: impacto y empuje descendente
-                WeaponAnimationStyle.Polearm => 1.18f,    // Asta: palanca amplia a dos manos
+                WeaponAnimationStyle.Dagger1H => 0.42f,   // Daga: ágil y sutil, perceptible pero nunca brusca
+                WeaponAnimationStyle.Sword1H => 0.85f,    // Espada 1H: equilibrada y atlética
+                WeaponAnimationStyle.Axe1H => 0.95f,      // Hacha 1H: corte directo con firmeza de tronco
+                WeaponAnimationStyle.Hammer1H => 1.15f,   // Martillo 1H: impacto y empuje descendente
+                WeaponAnimationStyle.Polearm => 1.15f,    // Asta: palanca amplia a dos manos
                 WeaponAnimationStyle.Heavy2H => 1.35f,    // Mandoble 2H: inercia pesada y compromiso de cadera, sin exagerar
                 _ => 1.0f
             };
 
             // Ajuste fino según el peso real del mineral forjado (0 = ligero, 1 = pesado)
             float normWeight = _currentWeapon.GetNormalizedWeight();
-            float weightTweak = Mathf.Lerp(-0.06f, 0.06f, normWeight);
+            float weightTweak = Mathf.Lerp(-0.08f, 0.08f, normWeight);
 
             // Ajuste fino según la longitud del arma forjada
             float lengthRatio = Mathf.Clamp(_currentWeapon.attackRange / 2.2f, 0.85f, 1.25f);
             float lengthTweak = (lengthRatio - 1.0f) * 0.12f;
 
-            return Mathf.Clamp(baseMultiplier + weightTweak + lengthTweak, 0.42f, 1.45f);
+            return Mathf.Clamp(baseMultiplier + weightTweak + lengthTweak, 0.38f, 1.45f);
         }
 
         /// <summary>
-        /// Calcula la cinemática direccional de Cadera (Hips), Columna (Spine) y Pecho (Chest)
-        /// orientada biomecánicamente al tipo de golpe:
-        /// - Tajos horizontales: Inclinación frontal marcada (+18° a +22°) con torsión de cintura.
-        /// - Estocadas: Perfilado con inclinación lateral (Roll -12°) y proyección frontal (+14°).
-        /// - Aplastamientos: Arqueo dorsal en windup y flexión explosiva frontal (+26°).
-        /// Modulado proporcionalmente al peso y longitud del arma (Daga 0.52x, Mandoble 1.35x).
+        /// Cadena cinética biomecánica con desfase secuencial entre articulaciones:
+        /// Caderas -> Columna/Torso -> Hombros/Pecho -> Brazos -> Arma.
+        /// 4 Fases dinámicas:
+        /// 1. Anticipación (wind-up): torso gira en sentido contrario al corte, caderas cargan.
+        /// 2. Aceleración (drive): caderas inician el giro primero, columna sigue, hombros/pecho liberan.
+        /// 3. Impacto (apex): torso en máxima rotación hacia el corte, arma conecta a máxima velocidad.
+        /// 4. Follow-Through / Recuperación: torso pasa de largo por inercia (overshoot) y frena suavemente a guardia (EaseOutCubic).
         /// </summary>
         private void CalculateTorsoKinematics(int comboIndex, float t,
             out float hipsYaw, out float hipsPitch, out float hipsRoll,
@@ -476,8 +483,29 @@ namespace ForjaGame.Combat
             WeaponAnimationStyle style = _currentWeapon != null ? _currentWeapon.GetAnimationStyle() : WeaponAnimationStyle.Sword1H;
             AttackMotionType motionType = WeaponComboAnimator.GetMotionType(style, comboIndex);
 
-            float windupEnd;
-            float hitApex;
+            float weightNorm = _currentWeapon != null ? _currentWeapon.GetNormalizedWeight() : 0.5f;
+
+            // 1. Duraciones dinámicas y retraso de la cadena cinética según el peso
+            // Armas ligeras (daga): wind-up rápido y explosivo, desfase articular pequeño.
+            // Armas pesadas (mandoble/martillo): mayor tiempo de carga, desfase articular marcado (inercia).
+            float windupEnd = Mathf.Lerp(0.16f, 0.28f, weightNorm);
+            float hitApex = Mathf.Lerp(0.40f, 0.52f, weightNorm);
+
+            // Ajuste fino por tipo de movimiento
+            if (motionType == AttackMotionType.OverheadSlam)
+            {
+                windupEnd += 0.04f;
+                hitApex += 0.03f;
+            }
+            else if (motionType == AttackMotionType.Thrust)
+            {
+                windupEnd -= 0.02f;
+                hitApex -= 0.02f;
+            }
+
+            float boneLag = Mathf.Lerp(0.025f, 0.055f, weightNorm);
+            float overshootRatio = Mathf.Lerp(0.06f, 0.18f, weightNorm);
+            float recoveryStart = hitApex + Mathf.Lerp(0.06f, 0.12f, weightNorm);
 
             float wHY, wHP, wHR, wSY, wSP, wSR, wCY, wCP, wCR;
             float sHY, sHP, sHR, sSY, sSP, sSR, sCY, sCP, sCR;
@@ -487,31 +515,25 @@ namespace ForjaGame.Combat
             {
                 case AttackMotionType.Thrust:
                     // ESTOCADA MARCIAL:
-                    // Windup: El cuerpo se perfila hacia atrás abriendo el costado derecho
+                    // Windup: El cuerpo se perfila hacia atrás abriendo el flanco y cargando en la pierna trasera
                     // Impacto: Gran zancada y proyección frontal, hombro adelantado,
-                    //          flexión frontal (+14°) e INCLINACIÓN LATERAL (Roll -12°) para bajar perfil
-                    windupEnd = 0.22f;
-                    hitApex = 0.46f;
-
-                    wHY = 8f;   wHP = 0f;  wHR = 3f;
-                    wSY = 12f;  wSP = 0f;  wSR = 4f;
-                    wCY = 16f;  wCP = 0f;  wCR = 5f;
+                    //          flexión frontal (+15°) e INCLINACIÓN LATERAL (Roll -12°) para bajar perfil atlético.
+                    wHY = 8f;   wHP = -2f; wHR = 2f;
+                    wSY = 12f;  wSP = -3f; wSR = 3f;
+                    wCY = 16f;  wCP = -4f; wCR = 4f;
 
                     sHY = -10f; sHP = 6f;  sHR = -4f;
-                    sSY = -16f; sSP = 10f; sSR = -8f;
-                    sCY = -20f; sCP = 14f; sCR = -12f;
+                    sSY = -14f; sSP = 10f; sSR = -8f;
+                    sCY = -18f; sCP = 15f; sCR = -12f;
                     break;
 
                 case AttackMotionType.OverheadSlam:
                     // APLASTAMIENTO VERTICAL (OVERHEAD):
-                    // Windup: Arqueo dorsal hacia atrás abriendo la caja torácica (-16° pecho)
+                    // Windup: Arqueo dorsal hacia atrás abriendo la caja torácica (-18° pecho)
                     // Impacto: Flexión explosiva descendente (+26° pecho) transmitiendo el peso corporal
-                    windupEnd = 0.26f;
-                    hitApex = 0.50f;
-
                     wHY = 0f; wHP = -4f;  wHR = 0f;
-                    wSY = 0f; wSP = -8f;  wSR = 0f;
-                    wCY = 0f; wCP = -16f; wCR = 0f;
+                    wSY = 0f; wSP = -10f; wSR = 0f;
+                    wCY = 0f; wCP = -18f; wCR = 0f;
 
                     sHY = 0f; sHP = 8f;   sHR = 0f;
                     sSY = 0f; sSP = 16f;  sSR = 0f;
@@ -520,38 +542,35 @@ namespace ForjaGame.Combat
 
                 default: // AttackMotionType.HorizontalSlash
                     // TAJO HORIZONTAL:
-                    // Windup: Torsión hacia el lado de carga
-                    // Impacto: Descarga rotacional de cadera y cintura con INCLINACIÓN FRONTAL MARCADA (+22° pecho)
-                    windupEnd = 0.20f;
-                    hitApex = 0.44f;
-
+                    // Windup: Torsión en sentido contrario al corte (anticipación biomecánica)
+                    // Impacto: Descarga rotacional de cadera y tronco con INCLINACIÓN FRONTAL MARCADA (+20° pecho)
                     bool isRightToLeft = (step % 2 == 0);
                     if (isRightToLeft)
                     {
-                        // Carga a la derecha, tajo hacia la izquierda inclinándose hacia adelante
-                        wHY = 14f;  wHP = 0f;  wHR = 2f;
-                        wSY = 18f;  wSP = -2f; wSR = 3f;
-                        wCY = 24f;  wCP = -4f; wCR = 4f;
+                        // Carga a la derecha (+Yaw), tajo hacia la izquierda (-Yaw) con inclinación frontal (+Pitch)
+                        wHY = 12f;  wHP = 0f;  wHR = 2f;
+                        wSY = 16f;  wSP = -2f; wSR = 3f;
+                        wCY = 22f;  wCP = -3f; wCR = 4f;
 
-                        sHY = -16f; sHP = 8f;  sHR = -2f;
-                        sSY = -22f; sSP = 14f; sSR = -3f;
-                        sCY = -28f; sCP = 22f; sCR = -4f;
+                        sHY = -14f; sHP = 6f;  sHR = -2f;
+                        sSY = -20f; sSP = 12f; sSR = -3f;
+                        sCY = -26f; sCP = 20f; sCR = -4f;
                     }
                     else
                     {
-                        // Retorno: Carga a la izquierda, tajo hacia la derecha inclinándose hacia adelante
-                        wHY = -14f; wHP = 0f;  wHR = -2f;
-                        wSY = -18f; wSP = 0f;  wSR = -3f;
-                        wCY = -22f; wCP = 0f;  wCR = -4f;
+                        // Retorno: Carga a la izquierda (-Yaw), tajo hacia la derecha (+Yaw)
+                        wHY = -12f; wHP = 0f;  wHR = -2f;
+                        wSY = -16f; wSP = 0f;  wSR = -3f;
+                        wCY = -20f; wCP = 0f;  wCR = -4f;
 
-                        sHY = 16f;  sHP = 6f;  sHR = 2f;
-                        sSY = 20f;  sSP = 12f; sSR = 3f;
-                        sCY = 26f;  sCP = 18f; sCR = 4f;
+                        sHY = 14f;  sHP = 5f;  sHR = 2f;
+                        sSY = 18f;  sSP = 10f; sSR = 3f;
+                        sCY = 24f;  sCP = 18f; sCR = 4f;
                     }
                     break;
             }
 
-            // Modular la intensidad según el peso y longitud del arma
+            // Modular la intensidad según el tipo, peso y longitud del arma
             float effort = GetTorsoEffortMultiplier();
             wHY *= effort; wHP *= effort; wHR *= effort;
             wSY *= effort; wSP *= effort; wSR *= effort;
@@ -561,78 +580,127 @@ namespace ForjaGame.Combat
             sSY *= effort; sSP *= effort; sSR *= effort;
             sCY *= effort; sCP *= effort; sCR *= effort;
 
-            // Clamping anatómico de seguridad para evitar deformaciones en armas hiper-pesadas
+            // Clamping anatómico de seguridad
             sCY = Mathf.Clamp(sCY, -32f, 32f);
-            sCP = Mathf.Clamp(sCP, -10f, 28f);
+            sCP = Mathf.Clamp(sCP, -12f, 30f);
             sCR = Mathf.Clamp(sCR, -16f, 16f);
 
-            // Interpolación fluida en 3 fases: Windup continuo -> Impacto -> Follow-through marcial
+            // =========================================================================
+            // CADENA CINÉTICA DE 4 FASES CON RETRASO SECUENCIAL ENTRE ARTICULACIONES:
+            // Caderas -> Columna/Torso -> Hombros/Pecho (Overlapping Action)
+            // =========================================================================
+
             if (t <= windupEnd)
             {
-                float u = Mathf.SmoothStep(0f, 1f, t / windupEnd);
-                hipsYaw = Mathf.Lerp(_strikeStartHipsYaw, wHY, u);
-                hipsPitch = Mathf.Lerp(_strikeStartHipsPitch, wHP, u);
-                hipsRoll = Mathf.Lerp(_strikeStartHipsRoll, wHR, u);
+                // FASE 1: ANTICIPACIÓN (WIND-UP)
+                // El torso gira en sentido contrario al corte. Caderas cargan primero, luego columna, luego pecho.
+                float tau = Mathf.Clamp01(t / windupEnd);
+                float twoLag = Mathf.Min(0.5f, 2f * boneLag);
 
-                spineYaw = Mathf.Lerp(_strikeStartSpineYaw, wSY, u);
-                spinePitch = Mathf.Lerp(_strikeStartSpinePitch, wSP, u);
-                spineRoll = Mathf.Lerp(_strikeStartSpineRoll, wSR, u);
+                float uH = EaseInOutSine(Mathf.Clamp01(tau / (1f - twoLag)));
+                float uS = EaseInOutSine(Mathf.Clamp01((tau - boneLag) / (1f - twoLag)));
+                float uC = EaseInOutSine(Mathf.Clamp01((tau - twoLag) / (1f - twoLag)));
 
-                chestYaw = Mathf.Lerp(_strikeStartChestYaw, wCY, u);
-                chestPitch = Mathf.Lerp(_strikeStartChestPitch, wCP, u);
-                chestRoll = Mathf.Lerp(_strikeStartChestRoll, wCR, u);
+                hipsYaw = Mathf.Lerp(_strikeStartHipsYaw, wHY, uH);
+                hipsPitch = Mathf.Lerp(_strikeStartHipsPitch, wHP, uH);
+                hipsRoll = Mathf.Lerp(_strikeStartHipsRoll, wHR, uH);
+
+                spineYaw = Mathf.Lerp(_strikeStartSpineYaw, wSY, uS);
+                spinePitch = Mathf.Lerp(_strikeStartSpinePitch, wSP, uS);
+                spineRoll = Mathf.Lerp(_strikeStartSpineRoll, wSR, uS);
+
+                chestYaw = Mathf.Lerp(_strikeStartChestYaw, wCY, uC);
+                chestPitch = Mathf.Lerp(_strikeStartChestPitch, wCP, uC);
+                chestRoll = Mathf.Lerp(_strikeStartChestRoll, wCR, uC);
             }
             else if (t <= hitApex)
             {
-                float u = Mathf.SmoothStep(0f, 1f, (t - windupEnd) / (hitApex - windupEnd));
-                hipsYaw = Mathf.Lerp(wHY, sHY, u);
-                hipsPitch = Mathf.Lerp(wHP, sHP, u);
-                hipsRoll = Mathf.Lerp(wHR, sHR, u);
+                // FASE 2: ACELERACIÓN (DRIVE) -> FASE 3: IMPACTO (APEX)
+                // Las caderas inician el giro explosivamente primero, la columna sigue transmitiendo torsión,
+                // el pecho se desata al final, proyectando los hombros y brazos hacia el impacto.
+                float tau = Mathf.Clamp01((t - windupEnd) / (hitApex - windupEnd));
+                float twoLag = Mathf.Min(0.5f, 2f * boneLag);
 
-                spineYaw = Mathf.Lerp(wSY, sSY, u);
-                spinePitch = Mathf.Lerp(wSP, sSP, u);
-                spineRoll = Mathf.Lerp(wSR, sSR, u);
+                // Caderas: arranque inmediato e impulsivo (EaseInQuad)
+                float uH = EaseInQuad(Mathf.Clamp01(tau / (1f - twoLag)));
+                // Columna: transmisión fluida de torsión (EaseInOutQuad)
+                float uS = EaseInOutQuad(Mathf.Clamp01((tau - boneLag) / (1f - twoLag)));
+                // Pecho: liberación potente sostenida (EaseOutQuad)
+                float uC = EaseOutQuad(Mathf.Clamp01((tau - twoLag) / (1f - twoLag)));
 
-                chestYaw = Mathf.Lerp(wCY, sCY, u);
-                chestPitch = Mathf.Lerp(wCP, sCP, u);
-                chestRoll = Mathf.Lerp(wCR, sCR, u);
+                hipsYaw = Mathf.Lerp(wHY, sHY, uH);
+                hipsPitch = Mathf.Lerp(wHP, sHP, uH);
+                hipsRoll = Mathf.Lerp(wHR, sHR, uH);
+
+                spineYaw = Mathf.Lerp(wSY, sSY, uS);
+                spinePitch = Mathf.Lerp(wSP, sSP, uS);
+                spineRoll = Mathf.Lerp(wSR, sSR, uS);
+
+                chestYaw = Mathf.Lerp(wCY, sCY, uC);
+                chestPitch = Mathf.Lerp(wCP, sCP, uC);
+                chestRoll = Mathf.Lerp(wCR, sCR, uC);
+            }
+            else if (t <= recoveryStart)
+            {
+                // FASE 4A: FOLLOW-THROUGH (OVERSHOOT POR INERCIA)
+                // Tras el impacto, el cuerpo pasa ligeramente de largo debido al momentum rotacional.
+                float tau = Mathf.Clamp01((t - hitApex) / (recoveryStart - hitApex));
+                float u = EaseOutQuad(tau);
+
+                float oHY = sHY * (1f + overshootRatio);
+                float oHP = sHP * (1f + overshootRatio * 0.5f);
+                float oHR = sHR * (1f + overshootRatio * 0.5f);
+
+                float oSY = sSY * (1f + overshootRatio);
+                float oSP = sSP * (1f + overshootRatio * 0.5f);
+                float oSR = sSR * (1f + overshootRatio * 0.5f);
+
+                float oCY = sCY * (1f + overshootRatio);
+                float oCP = sCP * (1f + overshootRatio * 0.5f);
+                float oCR = sCR * (1f + overshootRatio * 0.5f);
+
+                hipsYaw = Mathf.Lerp(sHY, oHY, u);
+                hipsPitch = Mathf.Lerp(sHP, oHP, u);
+                hipsRoll = Mathf.Lerp(sHR, oHR, u);
+
+                spineYaw = Mathf.Lerp(sSY, oSY, u);
+                spinePitch = Mathf.Lerp(sSP, oSP, u);
+                spineRoll = Mathf.Lerp(sSR, oSR, u);
+
+                chestYaw = Mathf.Lerp(sCY, oCY, u);
+                chestPitch = Mathf.Lerp(sCP, oCP, u);
+                chestRoll = Mathf.Lerp(sCR, oCR, u);
             }
             else
             {
-                // Follow-through y espaciado marcial:
-                // Tras el impacto, el cuerpo sostiene la torsión y proyección atlética
-                // durante la ventana de encadenamiento de combo.
-                float recoveryStart = Mathf.Lerp(hitApex, 1.0f, 0.45f);
-                if (t <= recoveryStart)
-                {
-                    float u = Mathf.SmoothStep(0f, 1f, (t - hitApex) / (recoveryStart - hitApex));
-                    hipsYaw = Mathf.Lerp(sHY, sHY * 0.92f, u);
-                    hipsPitch = Mathf.Lerp(sHP, sHP * 0.92f, u);
-                    hipsRoll = Mathf.Lerp(sHR, sHR * 0.92f, u);
+                // FASE 4B: RECUPERACIÓN SUAVE (RECOVERY TO COMBAT IDLE)
+                // Retorno orgánico a la guardia mediante EaseOutCubic
+                float tau = Mathf.Clamp01((t - recoveryStart) / (1f - recoveryStart));
+                float u = EaseOutCubic(tau);
 
-                    spineYaw = Mathf.Lerp(sSY, sSY * 0.92f, u);
-                    spinePitch = Mathf.Lerp(sSP, sSP * 0.92f, u);
-                    spineRoll = Mathf.Lerp(sSR, sSR * 0.92f, u);
+                float oHY = sHY * (1f + overshootRatio);
+                float oHP = sHP * (1f + overshootRatio * 0.5f);
+                float oHR = sHR * (1f + overshootRatio * 0.5f);
 
-                    chestYaw = Mathf.Lerp(sCY, sCY * 0.92f, u);
-                    chestPitch = Mathf.Lerp(sCP, sCP * 0.92f, u);
-                    chestRoll = Mathf.Lerp(sCR, sCR * 0.92f, u);
-                }
-                else
-                {
-                    float u = Mathf.SmoothStep(0f, 1f, (t - recoveryStart) / (1.0f - recoveryStart));
-                    hipsYaw = Mathf.Lerp(sHY * 0.92f, 0f, u);
-                    hipsPitch = Mathf.Lerp(sHP * 0.92f, 0f, u);
-                    hipsRoll = Mathf.Lerp(sHR * 0.92f, 0f, u);
+                float oSY = sSY * (1f + overshootRatio);
+                float oSP = sSP * (1f + overshootRatio * 0.5f);
+                float oSR = sSR * (1f + overshootRatio * 0.5f);
 
-                    spineYaw = Mathf.Lerp(sSY * 0.92f, 0f, u);
-                    spinePitch = Mathf.Lerp(sSP * 0.92f, 0f, u);
-                    spineRoll = Mathf.Lerp(sSR * 0.92f, 0f, u);
+                float oCY = sCY * (1f + overshootRatio);
+                float oCP = sCP * (1f + overshootRatio * 0.5f);
+                float oCR = sCR * (1f + overshootRatio * 0.5f);
 
-                    chestYaw = Mathf.Lerp(sCY * 0.92f, 0f, u);
-                    chestPitch = Mathf.Lerp(sCP * 0.92f, 0f, u);
-                    chestRoll = Mathf.Lerp(sCR * 0.92f, 0f, u);
-                }
+                hipsYaw = Mathf.Lerp(oHY, 0f, u);
+                hipsPitch = Mathf.Lerp(oHP, 0f, u);
+                hipsRoll = Mathf.Lerp(oHR, 0f, u);
+
+                spineYaw = Mathf.Lerp(oSY, 0f, u);
+                spinePitch = Mathf.Lerp(oSP, 0f, u);
+                spineRoll = Mathf.Lerp(oSR, 0f, u);
+
+                chestYaw = Mathf.Lerp(oCY, 0f, u);
+                chestPitch = Mathf.Lerp(oCP, 0f, u);
+                chestRoll = Mathf.Lerp(oCR, 0f, u);
             }
         }
     }

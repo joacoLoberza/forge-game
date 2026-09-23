@@ -13,9 +13,9 @@ namespace ForjaGame.Combat
         [SerializeField] private GameObject daggerPrefab;
 
         [Header("Posición de Guardia Frontal (Paralela al Pecho)")]
-        [SerializeField] private Vector3 holderPosition_1H = new Vector3(0.32f, 0.05f, 0.38f);
-        [SerializeField] private Vector3 holderPosition_2H = new Vector3(0.25f, 0.02f, 0.45f);
-        [SerializeField] private Vector3 holderPosition_Polearm = new Vector3(0.28f, -0.10f, 0.42f);
+        [SerializeField] private Vector3 holderPosition_1H = new Vector3(0.28f, 1.18f, 0.44f);
+        [SerializeField] private Vector3 holderPosition_2H = new Vector3(0.22f, 1.15f, 0.46f);
+        [SerializeField] private Vector3 holderPosition_Polearm = new Vector3(0.24f, 1.10f, 0.46f);
 
         [Header("Separación de Manos en el Mango")]
         [SerializeField] private float handSeparation_1H = 0.10f;

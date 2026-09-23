@@ -235,7 +235,10 @@ namespace ForjaGame.Combat
         public void CancelOrReturnToGuard() => _isAttacking = false;
 
         private static float EaseInQuad(float t) => t * t;
+        private static float EaseOutQuad(float t) => 1f - (1f - t) * (1f - t);
+        private static float EaseInCubic(float t) => t * t * t;
         private static float EaseOutCubic(float t) => 1f - Mathf.Pow(1f - t, 3f);
+        private static float EaseInOutSine(float t) => -(Mathf.Cos(Mathf.PI * t) - 1f) * 0.5f;
         private static float EaseOutExpo(float t) => Mathf.Approximately(t, 1f) ? 1f : 1f - Mathf.Pow(2f, -10f * t);
     }
 }

@@ -51,7 +51,8 @@ namespace ForjaGame.Combat
             hurtboxObj.transform.SetParent(transform, false);
             _bodyHurtbox = hurtboxObj.AddComponent<HitboxVisualizer>();
             _bodyHurtbox.SetShape(HitboxShape.Capsule);
-            _bodyHurtbox.UpdateCapsule(new Vector3(0f, 1.0f, 0f), 0.45f, 2.0f);
+            // El origen local del Player tiene la cápsula física centrada en Vector3.zero (altura 2m, desde -1m a +1m)
+            _bodyHurtbox.UpdateCapsule(Vector3.zero, 0.45f, 2.0f);
         }
 
         private void Update()

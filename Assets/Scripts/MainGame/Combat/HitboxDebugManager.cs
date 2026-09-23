@@ -104,6 +104,78 @@ namespace ForjaGame.Combat
             return mat;
         }
 
+        private GUIStyle _hudBoxStyle;
+
+        private void OnGUI()
+        {
+            if (!ShowHitboxes) return;
+
+            if (_hudBoxStyle == null)
+            {
+                _hudBoxStyle = new GUIStyle(GUI.skin.box)
+                {
+                    alignment = TextAnchor.UpperLeft,
+                    fontSize = 12,
+                    normal = { textColor = Color.white },
+                    padding = new RectOffset(10, 10, 8, 8)
+                };
+            }
+
+            var equip = PlayerEquipmentController.Instance;
+            var atk = FindFirstObjectByType<AttackController>();
+            var dummy = CombatDummyEnemy.Instance;
+            var pHealth = PlayerHealthController.Instance;
+
+            string weaponInfo = "Desarmado";
+            string comboInfo = "Sin arma equipada";
+            if (equip != null && equip.HasWeaponEquipped && equip.CurrentWeapon != null)
+            {
+                var w = equip.CurrentWeapon;
+                var style = w.GetAnimationStyle();
+                var stance = w.GetCombatStance();
+                weaponInfo = $"{w.DisplayName} [{style}, {stance}] (DMG: {w.EffectiveDamage:F0}, Rango: {w.attackRange:F2}m)";
+
+                if (atk != null && atk.IsAttacking)
+                {
+                    int step = atk.CurrentComboIndex;
+                    var motion = WeaponComboAnimator.GetMotionType(style, step);
+                    string motionName = motion switch
+                    {
+                        AttackMotionType.Thrust => "Estocada Frontal",
+                        AttackMotionType.OverheadSlam => "Hachazo/Aplastamiento Vertical",
+                        _ => "Tajo Horizontal Amplio"
+                    };
+                    comboInfo = $"<color=#33FFAA><b>[Golpe {step + 1}/{w.MaxComboCount}]</b> {motionName}</color>";
+                }
+                else
+                {
+                    comboInfo = $"Combo listo: {w.MaxComboCount} golpes disponibles ({style})";
+                }
+            }
+
+            string enemyInfo = "No encontrado";
+            if (dummy != null)
+            {
+                if (dummy.IsAlive)
+                {
+                    float dist = pHealth != null ? Vector3.Distance(dummy.transform.position, pHealth.transform.position) : 0f;
+                    string aggro = dummy.IsPlayerDetected ? "<color=#FF5533><b>¡DETECTADO / COMBATE ACTIVO!</b></color>" : "<color=#AAAAAA>En Guardia (Fuera de Rango)</color>";
+                    enemyInfo = $"HP: {dummy.CurrentHealth}/{dummy.MaxHealth} | Distancia: {dist:F1}m\n  Estado: {aggro} (Radio Alerta: {dummy.DetectionRadius:F1}m)";
+                }
+                else
+                {
+                    enemyInfo = $"<color=#FF5533>Derrotado (Reaparece en {dummy.RespawnTimeRemaining:F0}s)</color>";
+                }
+            }
+
+            string text = $"<b>[F3] DEBUG DE HITBOXES Y COMBATE</b>\n" +
+                          $"• <b>Arma:</b> {weaponInfo}\n" +
+                          $"• <b>Combo:</b> {comboInfo}\n" +
+                          $"• <b>Dummy Enemigo:</b> {enemyInfo}";
+
+            GUI.Box(new Rect(16, 16, 480, 115), text, _hudBoxStyle);
+        }
+
         private void OnDestroy()
         {
             if (_redMaterial != null) Destroy(_redMaterial);

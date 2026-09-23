@@ -51,18 +51,29 @@ namespace ForjaGame.Combat
             float hThickness,
             float sharpness,
             float latExtent,
-            float totalMass,
-            ProceduralCombatConfigSO config)
+            float totalMass)
         {
-            if (config == null) config = ScriptableObject.CreateInstance<ProceduralCombatConfigSO>();
+            const float minHandleLength = 0.15f;
+            const float maxHandleLength = 1.85f;
+            const float maxReasonableLength = 3.0f;
+            const float maxReasonableMass = 12.0f;
+            const float forceTwoHandMassThreshold = 3.8f;
+            const float gripOneShortThreshold = 0.15f;
+            const float gripOneHandThreshold = 0.40f;
+            const float gripTwoHandThreshold = 0.75f;
+            const float bladeLengthToWidthRatio = 5.0f;
+            const float bladeSharpnessThreshold = 0.35f;
+            const float axeLateralExtentThreshold = 0.08f;
+            const float axeSharpnessThreshold = 0.40f;
+            const float polearmRatioThreshold = 1.8f;
 
-            float safeHandleLen = Mathf.Clamp(handleLen, config.minHandleLength, config.maxReasonableLength);
+            float safeHandleLen = Mathf.Clamp(handleLen, minHandleLength, maxReasonableLength);
             float safeHeadLen = Mathf.Max(0.08f, hLength);
             float safeHeadWidth = Mathf.Max(0.02f, hWidth);
             float safeHeadThickness = Mathf.Max(0.008f, hThickness);
             float safeSharpness = Mathf.Clamp01(sharpness);
-            float safeMass = Mathf.Clamp(totalMass, 0.35f, config.maxReasonableMass);
-            float totalLen = Mathf.Clamp(safeHandleLen + safeHeadLen, 0.20f, config.maxReasonableLength);
+            float safeMass = Mathf.Clamp(totalMass, 0.35f, maxReasonableMass);
+            float totalLen = Mathf.Clamp(safeHandleLen + safeHeadLen, 0.20f, maxReasonableLength);
 
             // 1. Distribución aproximada de masa: 20-30% mango, 70-80% cabeza metálica
             float handleMassFraction = Mathf.Clamp(safeHandleLen / totalLen * 0.40f, 0.15f, 0.45f);
@@ -86,15 +97,15 @@ namespace ForjaGame.Combat
             radiusHead = Mathf.Clamp(radiusHead, 0.04f, 0.45f);
 
             // 4. Clasificación de Agarre (GripMode)
-            float hNorm = Mathf.InverseLerp(config.minHandleLength, config.maxHandleLength, safeHandleLen);
+            float hNorm = Mathf.InverseLerp(minHandleLength, maxHandleLength, safeHandleLen);
             GripMode gripMode;
-            if (hNorm < config.gripOneShortThreshold) gripMode = GripMode.OneShort;
-            else if (hNorm < config.gripOneHandThreshold) gripMode = GripMode.OneHand;
-            else if (hNorm < config.gripTwoHandThreshold) gripMode = GripMode.TwoHand;
+            if (hNorm < gripOneShortThreshold) gripMode = GripMode.OneShort;
+            else if (hNorm < gripOneHandThreshold) gripMode = GripMode.OneHand;
+            else if (hNorm < gripTwoHandThreshold) gripMode = GripMode.TwoHand;
             else gripMode = GripMode.Pole;
 
             // Si la masa excede el umbral, forzar mínimo TwoHand por plausibilidad física
-            if (safeMass > config.forceTwoHandMassThreshold && gripMode < GripMode.TwoHand)
+            if (safeMass > forceTwoHandMassThreshold && gripMode < GripMode.TwoHand)
             {
                 gripMode = GripMode.TwoHand;
             }
@@ -103,11 +114,11 @@ namespace ForjaGame.Combat
             float lenToWidthRatio = safeHeadLen / safeHeadWidth;
             WeaponFamily weaponFamily;
 
-            if (lenToWidthRatio >= config.bladeLengthToWidthRatio && safeSharpness >= config.bladeSharpnessThreshold)
+            if (lenToWidthRatio >= bladeLengthToWidthRatio && safeSharpness >= bladeSharpnessThreshold)
             {
                 weaponFamily = WeaponFamily.Blade;
             }
-            else if (latExtent >= config.axeLateralExtentThreshold && safeSharpness >= config.axeSharpnessThreshold)
+            else if (latExtent >= axeLateralExtentThreshold && safeSharpness >= axeSharpnessThreshold)
             {
                 weaponFamily = WeaponFamily.Axe;
             }
@@ -118,7 +129,7 @@ namespace ForjaGame.Combat
 
             // 6. Generación de Nombre Procedural (Sección 4 C)
             float shaftRatio = safeHandleLen / safeHeadLen;
-            bool isShaftVariant = shaftRatio >= config.polearmRatioThreshold;
+            bool isShaftVariant = shaftRatio >= polearmRatioThreshold;
             string name = GenerateWeaponName(weaponFamily, gripMode, isShaftVariant, safeMass);
 
             return new WeaponProfile

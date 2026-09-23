@@ -57,12 +57,17 @@ namespace ForjaGame.Combat
             orientationContainer.transform.localScale = Vector3.one;
 
             // Orientación de la cara frontal de ataque:
-            // - Para Espada y Hacha: el filo afilado mira al frente de la trayectoria del ataque.
-            // - Para Martillo: el lado de impacto (+X) mira al frente del golpe.
+            // - Para Espada: filo afilado mira al frente (+Z)
+            // - Para Hacha: filo cortante mira al frente (+Z), compensando los 90° del montaje en el mango
+            // - Para Martillo: cara de impacto mira al frente (+Z)
             float yRot = 0f;
             if (weapon.weaponType == WeaponType.Hammer)
             {
                 yRot = 270f;
+            }
+            else if (weapon.weaponType == WeaponType.Axe)
+            {
+                yRot = (weapon.isFrontFaceDominant ? 0f : 180f) - 90f;
             }
             else
             {

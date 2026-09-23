@@ -6,38 +6,32 @@ using ForjaGame.Forge;
 
 namespace ForjaGame.Combat
 {
+    /// <summary>
+    /// Gestiona los ataques del jugador, registro de combos y detección de impacto físico.
+    /// Opera de forma desacoplada de animaciones de cuerpo humanoide.
+    /// </summary>
     public class AttackController : MonoBehaviour
     {
-        [Header("Combat Settings")]
+        [Header("Configuración de Combate")]
         [SerializeField] private int damage = 1;
         [SerializeField] private float attackRange = 2.2f;
         [SerializeField] private float attackCooldown = 0.8f;
         [SerializeField] private float attackAngleCos = 0.35f;
         [SerializeField] private LayerMask targetLayers = ~0;
         [SerializeField] private GameStateController gameStateController;
-        [SerializeField] private Animator characterAnimator;
 
-        [Header("Procedural Combat Settings")]
-        [SerializeField] private bool useProceduralCombat = true;
-        [SerializeField] private ProceduralCombatController proceduralCombatController;
-
-        [Header("Combo Configuration")]
-        [SerializeField] private float comboTransitionTime = 0.55f;
-        [SerializeField] private float attackDuration = 0.85f;
-        [SerializeField] private float postComboCooldown = 0.40f;
+        [Header("Configuración de Combo")]
+        [SerializeField] private float comboTransitionTime = 0.52f;
+        [SerializeField] private float attackDuration = 0.75f;
+        [SerializeField] private float postComboCooldown = 0.35f;
 
         private Rigidbody _rb;
         private WeaponStats _equippedWeapon;
         private float _lastAttackTime = -1f, _currentAttackStartTime = -1f, _comboAvailableTime = -1f;
         private int _currentComboIndex = 0, _maxComboSteps = 0, _lastAttackInputFrame = -1;
         private bool _isAttacking = false, _isCarryingAttackStep = false, _hasBufferedNextStrike = false;
+
         public bool HasPickaxeEquipped { get; set; } = false;
-        public bool UseProceduralCombat
-        {
-            get => useProceduralCombat;
-            set => useProceduralCombat = value;
-        }
-        public ProceduralCombatController ProceduralCombat => proceduralCombatController;
         public float AttackCooldown => attackCooldown;
         public bool IsAttacking => _isAttacking;
         public bool IsCarryingAttackStep => _isCarryingAttackStep;
@@ -49,10 +43,6 @@ namespace ForjaGame.Combat
         {
             _rb = GetComponent<Rigidbody>();
             if (gameStateController == null) gameStateController = FindFirstObjectByType<GameStateController>();
-            if (characterAnimator == null) characterAnimator = GetComponentInChildren<Animator>();
-            if (characterAnimator != null) characterAnimator.SetFloat("AttackSpeed", 1.0f);
-            if (proceduralCombatController == null)
-                proceduralCombatController = GetComponent<ProceduralCombatController>() ?? GetComponentInChildren<ProceduralCombatController>();
         }
 
         private void Update()
@@ -70,7 +60,10 @@ namespace ForjaGame.Combat
             float elapsed = Time.time - _currentAttackStartTime;
             if (_isCarryingAttackStep && elapsed > 0.22f) _isCarryingAttackStep = false;
 
-            // Transición estricta: sólo avanza si el jugador hizo click durante la ventana del combo
+            float progress = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, attackDuration));
+            PlayerCombatIKDriver.Instance?.SetAttackState(true, _currentComboIndex, progress);
+
+            // Transición de combo por click durante la ventana
             if (elapsed >= comboTransitionTime)
             {
                 if (_hasBufferedNextStrike && _currentComboIndex + 1 < _maxComboSteps)
@@ -81,10 +74,14 @@ namespace ForjaGame.Combat
                 }
             }
 
-            // Fin del ataque al completar la recuperación total del golpe
-            if (elapsed >= attackDuration) { EndAttack(); return; }
+            // Fin del ataque al completar recuperación
+            if (elapsed >= attackDuration)
+            {
+                EndAttack();
+                return;
+            }
 
-            // Cancelación suave por movimiento (WASD) en la fase final de recuperación si no hay golpe en cola
+            // Cancelación suave por movimiento si no hay golpe en cola
             if (!_hasBufferedNextStrike && elapsed >= attackDuration * 0.85f && HasMovementInput())
             {
                 EndAttack();
@@ -94,7 +91,10 @@ namespace ForjaGame.Combat
         public void OnAttack(InputAction.CallbackContext context)
         {
             if (context.started && (UnityEngine.EventSystems.EventSystem.current == null ||
-                !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())) HandleAttackInput();
+                !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()))
+            {
+                HandleAttackInput();
+            }
         }
 
         private void HandleAttackInput()
@@ -116,7 +116,6 @@ namespace ForjaGame.Combat
             if (_isAttacking)
             {
                 float elapsed = Time.time - _currentAttackStartTime;
-                // Buffer del siguiente golpe: sólo dentro de la ventana de enlace y si no excede el combo
                 if (elapsed >= comboTransitionTime * 0.35f && _currentComboIndex + 1 < _maxComboSteps)
                 {
                     _hasBufferedNextStrike = true;
@@ -124,7 +123,6 @@ namespace ForjaGame.Combat
                 return;
             }
 
-            // Retardo / delay antes de permitir iniciar una nueva secuencia
             if (Time.time < _comboAvailableTime) return;
 
             _hasBufferedNextStrike = false;
@@ -138,58 +136,37 @@ namespace ForjaGame.Combat
             _currentAttackStartTime = Time.time;
             _lastAttackTime = Time.time;
 
-            if (useProceduralCombat && proceduralCombatController != null && proceduralCombatController.IsEquipped)
+            // Reorientar hacia la dirección del input de movimiento del jugador si existe
+            Vector3 attackDir = GetPlayerAttackInputDirection();
+            if (attackDir.sqrMagnitude > 0.01f)
             {
-                proceduralCombatController.ExecuteAttack(comboIndex);
-                var timings = proceduralCombatController.GetCurrentAttackTimings();
-                attackDuration = timings.totalDuration;
-                comboTransitionTime = timings.windupDuration + (timings.strikeDuration * 0.85f);
-                attackCooldown = attackDuration;
-
-                if (characterAnimator != null)
-                {
-                    characterAnimator.SetInteger("ComboIndex", comboIndex);
-                    characterAnimator.SetBool("IsAttacking", true);
-                }
-                return;
+                transform.rotation = Quaternion.LookRotation(attackDir);
+            }
+            else
+            {
+                attackDir = transform.forward;
             }
 
-            // Fallback a clips fijos de legado
             if (_rb == null) _rb = GetComponent<Rigidbody>();
             if (_rb != null)
             {
-                float impulse = 2.0f;
-                if (_equippedWeapon != null)
-                {
-                    var stance = _equippedWeapon.GetCombatStance();
-                    impulse = stance == WeaponCombatStance.TwoHanded ? 2.8f : (stance == WeaponCombatStance.Polearm ? 3.0f : 2.0f);
-                }
-                float stepMult = comboIndex == 0 ? 1.0f : (comboIndex == 1 ? 1.25f : 1.65f);
-                Vector3 stepVec = transform.forward * (impulse * stepMult);
-                _rb.linearVelocity = new Vector3(stepVec.x, _rb.linearVelocity.y, stepVec.z);
+                // Mantener los pies firmes y anclados al suelo en la postura de combate (CombatIdle), sin patinar
+                _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
             }
-            _isCarryingAttackStep = true;
+            _isCarryingAttackStep = false;
+            PlayerCombatIKDriver.Instance?.SetAttackState(true, comboIndex, 0f);
 
-            if (characterAnimator != null)
+            if (WeaponComboAnimator.Instance != null)
             {
-                float speedRatio = _equippedWeapon != null ? Mathf.Clamp(_equippedWeapon.GetSpeedMultiplier(), 0.70f, 1.30f) : 1.0f;
-                characterAnimator.SetFloat("AttackSpeed", speedRatio);
-                characterAnimator.SetInteger("ComboIndex", comboIndex);
-                characterAnimator.ResetTrigger("Attack");
-                characterAnimator.SetTrigger("Attack");
-                characterAnimator.SetBool("IsAttacking", true);
+                WeaponComboAnimator.Instance.PlayStrike(comboIndex, attackDuration, PerformHitDetection);
             }
-
-            PerformHitDetection();
+            else
+            {
+                PerformHitDetection();
+            }
         }
 
-        /// <summary>
-        /// Invocado por ProceduralCombatController en el momento en que se inicia el barrido de impacto (Strike).
-        /// </summary>
-        public void TriggerHitDetection()
-        {
-            PerformHitDetection();
-        }
+        public void TriggerHitDetection() => PerformHitDetection();
 
         private void EndAttack()
         {
@@ -198,18 +175,8 @@ namespace ForjaGame.Combat
             _hasBufferedNextStrike = false;
             _currentComboIndex = 0;
             _comboAvailableTime = Time.time + postComboCooldown;
-
-            if (useProceduralCombat && proceduralCombatController != null)
-            {
-                proceduralCombatController.ResetToGuard();
-            }
-
-            if (characterAnimator != null)
-            {
-                characterAnimator.SetBool("IsAttacking", false);
-                characterAnimator.ResetTrigger("Attack");
-                characterAnimator.CrossFadeInFixedTime("Locomotion", 0.12f);
-            }
+            PlayerCombatIKDriver.Instance?.SetAttackState(false, 0, 0f);
+            WeaponComboAnimator.Instance?.CancelOrReturnToGuard();
         }
 
         public void ApplyWeaponStats(WeaponStats weapon)
@@ -225,16 +192,21 @@ namespace ForjaGame.Combat
             attackDuration = baseDuration / speedRatio;
             comboTransitionTime = (baseDuration * weapon.GetComboLinkRatio()) / speedRatio;
             attackCooldown = attackDuration;
-
-            if (characterAnimator != null) characterAnimator.SetFloat("AttackSpeed", speedRatio);
         }
 
         public void ResetToDefaultStats()
         {
-            _equippedWeapon = null; damage = 0; attackRange = 1.0f; attackCooldown = 0.5f;
-            attackDuration = 0.80f; comboTransitionTime = 0.55f; _maxComboSteps = 0;
-            _hasBufferedNextStrike = false; _isAttacking = false; _isCarryingAttackStep = false; _comboAvailableTime = -1f;
-            if (characterAnimator != null) { characterAnimator.SetFloat("AttackSpeed", 1.0f); characterAnimator.SetBool("IsAttacking", false); }
+            _equippedWeapon = null;
+            damage = 0;
+            attackRange = 1.0f;
+            attackCooldown = 0.5f;
+            attackDuration = 0.75f;
+            comboTransitionTime = 0.52f;
+            _maxComboSteps = 0;
+            _hasBufferedNextStrike = false;
+            _isAttacking = false;
+            _isCarryingAttackStep = false;
+            _comboAvailableTime = -1f;
         }
 
         private void PerformHitDetection()
@@ -260,12 +232,13 @@ namespace ForjaGame.Combat
 
             if (closestTarget != null)
             {
-                float comboMult = _currentComboIndex == 2 ? 1.55f : (_currentComboIndex == 1 ? 1.15f : 1.0f);
+                bool isFinisher = _currentComboIndex >= Mathf.Max(1, _maxComboSteps - 1);
+                float comboMult = isFinisher ? 1.65f : (1.0f + _currentComboIndex * 0.12f);
                 int finalDamage = Mathf.Max(1, Mathf.RoundToInt(damage * comboMult));
                 if (closestTarget is ResourceNodeController node) node.TakeDamageFrom(finalDamage, gameObject);
                 else closestTarget.TakeDamage(finalDamage);
 
-                if (_currentComboIndex == 2) PlayerCameraFollow.Instance?.TriggerImpulse(0.24f);
+                if (isFinisher) PlayerCameraFollow.Instance?.TriggerImpulse(0.08f);
 
                 if (_equippedWeapon != null)
                 {
@@ -279,6 +252,28 @@ namespace ForjaGame.Combat
         {
             var kb = Keyboard.current;
             return kb != null && (kb.wKey.isPressed || kb.sKey.isPressed || kb.aKey.isPressed || kb.dKey.isPressed);
+        }
+
+        public Vector3 GetPlayerAttackInputDirection()
+        {
+            var kb = Keyboard.current;
+            if (kb == null) return transform.forward;
+
+            float x = 0f, y = 0f;
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y += 1f;
+            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y -= 1f;
+            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x -= 1f;
+            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x += 1f;
+
+            Vector2 input = new Vector2(x, y);
+            if (input.sqrMagnitude < 0.01f) return transform.forward;
+
+            Transform cam = Camera.main != null ? Camera.main.transform : null;
+            Vector3 camFwd = cam != null ? Vector3.ProjectOnPlane(cam.forward, Vector3.up).normalized : Vector3.forward;
+            Vector3 camRgt = cam != null ? Vector3.ProjectOnPlane(cam.right, Vector3.up).normalized : Vector3.right;
+
+            Vector3 dir = (camFwd * input.y + camRgt * input.x).normalized;
+            return dir.sqrMagnitude > 0.01f ? dir : transform.forward;
         }
     }
 }

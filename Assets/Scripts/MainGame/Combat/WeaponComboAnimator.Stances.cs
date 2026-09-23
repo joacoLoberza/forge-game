@@ -161,50 +161,50 @@ namespace ForjaGame.Combat
                     // GOLPE 1: BARRIDO HORIZONTAL INICIAL (Arco de derecha a izquierda)
                     windupEnd = 0.28f;
                     hitApex = 0.50f;
-                    windupPos = new Vector3(0.30f, 0.14f, 0.34f);
-                    windupRot = Quaternion.Euler(60f, 45f, -15f);
-                    strikePos = new Vector3(-0.12f, -0.02f, 0.46f);
-                    strikeRot = Quaternion.Euler(75f, -40f, 15f);
+                    windupPos = new Vector3(0.28f, 0.14f, 0.38f);
+                    windupRot = Quaternion.Euler(50f, 40f, -10f) * guardRot;
+                    strikePos = new Vector3(-0.08f, -0.02f, 0.46f);
+                    strikeRot = Quaternion.Euler(70f, -40f, 10f) * guardRot;
                     break;
 
                 case 1:
                     // GOLPE 2: CORTE GIRATORIO CONTINUO
                     windupEnd = 0.24f;
                     hitApex = 0.48f;
-                    windupPos = new Vector3(-0.12f, 0.10f, 0.34f);
-                    windupRot = Quaternion.Euler(65f, -80f, 20f);
-                    strikePos = new Vector3(0.28f, 0.12f, 0.46f);
-                    strikeRot = Quaternion.Euler(70f, 45f, 10f);
+                    windupPos = new Vector3(-0.08f, 0.08f, 0.40f);
+                    windupRot = Quaternion.Euler(60f, -50f, 10f) * guardRot;
+                    strikePos = new Vector3(0.26f, 0.12f, 0.46f);
+                    strikeRot = Quaternion.Euler(65f, 40f, 10f) * guardRot;
                     break;
 
                 case 2:
                     // GOLPE 3: DEMOLEDOR TAJO VERTICAL A 2 MANOS
                     windupEnd = 0.32f;
                     hitApex = 0.52f;
-                    windupPos = new Vector3(0.14f, 0.36f, 0.32f);
-                    windupRot = Quaternion.Euler(180f, 90f, 130f);
+                    windupPos = new Vector3(0.14f, 0.36f, 0.36f);
+                    windupRot = Quaternion.Euler(-60f, 10f, 0f) * guardRot;
                     strikePos = new Vector3(0.04f, -0.10f, 0.48f);
-                    strikeRot = Quaternion.Euler(180f, 90f, 75f);
+                    strikeRot = Quaternion.Euler(85f, 0f, 0f) * guardRot;
                     break;
 
                 case 3:
                     // GOLPE 4: BARRIDO LATERAL DE RECUPERACION
                     windupEnd = 0.28f;
                     hitApex = 0.50f;
-                    windupPos = new Vector3(-0.12f, 0.10f, 0.34f);
-                    windupRot = Quaternion.Euler(68f, -45f, 15f);
-                    strikePos = new Vector3(0.28f, 0.06f, 0.46f);
-                    strikeRot = Quaternion.Euler(78f, 45f, -15f);
+                    windupPos = new Vector3(-0.08f, 0.08f, 0.40f);
+                    windupRot = Quaternion.Euler(60f, -40f, 10f) * guardRot;
+                    strikePos = new Vector3(0.26f, 0.06f, 0.46f);
+                    strikeRot = Quaternion.Euler(70f, 40f, -10f) * guardRot;
                     break;
 
                 default: // case 4
                     // GOLPE 5: REMATE VERTICAL A DOS MANOS
                     windupEnd = 0.34f;
                     hitApex = 0.56f;
-                    windupPos = new Vector3(0.12f, 0.38f, 0.32f);
-                    windupRot = Quaternion.Euler(180f, 90f, 130f);
-                    strikePos = new Vector3(0.04f, -0.12f, 0.50f);
-                    strikeRot = Quaternion.Euler(180f, 90f, 70f);
+                    windupPos = new Vector3(0.12f, 0.38f, 0.36f);
+                    windupRot = Quaternion.Euler(-65f, 0f, 0f) * guardRot;
+                    strikePos = new Vector3(0.04f, -0.12f, 0.48f);
+                    strikeRot = Quaternion.Euler(90f, 0f, 0f) * guardRot;
                     break;
             }
 
@@ -230,41 +230,41 @@ namespace ForjaGame.Combat
                     // GOLPE 1: TAJO DIAGONAL DE SONDEO
                     windupEnd = 0.22f;
                     hitApex = 0.44f;
-                    windupPos = new Vector3(0.28f, 0.16f, 0.34f);
-                    windupRot = Quaternion.Euler(55f, 25f, -10f) * guardRot;
-                    strikePos = new Vector3(-0.12f, -0.04f, 0.46f);
-                    strikeRot = Quaternion.Euler(75f, -35f, 10f) * guardRot;
+                    windupPos = new Vector3(0.26f, 0.16f, 0.38f);
+                    windupRot = Quaternion.Euler(50f, 25f, -10f) * guardRot;
+                    strikePos = new Vector3(-0.08f, -0.04f, 0.46f);
+                    strikeRot = Quaternion.Euler(70f, -35f, 10f) * guardRot;
                     break;
 
                 case 1:
                     // GOLPE 2: BARRIDO BAJO CIRCULAR
                     windupEnd = 0.20f;
                     hitApex = 0.44f;
-                    windupPos = new Vector3(-0.12f, -0.08f, 0.34f);
-                    windupRot = Quaternion.Euler(75f, -35f, -10f);
-                    strikePos = new Vector3(0.26f, -0.02f, 0.46f);
-                    strikeRot = Quaternion.Euler(80f, 35f, 10f);
+                    windupPos = new Vector3(-0.08f, -0.06f, 0.40f);
+                    windupRot = Quaternion.Euler(65f, -35f, -10f) * guardRot;
+                    strikePos = new Vector3(0.24f, -0.02f, 0.46f);
+                    strikeRot = Quaternion.Euler(75f, 35f, 10f) * guardRot;
                     break;
 
                 case 2:
-                    // GOLPE 3: PUNZADA ALTA AL PECHO con holgura de retracción frontal (Z = 0.32m)
+                    // GOLPE 3: PUNZADA ALTA AL PECHO con holgura de retracción frontal (Z = 0.36m)
                     windupEnd = 0.20f;
                     hitApex = 0.42f;
                     isThrust = true;
-                    windupPos = new Vector3(0.18f, 0.10f, 0.32f);
-                    windupRot = Quaternion.Euler(85f, 0f, 0f);
+                    windupPos = new Vector3(0.18f, 0.10f, 0.36f);
+                    windupRot = Quaternion.Euler(85f, 0f, 0f) * guardRot;
                     strikePos = new Vector3(0.08f, 0.12f, 0.50f);
-                    strikeRot = Quaternion.Euler(85f, 0f, 0f);
+                    strikeRot = Quaternion.Euler(85f, 0f, 0f) * guardRot;
                     break;
 
                 case 3:
                     // GOLPE 4: BARRIDO LATERAL DE CONTROL
                     windupEnd = 0.24f;
                     hitApex = 0.47f;
-                    windupPos = new Vector3(-0.12f, 0.08f, 0.34f);
-                    windupRot = Quaternion.Euler(72f, -38f, -12f) * guardRot;
-                    strikePos = new Vector3(0.26f, 0.08f, 0.46f);
-                    strikeRot = Quaternion.Euler(78f, 38f, 12f);
+                    windupPos = new Vector3(-0.08f, 0.08f, 0.40f);
+                    windupRot = Quaternion.Euler(68f, -35f, -10f) * guardRot;
+                    strikePos = new Vector3(0.24f, 0.08f, 0.46f);
+                    strikeRot = Quaternion.Euler(72f, 35f, 10f) * guardRot;
                     break;
 
                 default: // case 4
@@ -272,10 +272,10 @@ namespace ForjaGame.Combat
                     windupEnd = 0.30f;
                     hitApex = 0.50f;
                     isThrust = true;
-                    windupPos = new Vector3(0.18f, 0.08f, 0.32f);
-                    windupRot = Quaternion.Euler(90f, 0f, 0f);
-                    strikePos = new Vector3(0.06f, 0.12f, 0.52f);
-                    strikeRot = Quaternion.Euler(90f, 0f, 0f);
+                    windupPos = new Vector3(0.18f, 0.08f, 0.36f);
+                    windupRot = Quaternion.Euler(88f, 0f, 0f) * guardRot;
+                    strikePos = new Vector3(0.06f, 0.10f, 0.50f);
+                    strikeRot = Quaternion.Euler(88f, 0f, 0f) * guardRot;
                     break;
             }
 

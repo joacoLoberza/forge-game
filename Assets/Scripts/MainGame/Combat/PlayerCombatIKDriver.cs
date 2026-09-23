@@ -18,8 +18,7 @@ namespace ForjaGame.Combat
         public static PlayerCombatIKDriver Instance { get; private set; }
 
         [Header("Calibración Anatómica del Torso y Brazos")]
-        [SerializeField] private float maxReachRatio = 0.88f;
-        [SerializeField] private float minReachRatio = 0.20f;
+        [SerializeField] private float maxReachRatio = 0.96f;
         [SerializeField] private float ikFadeSpeed = 8.0f;
 
         [Header("Offsets de Agarre")]
@@ -34,14 +33,19 @@ namespace ForjaGame.Combat
         private Transform _chestBone;
         private Transform _rightShoulder;
         private Transform _leftShoulder;
+        private Transform _rightUpperArm;
+        private Transform _leftUpperArm;
         private Transform _rightForearm;
         private Transform _leftForearm;
+        private Transform _rightHand;
+        private Transform _leftHand;
 
         private float _rightArmLength = 0.65f;
         private float _leftArmLength = 0.65f;
 
         // Estado del arma
         private bool _isEquipped = false;
+        private Transform _weaponHolder;
         private Transform _gripSocketRear;
         private Transform _gripSocketFront;
         private WeaponCombatStance _currentStance = WeaponCombatStance.OneHanded;
@@ -51,24 +55,30 @@ namespace ForjaGame.Combat
         private float _currentIkWeight = 0f;
         private float _targetIkWeight = 0f;
 
-        // Cinemática de Cadera y Torso (Hips, Spine, Chest)
+        // Cinemática de Cadera y Torso (Hips, Spine, Chest) con Yaw, Pitch y Roll
         private bool _isAttacking = false;
         private int _currentComboIndex = 0;
         private float _attackProgress = 0f;
 
         private float _currentHipsYaw = 0f;
         private float _currentHipsPitch = 0f;
+        private float _currentHipsRoll = 0f;
         private float _currentSpineYaw = 0f;
         private float _currentSpinePitch = 0f;
+        private float _currentSpineRoll = 0f;
         private float _currentChestYaw = 0f;
         private float _currentChestPitch = 0f;
+        private float _currentChestRoll = 0f;
 
         private float _strikeStartHipsYaw = 0f;
         private float _strikeStartHipsPitch = 0f;
+        private float _strikeStartHipsRoll = 0f;
         private float _strikeStartSpineYaw = 0f;
         private float _strikeStartSpinePitch = 0f;
+        private float _strikeStartSpineRoll = 0f;
         private float _strikeStartChestYaw = 0f;
         private float _strikeStartChestPitch = 0f;
+        private float _strikeStartChestRoll = 0f;
 
         public float CurrentWeight => _currentIkWeight;
 
@@ -94,31 +104,32 @@ namespace ForjaGame.Combat
             _chestBone = _animator.GetBoneTransform(HumanBodyBones.Chest) ?? _spineBone;
             _rightShoulder = _animator.GetBoneTransform(HumanBodyBones.RightShoulder);
             _leftShoulder = _animator.GetBoneTransform(HumanBodyBones.LeftShoulder);
+            _rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            _leftUpperArm = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
             _rightForearm = _animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
             _leftForearm = _animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+            _rightHand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            _leftHand = _animator.GetBoneTransform(HumanBodyBones.LeftHand);
 
-            Transform rUpper = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
-            Transform rHand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
-            if (rUpper != null && _rightForearm != null && rHand != null)
+            if (_rightUpperArm != null && _rightForearm != null && _rightHand != null)
             {
-                float lenUpper = Vector3.Distance(rUpper.position, _rightForearm.position);
-                float lenLower = Vector3.Distance(_rightForearm.position, rHand.position);
+                float lenUpper = Vector3.Distance(_rightUpperArm.position, _rightForearm.position);
+                float lenLower = Vector3.Distance(_rightForearm.position, _rightHand.position);
                 _rightArmLength = Mathf.Max(0.55f, lenUpper + lenLower);
             }
 
-            Transform lUpper = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-            Transform lHand = _animator.GetBoneTransform(HumanBodyBones.LeftHand);
-            if (lUpper != null && _leftForearm != null && lHand != null)
+            if (_leftUpperArm != null && _leftForearm != null && _leftHand != null)
             {
-                float lenUpper = Vector3.Distance(lUpper.position, _leftForearm.position);
-                float lenLower = Vector3.Distance(_leftForearm.position, lHand.position);
+                float lenUpper = Vector3.Distance(_leftUpperArm.position, _leftForearm.position);
+                float lenLower = Vector3.Distance(_leftForearm.position, _leftHand.position);
                 _leftArmLength = Mathf.Max(0.55f, lenUpper + lenLower);
             }
         }
 
-        public void SetWeaponEquipped(bool equipped, Transform gripRear, Transform gripFront, WeaponCombatStance stance, WeaponStats weapon = null)
+        public void SetWeaponEquipped(bool equipped, Transform weaponHolder, Transform gripRear, Transform gripFront, WeaponCombatStance stance, WeaponStats weapon = null)
         {
             _isEquipped = equipped;
+            _weaponHolder = weaponHolder;
             _gripSocketRear = gripRear;
             _gripSocketFront = gripFront;
             _currentStance = stance;
@@ -134,10 +145,13 @@ namespace ForjaGame.Combat
                 // para que el windup fluya de forma continua desde la inercia del golpe previo
                 _strikeStartHipsYaw = _currentHipsYaw;
                 _strikeStartHipsPitch = _currentHipsPitch;
+                _strikeStartHipsRoll = _currentHipsRoll;
                 _strikeStartSpineYaw = _currentSpineYaw;
                 _strikeStartSpinePitch = _currentSpinePitch;
+                _strikeStartSpineRoll = _currentSpineRoll;
                 _strikeStartChestYaw = _currentChestYaw;
                 _strikeStartChestPitch = _currentChestPitch;
+                _strikeStartChestRoll = _currentChestRoll;
             }
 
             _isAttacking = isAttacking;
@@ -153,18 +167,21 @@ namespace ForjaGame.Combat
             // Acompañamiento cinemático de Cadera y Torso durante el golpe
             if (_isAttacking && _isEquipped)
             {
-                CalculateTorsoAndHipsKinematics(_currentComboIndex, _attackProgress,
-                    out float hY, out float hP,
-                    out float sY, out float sP,
-                    out float cY, out float cP);
+                CalculateTorsoKinematics(_currentComboIndex, _attackProgress,
+                    out float hY, out float hP, out float hR,
+                    out float sY, out float sP, out float sR,
+                    out float cY, out float cP, out float cR);
 
                 // Asignación directa y síncrona con el avance del golpe (sin retraso de lerp artificial)
                 _currentHipsYaw = hY;
                 _currentHipsPitch = hP;
+                _currentHipsRoll = hR;
                 _currentSpineYaw = sY;
                 _currentSpinePitch = sP;
+                _currentSpineRoll = sR;
                 _currentChestYaw = cY;
                 _currentChestPitch = cP;
+                _currentChestRoll = cR;
             }
             else
             {
@@ -172,10 +189,13 @@ namespace ForjaGame.Combat
                 float speed = Time.deltaTime * 60f;
                 _currentHipsYaw = Mathf.MoveTowards(_currentHipsYaw, 0f, speed);
                 _currentHipsPitch = Mathf.MoveTowards(_currentHipsPitch, 0f, speed);
+                _currentHipsRoll = Mathf.MoveTowards(_currentHipsRoll, 0f, speed);
                 _currentSpineYaw = Mathf.MoveTowards(_currentSpineYaw, 0f, speed);
                 _currentSpinePitch = Mathf.MoveTowards(_currentSpinePitch, 0f, speed);
+                _currentSpineRoll = Mathf.MoveTowards(_currentSpineRoll, 0f, speed);
                 _currentChestYaw = Mathf.MoveTowards(_currentChestYaw, 0f, speed);
                 _currentChestPitch = Mathf.MoveTowards(_currentChestPitch, 0f, speed);
+                _currentChestRoll = Mathf.MoveTowards(_currentChestRoll, 0f, speed);
             }
         }
 
@@ -186,10 +206,11 @@ namespace ForjaGame.Combat
             Transform playerTransform = transform.parent != null ? transform.parent : transform;
 
             // 1. EXTENSIÓN Y ACOMPAÑAMIENTO DE CADERA, COLUMNA Y PECHO
+            // En LateUpdate para que persista en el renderizado final de pantalla sin ser sobrescrito por Mecanim
             ApplyTorsoAndHipsKinematics(playerTransform);
 
-            // 2. BLOQUEO EFECTOR ABSOLUTO DE MANOS AL AGARRE DEL ARMA (IK Helper Effector Lock)
-            LockHandsToGripSockets(playerTransform);
+            // 2. RESOLUCIÓN DE BRAZOS CON TWO-BONE IK ANALÍTICO (0% deformación de malla, 0mm desconexión)
+            SolveArmKinematics(playerTransform);
         }
 
         private void ApplyTorsoAndHipsKinematics(Transform playerTransform)
@@ -199,66 +220,182 @@ namespace ForjaGame.Combat
 
             Vector3 charUp = playerTransform.up;
             Vector3 charRight = playerTransform.right;
+            Vector3 charForward = playerTransform.forward;
 
             // 1. Cadera / Pelvis (Hips) — Pivote de masa y orientación de la cintura
             if (_hipsBone != null)
             {
                 Quaternion hYaw = Quaternion.AngleAxis(_currentHipsYaw * weight, charUp);
                 Quaternion hPitch = Quaternion.AngleAxis(_currentHipsPitch * weight, charRight);
-                _hipsBone.rotation = hYaw * hPitch * _hipsBone.rotation;
+                Quaternion hRoll = Quaternion.AngleAxis(_currentHipsRoll * weight, charForward);
+                _hipsBone.rotation = hYaw * hPitch * hRoll * _hipsBone.rotation;
             }
 
-            // 2. Columna (Spine) — Flexión y torsión intermedia
+            // 2. Columna (Spine) — Flexión frontal, torsión y caída lateral (Roll)
             if (_spineBone != null)
             {
                 Quaternion sYaw = Quaternion.AngleAxis(_currentSpineYaw * weight, charUp);
                 Quaternion sPitch = Quaternion.AngleAxis(_currentSpinePitch * weight, charRight);
-                _spineBone.rotation = sYaw * sPitch * _spineBone.rotation;
+                Quaternion sRoll = Quaternion.AngleAxis(_currentSpineRoll * weight, charForward);
+                _spineBone.rotation = sYaw * sPitch * sRoll * _spineBone.rotation;
             }
 
-            // 3. Pecho y Hombros (Chest) — Proyección y rotación final hacia el impacto
+            // 3. Pecho y Hombros (Chest) — Proyección, inclinación frontal y lateral hacia el impacto
             if (_chestBone != null && _chestBone != _spineBone)
             {
                 Quaternion cYaw = Quaternion.AngleAxis(_currentChestYaw * weight, charUp);
                 Quaternion cPitch = Quaternion.AngleAxis(_currentChestPitch * weight, charRight);
-                _chestBone.rotation = cYaw * cPitch * _chestBone.rotation;
+                Quaternion cRoll = Quaternion.AngleAxis(_currentChestRoll * weight, charForward);
+                _chestBone.rotation = cYaw * cPitch * cRoll * _chestBone.rotation;
             }
         }
 
-        private void LockHandsToGripSockets(Transform playerTransform)
+        private void SolveArmKinematics(Transform playerTransform)
         {
-            // En LateUpdate únicamente orientamos la muñeca (rotación).
-            // NUNCA modificamos rHand.position directamente aquí, porque en esqueletos humanoides
-            // trasladar un hueso hijo sin mover el antebrazo estira la malla como goma y la deforma.
-            // Mecanim se encarga de la posición anatómica estricta con AvatarIKGoal en OnAnimatorIK.
-            Transform rHand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
-            if (rHand != null && _gripSocketRear != null)
+            if (!_isEquipped || _gripSocketRear == null) return;
+            if (_rightUpperArm == null || _rightForearm == null || _rightHand == null) return;
+
+            // 1. Orientación y posición del agarre trasero (mano derecha dominante)
+            Quaternion rOffsetRot = Quaternion.Euler(rightHandOffsetRot);
+            Quaternion targetHandRotR = _gripSocketRear.rotation * Quaternion.Inverse(rOffsetRot);
+            Vector3 targetHandPosR = _gripSocketRear.position - (targetHandRotR * rightHandOffsetPos);
+
+            // 2. Control de alcance seguro respecto al hombro (que ya se inclinó con el torso)
+            Vector3 rShoulderPos = _rightUpperArm.position;
+            Vector3 toTargetR = targetHandPosR - rShoulderPos;
+            float distR = toTargetR.magnitude;
+            float maxReachR = _rightArmLength * maxReachRatio;
+
+            // Si el socket se aleja del alcance máximo, acercamos levemente el weaponHolder en posición
+            // ¡NUNCA modificamos la rotación del holder! Esto elimina el giro descontrolado
+            if (distR > maxReachR && _weaponHolder != null)
             {
-                Quaternion rOffsetRot = Quaternion.Euler(rightHandOffsetRot);
-                Quaternion targetHandRotR = _gripSocketRear.rotation * Quaternion.Inverse(rOffsetRot);
-
-                // Evitar saltos de signo en la rotación (camino angular más corto)
-                if (Quaternion.Dot(rHand.rotation, targetHandRotR) < 0f)
-                {
-                    targetHandRotR = new Quaternion(-targetHandRotR.x, -targetHandRotR.y, -targetHandRotR.z, -targetHandRotR.w);
-                }
-
-                rHand.rotation = Quaternion.Slerp(rHand.rotation, targetHandRotR, _currentIkWeight);
+                Vector3 excess = toTargetR.normalized * (distR - maxReachR);
+                _weaponHolder.position -= excess;
+                targetHandPosR = _gripSocketRear.position - (targetHandRotR * rightHandOffsetPos);
+                toTargetR = targetHandPosR - rShoulderPos;
+                distR = toTargetR.magnitude;
             }
 
+            // 3. Dirección dinámica del codo derecho (Pole Target)
+            // Cuando el golpe cruza hacia la izquierda del cuerpo, el codo desciende hacia abajo y adelante para no penetrar el tórax
+            Vector3 charRight = playerTransform.right;
+            Vector3 charDown = -playerTransform.up;
+            Vector3 charFwd = playerTransform.forward;
+            float crossBody = Mathf.Clamp01(-Vector3.Dot(toTargetR.normalized, charRight));
+            Vector3 rPoleDir = Vector3.Lerp(charRight * 0.40f + charDown * 0.25f - charFwd * 0.10f,
+                                            charDown * 0.45f + charFwd * 0.15f + charRight * 0.15f,
+                                            crossBody);
+            Vector3 rPolePos = rShoulderPos + rPoleDir;
+
+            // 4. Resolver Two-Bone IK para el brazo derecho (0% deformación de malla, longitudes óseas 100% rígidas)
+            SolveTwoBoneIK(_rightUpperArm, _rightForearm, _rightHand, targetHandPosR, rPolePos, _currentIkWeight);
+
+            // 5. Orientación de la muñeca derecha fijada al mango
+            if (Quaternion.Dot(_rightHand.rotation, targetHandRotR) < 0f)
+            {
+                targetHandRotR = new Quaternion(-targetHandRotR.x, -targetHandRotR.y, -targetHandRotR.z, -targetHandRotR.w);
+            }
+            _rightHand.rotation = Quaternion.Slerp(_rightHand.rotation, targetHandRotR, _currentIkWeight);
+
+            // 6. Brazo izquierdo para armas a dos manos o asta
             bool isBimanual = _currentStance == WeaponCombatStance.TwoHanded || _currentStance == WeaponCombatStance.Polearm;
-            Transform lHand = _animator.GetBoneTransform(HumanBodyBones.LeftHand);
-            if (isBimanual && lHand != null && _gripSocketFront != null)
+            if (isBimanual && _gripSocketFront != null && _leftUpperArm != null && _leftForearm != null && _leftHand != null)
             {
                 Quaternion lOffsetRot = Quaternion.Euler(leftHandOffsetRot);
                 Quaternion targetHandRotL = _gripSocketFront.rotation * Quaternion.Inverse(lOffsetRot);
+                Vector3 targetHandPosL = _gripSocketFront.position - (targetHandRotL * leftHandOffsetPos);
 
-                if (Quaternion.Dot(lHand.rotation, targetHandRotL) < 0f)
+                Vector3 lShoulderPos = _leftUpperArm.position;
+                Vector3 toTargetL = targetHandPosL - lShoulderPos;
+                float distL = toTargetL.magnitude;
+                float maxReachL = _leftArmLength * maxReachRatio;
+                if (distL > maxReachL)
+                {
+                    targetHandPosL = lShoulderPos + toTargetL.normalized * maxReachL;
+                }
+
+                Vector3 lPoleDir = -charRight * 0.40f + charDown * 0.25f - charFwd * 0.10f;
+                Vector3 lPolePos = lShoulderPos + lPoleDir;
+
+                SolveTwoBoneIK(_leftUpperArm, _leftForearm, _leftHand, targetHandPosL, lPolePos, _currentIkWeight);
+
+                if (Quaternion.Dot(_leftHand.rotation, targetHandRotL) < 0f)
                 {
                     targetHandRotL = new Quaternion(-targetHandRotL.x, -targetHandRotL.y, -targetHandRotL.z, -targetHandRotL.w);
                 }
+                _leftHand.rotation = Quaternion.Slerp(_leftHand.rotation, targetHandRotL, _currentIkWeight);
+            }
+        }
 
-                lHand.rotation = Quaternion.Slerp(lHand.rotation, targetHandRotL, _currentIkWeight);
+        private static void SolveTwoBoneIK(Transform root, Transform mid, Transform end, Vector3 targetPos, Vector3 polePos, float weight)
+        {
+            if (weight <= 0.001f || root == null || mid == null || end == null) return;
+
+            Vector3 a = root.position;
+            Vector3 b = mid.position;
+            Vector3 c = end.position;
+
+            float lenAB = Vector3.Distance(a, b);
+            float lenBC = Vector3.Distance(b, c);
+            if (lenAB < 0.01f || lenBC < 0.01f) return;
+
+            float maxDist = (lenAB + lenBC) * 0.999f;
+            float minDist = Mathf.Abs(lenAB - lenBC) * 1.001f;
+
+            Vector3 toTarget = targetPos - a;
+            float dist = toTarget.magnitude;
+            if (dist < 0.001f) return;
+
+            float clampedDist = Mathf.Clamp(dist, minDist, maxDist);
+            Vector3 dir = toTarget / dist;
+
+            // Ley del Coseno para calcular el ángulo en la raíz (A)
+            float cosAlpha = Mathf.Clamp((lenAB * lenAB + clampedDist * clampedDist - lenBC * lenBC) / (2f * lenAB * clampedDist), -1f, 1f);
+            float sinAlpha = Mathf.Sqrt(Mathf.Max(0f, 1f - cosAlpha * cosAlpha));
+
+            // Plano del brazo formado por la línea A->Target y el Pole Target
+            Vector3 poleDir = (polePos - a).normalized;
+            Vector3 planeNormal = Vector3.Cross(dir, poleDir);
+            if (planeNormal.sqrMagnitude < 0.0001f)
+            {
+                planeNormal = Vector3.up;
+            }
+            planeNormal.Normalize();
+
+            Vector3 tangent = Vector3.Cross(planeNormal, dir).normalized;
+
+            // Posición analítica deseada del codo (B)
+            Vector3 bDesired = a + dir * (lenAB * cosAlpha) + tangent * (lenAB * sinAlpha);
+
+            Quaternion origRootRot = root.rotation;
+            Quaternion origMidRot = mid.rotation;
+
+            // Rotar raíz para ubicar el codo en bDesired
+            Vector3 currentAB = b - a;
+            Vector3 desiredAB = bDesired - a;
+            if (currentAB.sqrMagnitude > 0.0001f && desiredAB.sqrMagnitude > 0.0001f)
+            {
+                Quaternion rotRoot = Quaternion.FromToRotation(currentAB, desiredAB);
+                root.rotation = rotRoot * root.rotation;
+            }
+
+            // Rotar codo para ubicar la muñeca en targetPos
+            b = mid.position;
+            c = end.position;
+            Vector3 currentBC = c - b;
+            Vector3 desiredBC = (a + dir * clampedDist) - b;
+            if (currentBC.sqrMagnitude > 0.0001f && desiredBC.sqrMagnitude > 0.0001f)
+            {
+                Quaternion rotMid = Quaternion.FromToRotation(currentBC, desiredBC);
+                mid.rotation = rotMid * mid.rotation;
+            }
+
+            // Suavizado por peso (fade in/out)
+            if (weight < 0.999f)
+            {
+                root.rotation = Quaternion.Slerp(origRootRot, root.rotation, weight);
+                mid.rotation = Quaternion.Slerp(origMidRot, mid.rotation, weight);
             }
         }
 
@@ -276,120 +413,19 @@ namespace ForjaGame.Combat
                 _animator.SetLookAtWeight(_currentIkWeight * 0.60f, 0.20f, 0.80f, 0.30f, 0.50f);
             }
 
-            // 2. APLICAR CADENA CINÉTICA DE TORSO ANTES DE RESOLVER BRAZOS
-            // Para que Mecanim resuelva la cinemática de los brazos con la clavícula y hombros ya orientados hacia el golpe
-            if (_currentIkWeight > 0.001f)
-            {
-                ApplyTorsoAndHipsKinematics(playerTransform);
-                ApplyHandIK(playerTransform);
-            }
-            else
-            {
-                _animator.SetIKPositionWeight(AvatarIKGoal.RightHand, 0f);
-                _animator.SetIKRotationWeight(AvatarIKGoal.RightHand, 0f);
-                _animator.SetIKPositionWeight(AvatarIKGoal.LeftHand, 0f);
-                _animator.SetIKRotationWeight(AvatarIKGoal.LeftHand, 0f);
-                _animator.SetIKHintPositionWeight(AvatarIKHint.RightElbow, 0f);
-                _animator.SetIKHintPositionWeight(AvatarIKHint.LeftElbow, 0f);
-            }
+            // 2. Desactivar IK nativo de Mecanim en extremidades para que la cinemática de LateUpdate gobierne sin interferencias
+            _animator.SetIKPositionWeight(AvatarIKGoal.RightHand, 0f);
+            _animator.SetIKRotationWeight(AvatarIKGoal.RightHand, 0f);
+            _animator.SetIKPositionWeight(AvatarIKGoal.LeftHand, 0f);
+            _animator.SetIKRotationWeight(AvatarIKGoal.LeftHand, 0f);
+            _animator.SetIKHintPositionWeight(AvatarIKHint.RightElbow, 0f);
+            _animator.SetIKHintPositionWeight(AvatarIKHint.LeftElbow, 0f);
 
             // 3. PIERNAS: Se mantienen 100% en la posición idle de batalla del Animator
             _animator.SetIKPositionWeight(AvatarIKGoal.RightFoot, 0f);
             _animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, 0f);
             _animator.SetIKRotationWeight(AvatarIKGoal.RightFoot, 0f);
             _animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, 0f);
-        }
-
-        private void ApplyHandIK(Transform playerTransform)
-        {
-            // MANO DERECHA (Pomo / Mango del Arma)
-            if (_gripSocketRear != null)
-            {
-                Vector3 rSocketPos = _gripSocketRear.position;
-                Quaternion rSocketRot = _gripSocketRear.rotation;
-
-                Quaternion rOffsetRot = Quaternion.Euler(rightHandOffsetRot);
-                Quaternion targetHandRotR = rSocketRot * Quaternion.Inverse(rOffsetRot);
-                Vector3 targetHandPosR = rSocketPos - (targetHandRotR * rightHandOffsetPos);
-
-                // Restricción anatómica de alcance: nunca sobrepasar el 88% del largo físico del brazo
-                if (_rightShoulder != null)
-                {
-                    targetHandPosR = ClampArmReach(_rightShoulder.position, targetHandPosR, _rightArmLength, minReachRatio, maxReachRatio);
-                }
-
-                _animator.SetIKPosition(AvatarIKGoal.RightHand, targetHandPosR);
-                _animator.SetIKPositionWeight(AvatarIKGoal.RightHand, _currentIkWeight);
-
-                _animator.SetIKRotation(AvatarIKGoal.RightHand, targetHandRotR);
-                _animator.SetIKRotationWeight(AvatarIKGoal.RightHand, _currentIkWeight);
-
-                // Pole target del codo derecho (Kevin Iglesias IK Pole Target)
-                // Apunta hacia afuera y abajo para garantizar flexión biomecánica natural
-                if (_rightShoulder != null)
-                {
-                    Vector3 rElbowPole = _rightShoulder.position + playerTransform.right * 0.35f - playerTransform.up * 0.25f - playerTransform.forward * 0.15f;
-                    _animator.SetIKHintPosition(AvatarIKHint.RightElbow, rElbowPole);
-                    _animator.SetIKHintPositionWeight(AvatarIKHint.RightElbow, _currentIkWeight * 0.65f);
-                }
-            }
-
-            // MANO IZQUIERDA (Armas a dos manos o asta)
-            bool isBimanual = _currentStance == WeaponCombatStance.TwoHanded || _currentStance == WeaponCombatStance.Polearm;
-            if (isBimanual && _gripSocketFront != null)
-            {
-                Vector3 lSocketPos = _gripSocketFront.position;
-                Quaternion lSocketRot = _gripSocketFront.rotation;
-
-                Quaternion lOffsetRot = Quaternion.Euler(leftHandOffsetRot);
-                Quaternion targetHandRotL = lSocketRot * Quaternion.Inverse(lOffsetRot);
-                Vector3 targetHandPosL = lSocketPos - (targetHandRotL * leftHandOffsetPos);
-
-                if (_leftShoulder != null)
-                {
-                    targetHandPosL = ClampArmReach(_leftShoulder.position, targetHandPosL, _leftArmLength, minReachRatio, maxReachRatio);
-                }
-
-                _animator.SetIKPosition(AvatarIKGoal.LeftHand, targetHandPosL);
-                _animator.SetIKPositionWeight(AvatarIKGoal.LeftHand, _currentIkWeight);
-
-                _animator.SetIKRotation(AvatarIKGoal.LeftHand, targetHandRotL);
-                _animator.SetIKRotationWeight(AvatarIKGoal.LeftHand, _currentIkWeight);
-
-                if (_leftShoulder != null)
-                {
-                    Vector3 lElbowPole = _leftShoulder.position - playerTransform.right * 0.35f - playerTransform.up * 0.25f - playerTransform.forward * 0.15f;
-                    _animator.SetIKHintPosition(AvatarIKHint.LeftElbow, lElbowPole);
-                    _animator.SetIKHintPositionWeight(AvatarIKHint.LeftElbow, _currentIkWeight * 0.65f);
-                }
-            }
-            else
-            {
-                _animator.SetIKPositionWeight(AvatarIKGoal.LeftHand, 0f);
-                _animator.SetIKRotationWeight(AvatarIKGoal.LeftHand, 0f);
-                _animator.SetIKHintPositionWeight(AvatarIKHint.LeftElbow, 0f);
-            }
-        }
-
-        private static Vector3 ClampArmReach(Vector3 shoulderPos, Vector3 targetPos, float armLength, float minRatio, float maxRatio)
-        {
-            Vector3 toTarget = targetPos - shoulderPos;
-            float dist = toTarget.magnitude;
-            if (dist < 0.001f) return shoulderPos + Vector3.forward * (armLength * minRatio);
-
-            float minReach = armLength * minRatio;
-            float maxReach = armLength * maxRatio;
-
-            if (dist > maxReach)
-            {
-                return shoulderPos + toTarget.normalized * maxReach;
-            }
-            else if (dist < minReach)
-            {
-                return shoulderPos + toTarget.normalized * minReach;
-            }
-
-            return targetPos;
         }
 
         /// <summary>
@@ -425,119 +461,141 @@ namespace ForjaGame.Combat
         }
 
         /// <summary>
-        /// Calcula la cadena cinética de Cadera (Hips), Columna (Spine) y Pecho (Chest)
-        /// para que el cuerpo completo acompañe cada ataque con potencia visible y realista.
+        /// Calcula la cinemática direccional de Cadera (Hips), Columna (Spine) y Pecho (Chest)
+        /// orientada biomecánicamente al tipo de golpe:
+        /// - Tajos horizontales: Inclinación frontal marcada (+18° a +22°) con torsión de cintura.
+        /// - Estocadas: Perfilado con inclinación lateral (Roll -12°) y proyección frontal (+14°).
+        /// - Aplastamientos: Arqueo dorsal en windup y flexión explosiva frontal (+26°).
+        /// Modulado proporcionalmente al peso y longitud del arma (Daga 0.52x, Mandoble 1.35x).
         /// </summary>
-        private void CalculateTorsoAndHipsKinematics(int comboIndex, float t,
-            out float hipsYaw, out float hipsPitch,
-            out float spineYaw, out float spinePitch,
-            out float chestYaw, out float chestPitch)
+        private void CalculateTorsoKinematics(int comboIndex, float t,
+            out float hipsYaw, out float hipsPitch, out float hipsRoll,
+            out float spineYaw, out float spinePitch, out float spineRoll,
+            out float chestYaw, out float chestPitch, out float chestRoll)
         {
+            WeaponAnimationStyle style = _currentWeapon != null ? _currentWeapon.GetAnimationStyle() : WeaponAnimationStyle.Sword1H;
+            AttackMotionType motionType = WeaponComboAnimator.GetMotionType(style, comboIndex);
+
             float windupEnd;
             float hitApex;
 
-            float wHipsYaw, wHipsPitch, wSpineYaw, wSpinePitch, wChestYaw, wChestPitch;
-            float sHipsYaw, sHipsPitch, sSpineYaw, sSpinePitch, sChestYaw, sChestPitch;
+            float wHY, wHP, wHR, wSY, wSP, wSR, wCY, wCP, wCR;
+            float sHY, sHP, sHR, sSY, sSP, sSR, sCY, sCP, sCR;
 
             int step = Mathf.Clamp(comboIndex, 0, 4);
-            switch (step)
+            switch (motionType)
             {
-                case 0:
-                    // GOLPE 1: CORTE DIAGONAL DESCENDENTE (Der -> Izq)
-                    windupEnd = 0.20f; hitApex = 0.44f;
-                    // Carga a la derecha
-                    wHipsYaw = 10f;  wHipsPitch = 0f;
-                    wSpineYaw = 12f; wSpinePitch = -2f;
-                    wChestYaw = 16f; wChestPitch = -5f;
-                    // Impacto / Descarga diagonal a la izquierda con flexión frontal
-                    sHipsYaw = -12f; sHipsPitch = 4f;
-                    sSpineYaw = -15f; sSpinePitch = 8f;
-                    sChestYaw = -20f; sChestPitch = 14f;
+                case AttackMotionType.Thrust:
+                    // ESTOCADA MARCIAL:
+                    // Windup: El cuerpo se perfila hacia atrás abriendo el costado derecho
+                    // Impacto: Gran zancada y proyección frontal, hombro adelantado,
+                    //          flexión frontal (+14°) e INCLINACIÓN LATERAL (Roll -12°) para bajar perfil
+                    windupEnd = 0.22f;
+                    hitApex = 0.46f;
+
+                    wHY = 8f;   wHP = 0f;  wHR = 3f;
+                    wSY = 12f;  wSP = 0f;  wSR = 4f;
+                    wCY = 16f;  wCP = 0f;  wCR = 5f;
+
+                    sHY = -10f; sHP = 6f;  sHR = -4f;
+                    sSY = -16f; sSP = 10f; sSR = -8f;
+                    sCY = -20f; sCP = 14f; sCR = -12f;
                     break;
 
-                case 1:
-                    // GOLPE 2: TAJO ASCENDENTE DE RETORNO (Izq -> Der)
-                    windupEnd = 0.18f; hitApex = 0.42f;
-                    // Carga a la izquierda
-                    wHipsYaw = -10f; wHipsPitch = 2f;
-                    wSpineYaw = -12f; wSpinePitch = 4f;
-                    wChestYaw = -16f; wChestPitch = 6f;
-                    // Corte hacia arriba y derecha
-                    sHipsYaw = 10f;  sHipsPitch = -2f;
-                    sSpineYaw = 14f; sSpinePitch = -4f;
-                    sChestYaw = 18f; sChestPitch = -8f;
+                case AttackMotionType.OverheadSlam:
+                    // APLASTAMIENTO VERTICAL (OVERHEAD):
+                    // Windup: Arqueo dorsal hacia atrás abriendo la caja torácica (-16° pecho)
+                    // Impacto: Flexión explosiva descendente (+26° pecho) transmitiendo el peso corporal
+                    windupEnd = 0.26f;
+                    hitApex = 0.50f;
+
+                    wHY = 0f; wHP = -4f;  wHR = 0f;
+                    wSY = 0f; wSP = -8f;  wSR = 0f;
+                    wCY = 0f; wCP = -16f; wCR = 0f;
+
+                    sHY = 0f; sHP = 8f;   sHR = 0f;
+                    sSY = 0f; sSP = 16f;  sSR = 0f;
+                    sCY = 0f; sCP = 26f;  sCR = 0f;
                     break;
 
-                case 2:
-                    // GOLPE 3: BARRIDO HORIZONTAL A LA CINTURA (Der -> Izq)
-                    windupEnd = 0.20f; hitApex = 0.44f;
-                    // Giro de torsión completo hacia la derecha
-                    wHipsYaw = 12f;  wHipsPitch = 0f;
-                    wSpineYaw = 15f; wSpinePitch = 0f;
-                    wChestYaw = 20f; wChestPitch = 0f;
-                    // Barrido horizontal pleno hacia la izquierda
-                    sHipsYaw = -14f; sHipsPitch = 3f;
-                    sSpineYaw = -18f; sSpinePitch = 6f;
-                    sChestYaw = -24f; sChestPitch = 8f;
-                    break;
+                default: // AttackMotionType.HorizontalSlash
+                    // TAJO HORIZONTAL:
+                    // Windup: Torsión hacia el lado de carga
+                    // Impacto: Descarga rotacional de cadera y cintura con INCLINACIÓN FRONTAL MARCADA (+22° pecho)
+                    windupEnd = 0.20f;
+                    hitApex = 0.44f;
 
-                case 3:
-                    // GOLPE 4: TAJO VERTICAL OVERHEAD (Slam)
-                    windupEnd = 0.24f; hitApex = 0.46f;
-                    // Elevación hacia atrás abriendo el pecho
-                    wHipsYaw = 0f; wHipsPitch = -4f;
-                    wSpineYaw = 0f; wSpinePitch = -8f;
-                    wChestYaw = 0f; wChestPitch = -16f;
-                    // Aplastamiento frontal contra el objetivo
-                    sHipsYaw = 0f; sHipsPitch = 6f;
-                    sSpineYaw = 0f; sSpinePitch = 12f;
-                    sChestYaw = 0f; sChestPitch = 22f;
-                    break;
+                    bool isRightToLeft = (step % 2 == 0);
+                    if (isRightToLeft)
+                    {
+                        // Carga a la derecha, tajo hacia la izquierda inclinándose hacia adelante
+                        wHY = 14f;  wHP = 0f;  wHR = 2f;
+                        wSY = 18f;  wSP = -2f; wSR = 3f;
+                        wCY = 24f;  wCP = -4f; wCR = 4f;
 
-                default: // case 4
-                    // GOLPE 5: ESTOCADA FRONTAL PROFUNDA (Lunge Thrust)
-                    windupEnd = 0.26f; hitApex = 0.48f;
-                    // Retracción del brazo y hombro derecho
-                    wHipsYaw = 4f;  wHipsPitch = 0f;
-                    wSpineYaw = 6f;  wSpinePitch = -2f;
-                    wChestYaw = 8f;  wChestPitch = -4f;
-                    // Gran proyección del hombro y pecho al frente
-                    sHipsYaw = -8f;  sHipsPitch = 6f;
-                    sSpineYaw = -12f; sSpinePitch = 12f;
-                    sChestYaw = -16f; sChestPitch = 20f;
+                        sHY = -16f; sHP = 8f;  sHR = -2f;
+                        sSY = -22f; sSP = 14f; sSR = -3f;
+                        sCY = -28f; sCP = 22f; sCR = -4f;
+                    }
+                    else
+                    {
+                        // Retorno: Carga a la izquierda, tajo hacia la derecha inclinándose hacia adelante
+                        wHY = -14f; wHP = 0f;  wHR = -2f;
+                        wSY = -18f; wSP = 0f;  wSR = -3f;
+                        wCY = -22f; wCP = 0f;  wCR = -4f;
+
+                        sHY = 16f;  sHP = 6f;  sHR = 2f;
+                        sSY = 20f;  sSP = 12f; sSR = 3f;
+                        sCY = 26f;  sCP = 18f; sCR = 4f;
+                    }
                     break;
             }
 
-            // Modular la intensidad del acompañamiento de torso según el peso y longitud del arma
+            // Modular la intensidad según el peso y longitud del arma
             float effort = GetTorsoEffortMultiplier();
-            wHipsYaw *= effort; wHipsPitch *= effort;
-            wSpineYaw *= effort; wSpinePitch *= effort;
-            wChestYaw *= effort; wChestPitch *= effort;
+            wHY *= effort; wHP *= effort; wHR *= effort;
+            wSY *= effort; wSP *= effort; wSR *= effort;
+            wCY *= effort; wCP *= effort; wCR *= effort;
 
-            sHipsYaw *= effort; sHipsPitch *= effort;
-            sSpineYaw *= effort; sSpinePitch *= effort;
-            sChestYaw *= effort; sChestPitch *= effort;
+            sHY *= effort; sHP *= effort; sHR *= effort;
+            sSY *= effort; sSP *= effort; sSR *= effort;
+            sCY *= effort; sCP *= effort; sCR *= effort;
+
+            // Clamping anatómico de seguridad para evitar deformaciones en armas hiper-pesadas
+            sCY = Mathf.Clamp(sCY, -32f, 32f);
+            sCP = Mathf.Clamp(sCP, -10f, 28f);
+            sCR = Mathf.Clamp(sCR, -16f, 16f);
 
             // Interpolación fluida en 3 fases: Windup continuo -> Impacto -> Follow-through marcial
             if (t <= windupEnd)
             {
                 float u = Mathf.SmoothStep(0f, 1f, t / windupEnd);
-                hipsYaw = Mathf.Lerp(_strikeStartHipsYaw, wHipsYaw, u);
-                hipsPitch = Mathf.Lerp(_strikeStartHipsPitch, wHipsPitch, u);
-                spineYaw = Mathf.Lerp(_strikeStartSpineYaw, wSpineYaw, u);
-                spinePitch = Mathf.Lerp(_strikeStartSpinePitch, wSpinePitch, u);
-                chestYaw = Mathf.Lerp(_strikeStartChestYaw, wChestYaw, u);
-                chestPitch = Mathf.Lerp(_strikeStartChestPitch, wChestPitch, u);
+                hipsYaw = Mathf.Lerp(_strikeStartHipsYaw, wHY, u);
+                hipsPitch = Mathf.Lerp(_strikeStartHipsPitch, wHP, u);
+                hipsRoll = Mathf.Lerp(_strikeStartHipsRoll, wHR, u);
+
+                spineYaw = Mathf.Lerp(_strikeStartSpineYaw, wSY, u);
+                spinePitch = Mathf.Lerp(_strikeStartSpinePitch, wSP, u);
+                spineRoll = Mathf.Lerp(_strikeStartSpineRoll, wSR, u);
+
+                chestYaw = Mathf.Lerp(_strikeStartChestYaw, wCY, u);
+                chestPitch = Mathf.Lerp(_strikeStartChestPitch, wCP, u);
+                chestRoll = Mathf.Lerp(_strikeStartChestRoll, wCR, u);
             }
             else if (t <= hitApex)
             {
                 float u = Mathf.SmoothStep(0f, 1f, (t - windupEnd) / (hitApex - windupEnd));
-                hipsYaw = Mathf.Lerp(wHipsYaw, sHipsYaw, u);
-                hipsPitch = Mathf.Lerp(wHipsPitch, sHipsPitch, u);
-                spineYaw = Mathf.Lerp(wSpineYaw, sSpineYaw, u);
-                spinePitch = Mathf.Lerp(wSpinePitch, sSpinePitch, u);
-                chestYaw = Mathf.Lerp(wChestYaw, sChestYaw, u);
-                chestPitch = Mathf.Lerp(wChestPitch, sChestPitch, u);
+                hipsYaw = Mathf.Lerp(wHY, sHY, u);
+                hipsPitch = Mathf.Lerp(wHP, sHP, u);
+                hipsRoll = Mathf.Lerp(wHR, sHR, u);
+
+                spineYaw = Mathf.Lerp(wSY, sSY, u);
+                spinePitch = Mathf.Lerp(wSP, sSP, u);
+                spineRoll = Mathf.Lerp(wSR, sSR, u);
+
+                chestYaw = Mathf.Lerp(wCY, sCY, u);
+                chestPitch = Mathf.Lerp(wCP, sCP, u);
+                chestRoll = Mathf.Lerp(wCR, sCR, u);
             }
             else
             {
@@ -548,22 +606,32 @@ namespace ForjaGame.Combat
                 if (t <= recoveryStart)
                 {
                     float u = Mathf.SmoothStep(0f, 1f, (t - hitApex) / (recoveryStart - hitApex));
-                    hipsYaw = Mathf.Lerp(sHipsYaw, sHipsYaw * 0.92f, u);
-                    hipsPitch = Mathf.Lerp(sHipsPitch, sHipsPitch * 0.92f, u);
-                    spineYaw = Mathf.Lerp(sSpineYaw, sSpineYaw * 0.92f, u);
-                    spinePitch = Mathf.Lerp(sSpinePitch, sSpinePitch * 0.92f, u);
-                    chestYaw = Mathf.Lerp(sChestYaw, sChestYaw * 0.92f, u);
-                    chestPitch = Mathf.Lerp(sChestPitch, sChestPitch * 0.92f, u);
+                    hipsYaw = Mathf.Lerp(sHY, sHY * 0.92f, u);
+                    hipsPitch = Mathf.Lerp(sHP, sHP * 0.92f, u);
+                    hipsRoll = Mathf.Lerp(sHR, sHR * 0.92f, u);
+
+                    spineYaw = Mathf.Lerp(sSY, sSY * 0.92f, u);
+                    spinePitch = Mathf.Lerp(sSP, sSP * 0.92f, u);
+                    spineRoll = Mathf.Lerp(sSR, sSR * 0.92f, u);
+
+                    chestYaw = Mathf.Lerp(sCY, sCY * 0.92f, u);
+                    chestPitch = Mathf.Lerp(sCP, sCP * 0.92f, u);
+                    chestRoll = Mathf.Lerp(sCR, sCR * 0.92f, u);
                 }
                 else
                 {
                     float u = Mathf.SmoothStep(0f, 1f, (t - recoveryStart) / (1.0f - recoveryStart));
-                    hipsYaw = Mathf.Lerp(sHipsYaw * 0.92f, 0f, u);
-                    hipsPitch = Mathf.Lerp(sHipsPitch * 0.92f, 0f, u);
-                    spineYaw = Mathf.Lerp(sSpineYaw * 0.92f, 0f, u);
-                    spinePitch = Mathf.Lerp(sSpinePitch * 0.92f, 0f, u);
-                    chestYaw = Mathf.Lerp(sChestYaw * 0.92f, 0f, u);
-                    chestPitch = Mathf.Lerp(sChestPitch * 0.92f, 0f, u);
+                    hipsYaw = Mathf.Lerp(sHY * 0.92f, 0f, u);
+                    hipsPitch = Mathf.Lerp(sHP * 0.92f, 0f, u);
+                    hipsRoll = Mathf.Lerp(sHR * 0.92f, 0f, u);
+
+                    spineYaw = Mathf.Lerp(sSY * 0.92f, 0f, u);
+                    spinePitch = Mathf.Lerp(sSP * 0.92f, 0f, u);
+                    spineRoll = Mathf.Lerp(sSR * 0.92f, 0f, u);
+
+                    chestYaw = Mathf.Lerp(sCY * 0.92f, 0f, u);
+                    chestPitch = Mathf.Lerp(sCP * 0.92f, 0f, u);
+                    chestRoll = Mathf.Lerp(sCR * 0.92f, 0f, u);
                 }
             }
         }

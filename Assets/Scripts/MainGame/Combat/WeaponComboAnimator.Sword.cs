@@ -22,24 +22,24 @@ namespace ForjaGame.Combat
             {
                 case 0:
                     // GOLPE 1: CORTE DIAGONAL DESCENDENTE (Der -> Izq)
-                    // Carga a la derecha con holgura frontal respecto al pecho (Z = 0.34m)
+                    // Carga a la derecha con holgura frontal respecto al pecho (Z = 0.38m)
                     windupEnd = 0.20f;
                     hitApex = 0.44f;
-                    windupPos = new Vector3(0.32f, 0.18f, 0.34f);
-                    windupRot = Quaternion.Euler(55f, 25f, -10f);
-                    strikePos = new Vector3(-0.12f, -0.02f, 0.44f);
-                    strikeRot = Quaternion.Euler(70f, -30f, 10f);
+                    windupPos = new Vector3(0.28f, 0.16f, 0.38f);
+                    windupRot = Quaternion.Euler(50f, 25f, -10f) * guardRot;
+                    strikePos = new Vector3(-0.06f, -0.02f, 0.44f);
+                    strikeRot = Quaternion.Euler(70f, -30f, 10f) * guardRot;
                     break;
 
                 case 1:
                     // GOLPE 2: TAJO ASCENDENTE DE RETORNO (Izq -> Der)
-                    // Inicia desde el follow-through en la izquierda manteniendo 36cm de separación
+                    // Inicia desde el follow-through en la izquierda manteniendo holgura del pecho
                     windupEnd = 0.18f;
                     hitApex = 0.42f;
-                    windupPos = new Vector3(-0.12f, -0.06f, 0.36f);
-                    windupRot = Quaternion.Euler(60f, -25f, -10f);
-                    strikePos = new Vector3(0.28f, 0.14f, 0.42f);
-                    strikeRot = Quaternion.Euler(65f, 30f, 5f);
+                    windupPos = new Vector3(-0.06f, -0.04f, 0.40f);
+                    windupRot = Quaternion.Euler(60f, -25f, -10f) * guardRot;
+                    strikePos = new Vector3(0.26f, 0.14f, 0.42f);
+                    strikeRot = Quaternion.Euler(65f, 30f, 5f) * guardRot;
                     break;
 
                 case 2:
@@ -47,33 +47,33 @@ namespace ForjaGame.Combat
                     // Carga abierta a la derecha y corte horizontal con amplio radio de paso
                     windupEnd = 0.20f;
                     hitApex = 0.44f;
-                    windupPos = new Vector3(0.34f, 0.06f, 0.34f);
-                    windupRot = Quaternion.Euler(75f, 30f, 0f);
-                    strikePos = new Vector3(-0.12f, 0.04f, 0.44f);
-                    strikeRot = Quaternion.Euler(80f, -30f, 0f);
+                    windupPos = new Vector3(0.30f, 0.06f, 0.38f);
+                    windupRot = Quaternion.Euler(75f, 30f, 0f) * guardRot;
+                    strikePos = new Vector3(-0.06f, 0.04f, 0.44f);
+                    strikeRot = Quaternion.Euler(80f, -30f, 0f) * guardRot;
                     break;
 
                 case 3:
                     // GOLPE 4: CORTE VERTICAL OVERHEAD (Slam)
-                    // Elevación sobre el hombro derecho con suficiente separación hacia adelante (Z = 0.32m)
+                    // Elevación sobre el hombro derecho con suficiente separación hacia adelante (Z = 0.36m)
                     windupEnd = 0.24f;
                     hitApex = 0.46f;
-                    windupPos = new Vector3(0.18f, 0.34f, 0.32f);
-                    windupRot = Quaternion.Euler(180f, 90f, 135f);
+                    windupPos = new Vector3(0.16f, 0.34f, 0.36f);
+                    windupRot = Quaternion.Euler(-60f, 15f, 0f) * guardRot;
                     strikePos = new Vector3(0.08f, -0.08f, 0.46f);
-                    strikeRot = Quaternion.Euler(180f, 90f, 75f);
+                    strikeRot = Quaternion.Euler(85f, 0f, 0f) * guardRot;
                     break;
 
                 default: // case 4
                     // GOLPE 5: ESTOCADA FRONTAL DIRECTA (Lunge Thrust)
-                    // Retracción controlada a la altura del costado con 32cm de separación frontal
+                    // Retracción controlada a la altura del costado con separación frontal
                     windupEnd = 0.26f;
                     hitApex = 0.48f;
                     isThrust = true;
-                    windupPos = new Vector3(0.22f, 0.05f, 0.32f);
-                    windupRot = Quaternion.Euler(90f, 0f, 0f);
-                    strikePos = new Vector3(0.10f, 0.03f, 0.50f);
-                    strikeRot = Quaternion.Euler(90f, 0f, 0f);
+                    windupPos = new Vector3(0.18f, 0.04f, 0.36f);
+                    windupRot = Quaternion.Euler(88f, 0f, 0f) * guardRot;
+                    strikePos = new Vector3(0.10f, 0.04f, 0.48f);
+                    strikeRot = Quaternion.Euler(88f, 0f, 0f) * guardRot;
                     break;
             }
 

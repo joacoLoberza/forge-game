@@ -151,7 +151,7 @@ namespace ForjaGame.Combat
                 if (_paladinAnimator.layerCount > 1) _paladinAnimator.SetLayerWeight(1, 0f);
                 if (_paladinAnimator.layerCount > 2) _paladinAnimator.SetLayerWeight(2, 0f);
             }
-            PlayerCombatIKDriver.Instance?.SetWeaponEquipped(false, null, null, WeaponCombatStance.OneHanded);
+            PlayerCombatIKDriver.Instance?.SetWeaponEquipped(false, null, null, null, WeaponCombatStance.OneHanded);
         }
 
         private void EnsureHolder()
@@ -273,7 +273,7 @@ namespace ForjaGame.Combat
             _gripSocketFront = gripFront;
 
             // Conectar sockets al controlador de IK del Paladín
-            PlayerCombatIKDriver.Instance?.SetWeaponEquipped(true, gripRear, gripFront, stance, weapon);
+            PlayerCombatIKDriver.Instance?.SetWeaponEquipped(true, _weaponHolder, gripRear, gripFront, stance, weapon);
         }
 
         /// <summary>

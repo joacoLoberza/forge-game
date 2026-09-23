@@ -5,6 +5,13 @@ using ForjaGame.Forge;
 
 namespace ForjaGame.Combat
 {
+    public enum AttackMotionType
+    {
+        HorizontalSlash,
+        Thrust,
+        OverheadSlam
+    }
+
     /// <summary>
     /// Animador procedural cinemático para armas cuerpo a cuerpo.
     /// Soporta combos fluidos por postura (Espada 5 hits, Martillo, Mandoble 2H, Polearm)
@@ -13,6 +20,63 @@ namespace ForjaGame.Combat
     public partial class WeaponComboAnimator : MonoBehaviour
     {
         public static WeaponComboAnimator Instance { get; private set; }
+
+        public static AttackMotionType GetMotionType(WeaponAnimationStyle style, int comboIndex)
+        {
+            int step = Mathf.Clamp(comboIndex, 0, 4);
+            return style switch
+            {
+                WeaponAnimationStyle.Dagger1H => step switch
+                {
+                    0 => AttackMotionType.Thrust,
+                    1 => AttackMotionType.Thrust,
+                    2 => AttackMotionType.HorizontalSlash,
+                    3 => AttackMotionType.Thrust,
+                    _ => AttackMotionType.Thrust
+                },
+                WeaponAnimationStyle.Sword1H => step switch
+                {
+                    0 => AttackMotionType.HorizontalSlash,
+                    1 => AttackMotionType.HorizontalSlash,
+                    2 => AttackMotionType.HorizontalSlash,
+                    3 => AttackMotionType.OverheadSlam,
+                    _ => AttackMotionType.Thrust
+                },
+                WeaponAnimationStyle.Hammer1H => step switch
+                {
+                    0 => AttackMotionType.OverheadSlam,
+                    1 => AttackMotionType.HorizontalSlash,
+                    2 => AttackMotionType.HorizontalSlash,
+                    3 => AttackMotionType.OverheadSlam,
+                    _ => AttackMotionType.HorizontalSlash
+                },
+                WeaponAnimationStyle.Axe1H => step switch
+                {
+                    0 => AttackMotionType.HorizontalSlash,
+                    1 => AttackMotionType.HorizontalSlash,
+                    2 => AttackMotionType.HorizontalSlash,
+                    3 => AttackMotionType.OverheadSlam,
+                    _ => AttackMotionType.OverheadSlam
+                },
+                WeaponAnimationStyle.Heavy2H => step switch
+                {
+                    0 => AttackMotionType.HorizontalSlash,
+                    1 => AttackMotionType.HorizontalSlash,
+                    2 => AttackMotionType.OverheadSlam,
+                    3 => AttackMotionType.HorizontalSlash,
+                    _ => AttackMotionType.OverheadSlam
+                },
+                WeaponAnimationStyle.Polearm => step switch
+                {
+                    0 => AttackMotionType.HorizontalSlash,
+                    1 => AttackMotionType.HorizontalSlash,
+                    2 => AttackMotionType.Thrust,
+                    3 => AttackMotionType.HorizontalSlash,
+                    _ => AttackMotionType.Thrust
+                },
+                _ => AttackMotionType.HorizontalSlash
+            };
+        }
 
         [Header("Oscilación en Guardia (Idle Sway)")]
         [SerializeField] private float idleSwaySpeed = 2.0f;

@@ -100,8 +100,18 @@ namespace ForjaGame.Core
             }
         }
 
+        private ForjaGame.Combat.PlayerHealthController _healthCtrl;
+
         private void Update()
         {
+            if (_healthCtrl == null) _healthCtrl = GetComponent<ForjaGame.Combat.PlayerHealthController>();
+            if (_healthCtrl != null && !_healthCtrl.IsAlive)
+            {
+                _moveInput = Vector2.zero;
+                if (animator != null) animator.SetFloat("Speed", 0f);
+                return;
+            }
+
             if (_movementEnabled)
             {
                 var kb = Keyboard.current;

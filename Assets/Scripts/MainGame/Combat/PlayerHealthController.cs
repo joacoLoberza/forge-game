@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 using ForjaGame.Core;
 
@@ -6,7 +5,8 @@ namespace ForjaGame.Combat
 {
     /// <summary>
     /// Gestiona la salud del jugador (100 HP), impacto de daño (15 por golpe enemigo),
-    /// visualización de hurtbox corporal y reinicio por derrota al morir.
+    /// visualización de hurtbox corporal y pantalla de derrota con botón interactivo de Reiniciar.
+    /// No reaparece hasta que el usuario pulse [REINICIAR].
     /// </summary>
     public class PlayerHealthController : MonoBehaviour, IDamageable
     {
@@ -25,7 +25,8 @@ namespace ForjaGame.Combat
 
         public int CurrentHealth => currentHealth;
         public int MaxHealth => maxHealth;
-        public bool IsAlive => currentHealth > 0;
+        public bool IsAlive => currentHealth > 0 && !_isDefeated;
+        public bool IsDefeated => _isDefeated;
 
         private void Awake()
         {
@@ -35,7 +36,6 @@ namespace ForjaGame.Combat
             _spawnPosition = transform.position;
             _spawnRotation = transform.rotation;
 
-            // Configurar hurtbox corporal para F3
             SetupBodyHurtbox();
         }
 
@@ -92,7 +92,13 @@ namespace ForjaGame.Combat
         {
             if (_isDefeated) return;
             _isDefeated = true;
-            Debug.Log("<color=red><b>[Jugador] ¡HAS SIDO DERROTADO! Reiniciando partida...</b></color>");
+            Debug.Log("<color=red><b>[Jugador] ¡HAS SIDO DERROTADO! Esperando botón de reinicio...</b></color>");
+
+            if (_rb != null)
+            {
+                _rb.linearVelocity = Vector3.zero;
+                _rb.angularVelocity = Vector3.zero;
+            }
 
             // Notificar a GameLoopController si existe en la escena
             GameLoopController gameLoop = FindFirstObjectByType<GameLoopController>();
@@ -100,14 +106,11 @@ namespace ForjaGame.Combat
             {
                 gameLoop.TriggerDefeat();
             }
-
-            StartCoroutine(RespawnRoutine(gameLoop));
         }
 
-        private IEnumerator RespawnRoutine(GameLoopController gameLoop)
+        public void RespawnPlayer()
         {
-            yield return new WaitForSecondsRealtime(1.2f);
-
+            GameLoopController gameLoop = FindFirstObjectByType<GameLoopController>();
             if (gameLoop != null)
             {
                 gameLoop.AcceptDefeat();
@@ -125,20 +128,74 @@ namespace ForjaGame.Combat
 
             currentHealth = maxHealth;
             _isDefeated = false;
-            Debug.Log("<color=green>[Jugador] Reaparecido con salud completa (100 HP).</color>");
+            Time.timeScale = 1f;
+
+            Debug.Log("<color=green>[Jugador] Reaparecido con salud completa (100 HP) tras pulsar Reiniciar.</color>");
         }
 
         private void OnGUI()
         {
-            // HUD Superior Izquierdo: Salud del Jugador y Estado de Hitboxes
             GUI.skin.box.fontSize = 13;
             GUI.skin.label.fontSize = 13;
 
+            // 1. PANTALLA MODAL DE DERROTA (Solo si el jugador ha muerto)
+            if (_isDefeated)
+            {
+                // Fondo oscurecido completo
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0f, 0f, 0f, 0.78f), 0f, 0f);
+
+                // Cuadro central
+                float dialogWidth = 420f;
+                float dialogHeight = 220f;
+                float dialogX = (Screen.width - dialogWidth) * 0.5f;
+                float dialogY = (Screen.height - dialogHeight) * 0.5f;
+
+                GUI.Box(new Rect(dialogX, dialogY, dialogWidth, dialogHeight), "");
+
+                var titleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 24,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                titleStyle.normal.textColor = new Color(1f, 0.2f, 0.2f);
+                GUI.Label(new Rect(dialogX, dialogY + 25f, dialogWidth, 35f), "¡HAS SIDO DERROTADO!", titleStyle);
+
+                var subtitleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 14,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                subtitleStyle.normal.textColor = Color.white;
+                GUI.Label(new Rect(dialogX, dialogY + 70f, dialogWidth, 25f), "Tu salud ha llegado a 0 puntos.", subtitleStyle);
+
+                // Botón interactivo de Reiniciar
+                var btnStyle = new GUIStyle(GUI.skin.button)
+                {
+                    fontSize = 16,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+
+                float btnWidth = 200f;
+                float btnHeight = 48f;
+                float btnX = dialogX + (dialogWidth - btnWidth) * 0.5f;
+                float btnY = dialogY + 130f;
+
+                if (GUI.Button(new Rect(btnX, btnY, btnWidth, btnHeight), "↻ REINICIAR", btnStyle))
+                {
+                    RespawnPlayer();
+                }
+
+                return;
+            }
+
+            // 2. HUD SUPERIOR IZQUIERDO (Durante el juego normal)
             float padX = 15f;
             float topY = 15f;
             float boxWidth = 260f;
 
-            // 1. Panel de Salud del Jugador
+            // Panel de Salud del Jugador
             GUI.Box(new Rect(padX, topY, boxWidth, 75f), "");
             GUI.Label(new Rect(padX + 10f, topY + 6f, boxWidth - 20f, 22f), $"<b>JUGADOR HP:</b> {currentHealth} / {maxHealth}");
 
@@ -153,17 +210,25 @@ namespace ForjaGame.Combat
             string f3Text = HitboxDebugManager.ShowHitboxes ? "<color=#00FF66><b>[F3] HITBOXES: VISIBLES</b></color>" : "<color=#AAAAAA>[F3] Hitboxes: Ocultas</color>";
             GUI.Label(new Rect(padX + 10f, topY + 48f, boxWidth - 20f, 22f), f3Text);
 
-            // 2. Panel de Enemigo más cercano si está presente
+            // Panel de Enemigo si está activo en combate
             var enemy = CombatDummyEnemy.Instance;
-            if (enemy != null && enemy.IsAlive)
+            if (enemy != null)
             {
                 float enemyY = topY + 85f;
                 GUI.Box(new Rect(padX, enemyY, boxWidth, 55f), "");
-                GUI.Label(new Rect(padX + 10f, enemyY + 6f, boxWidth - 20f, 22f), $"<b>ENEMIGO HP:</b> {enemy.CurrentHealth} / {enemy.MaxHealth}");
 
-                float enemyRatio = Mathf.Clamp01((float)enemy.CurrentHealth / enemy.MaxHealth);
-                GUI.DrawTexture(new Rect(padX + 10f, enemyY + 30f, barWidth, 12f), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.2f, 0.2f, 0.2f, 0.9f), 0f, 0f);
-                GUI.DrawTexture(new Rect(padX + 10f, enemyY + 30f, barWidth * enemyRatio, 12f), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.9f, 0.2f, 0.2f, 0.95f), 0f, 0f);
+                if (enemy.IsAlive)
+                {
+                    GUI.Label(new Rect(padX + 10f, enemyY + 6f, boxWidth - 20f, 22f), $"<b>ENEMIGO HP:</b> {enemy.CurrentHealth} / {enemy.MaxHealth}");
+                    float enemyRatio = Mathf.Clamp01((float)enemy.CurrentHealth / enemy.MaxHealth);
+                    GUI.DrawTexture(new Rect(padX + 10f, enemyY + 30f, barWidth, 12f), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.2f, 0.2f, 0.2f, 0.9f), 0f, 0f);
+                    GUI.DrawTexture(new Rect(padX + 10f, enemyY + 30f, barWidth * enemyRatio, 12f), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.9f, 0.2f, 0.2f, 0.95f), 0f, 0f);
+                }
+                else
+                {
+                    float remaining = Mathf.Max(0f, enemy.RespawnTimeRemaining);
+                    GUI.Label(new Rect(padX + 10f, enemyY + 16f, boxWidth - 20f, 24f), $"<color=orange><b>ENEMIGO DERROTADO</b></color>\nReaparición en: {Mathf.CeilToInt(remaining)}s");
+                }
             }
         }
     }

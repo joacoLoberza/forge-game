@@ -30,6 +30,8 @@ namespace ForjaGame.Core
         public void TriggerDefeat()
         {
             Time.timeScale = 0f;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
             onDefeat?.Invoke();  
         }
 
@@ -44,7 +46,9 @@ namespace ForjaGame.Core
         {
             Time.timeScale = 1f;
             ResetPlayerPosition();
-            // A futuro: Aquí perderá los items recolectados en la cueva
+
+            var pHealth = playerTransform != null ? playerTransform.GetComponent<Combat.PlayerHealthController>() : Combat.PlayerHealthController.Instance;
+            pHealth?.RestoreHealthFull();
         }
 
         private void ResetPlayerPosition()

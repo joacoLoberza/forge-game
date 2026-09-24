@@ -5,8 +5,8 @@ namespace ForjaGame.Combat
     public static partial class ArmIK
     {
         /// <summary>
-        /// Aplica asistencia anatómica escalonada cuando el objetivo supera el 92% del alcance del brazo:
-        /// 1. Clavícula / Hombro -> 2. Torso -> 3. Caderas -> 4. Solo al final acerca el arma.
+        /// Aplica contención anatómica al alcance del brazo:
+        /// Limita el objetivo de la mano al alcance físico máximo seguro (96%) sin deformar huesos.
         /// </summary>
         public static void ApplyReachAssistance(
             Transform clavicle,
@@ -18,47 +18,12 @@ namespace ForjaGame.Combat
             Transform weaponHolder)
         {
             float maxReach = armLength * MaxReachCap;
-            float assistThreshold = armLength * ReachAssistThreshold;
-
             Vector3 toTarget = targetHandPos - shoulderPos;
             float dist = toTarget.magnitude;
 
-            if (dist <= assistThreshold) return;
-
-            Vector3 dir = toTarget / dist;
-            float excess = dist - assistThreshold;
-
-            // 1. Asistencia de Clavícula / Hombro (hasta 0.05m de extensión)
-            if (clavicle != null)
+            if (dist > maxReach)
             {
-                float clavicleShift = Mathf.Min(excess * 0.40f, 0.05f);
-                clavicle.position += dir * clavicleShift;
-                excess -= clavicleShift;
-            }
-
-            // 2. Asistencia de Torso (inclinación frontal sutil hacia el objetivo)
-            if (excess > 0.001f && spine != null)
-            {
-                float spineAssist = Mathf.Min(excess * 0.35f, 0.04f);
-                spine.position += dir * spineAssist;
-                excess -= spineAssist;
-            }
-
-            // 3. Asistencia de Caderas
-            if (excess > 0.001f && hips != null)
-            {
-                float hipsAssist = Mathf.Min(excess * 0.25f, 0.03f);
-                hips.position += dir * hipsAssist;
-                excess -= hipsAssist;
-            }
-
-            // 4. Solo al final, si aún supera el tope absoluto (96%), acercar el arma
-            float finalDist = Vector3.Distance(shoulderPos, targetHandPos);
-            if (finalDist > maxReach && weaponHolder != null)
-            {
-                Vector3 pullback = dir * (finalDist - maxReach);
-                weaponHolder.position -= pullback;
-                targetHandPos -= pullback;
+                targetHandPos = shoulderPos + toTarget.normalized * maxReach;
             }
         }
 
@@ -104,32 +69,22 @@ namespace ForjaGame.Combat
         }
 
         /// <summary>
-        /// Verifica en armas a dos manos (2H) que ambos agarres sean alcanzables; si no, desplaza el arma hacia el pecho.
+        /// Verifica en armas a dos manos (2H) que el agarre secundario esté al alcance del brazo izquierdo.
+        /// Si está demasiado lejos, relaja el peso del IK del brazo izquierdo en lugar de tirar del arma o quebrar articulaciones.
         /// </summary>
         public static void EnsureBimanualReachable(
             Vector3 rShoulder, Vector3 lShoulder,
             ref Vector3 gripRear, ref Vector3 gripFront,
             float rArmLen, float lArmLen,
-            Transform weaponHolder)
+            ref float leftArmWeight)
         {
-            float maxR = rArmLen * MaxReachCap;
             float maxL = lArmLen * MaxReachCap;
-
-            float distR = Vector3.Distance(rShoulder, gripRear);
             float distL = Vector3.Distance(lShoulder, gripFront);
 
-            float excessR = Mathf.Max(0f, distR - maxR);
-            float excessL = Mathf.Max(0f, distL - maxL);
-
-            if ((excessR > 0.001f || excessL > 0.001f) && weaponHolder != null)
+            if (distL > maxL)
             {
-                Vector3 toShoulderMid = (((rShoulder + lShoulder) * 0.5f) - ((gripRear + gripFront) * 0.5f)).normalized;
-                float maxExcess = Mathf.Max(excessR, excessL);
-                Vector3 shift = toShoulderMid * maxExcess;
-
-                weaponHolder.position += shift;
-                gripRear += shift;
-                gripFront += shift;
+                float excess = distL - maxL;
+                leftArmWeight = Mathf.Clamp01(1f - (excess / 0.15f));
             }
         }
     }

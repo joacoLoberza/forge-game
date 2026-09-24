@@ -8,7 +8,7 @@ namespace ForjaGame.Combat
         private void LateUpdate()
         {
             if (_animator == null || !_animator.isHuman || _currentIkWeight <= 0.001f) return;
-            if (!_isEquipped || _weaponHolder == null || _chestBone == null) return;
+            if (!_isEquipped || _chestBone == null || _rightHand == null) return;
 
             Transform playerTransform = transform.parent != null ? transform.parent : transform;
             float dt = Time.deltaTime;
@@ -36,86 +36,71 @@ namespace ForjaGame.Combat
                 targetTorso = TorsoAngles.Identity;
                 velChest = Vector3.zero;
 
-                Vector3 currentLocal = _chestBone.InverseTransformPoint(_weaponHolder.position);
-                targetGripChest = MoveSolver.SpringTowards(currentLocal, _guardGripChest, ref _springVelocity, returnToGuardTime, dt);
-                targetRotChest = Quaternion.Slerp(Quaternion.Inverse(_chestBone.rotation) * _weaponHolder.rotation, _guardRotChest, dt * 8f);
+                Vector3 currentHandChest = _chestBone.InverseTransformPoint(_rightHand.position);
+                targetGripChest = MoveSolver.SpringTowards(currentHandChest, _guardGripChest, ref _springVelocity, returnToGuardTime, dt);
+                targetRotChest = _guardRotChest;
             }
 
             // 1. APLICAR TORSO PRIMERO (Caderas 20%, Columna 35%, Pecho 45%)
             _torsoDriver?.ApplyTorsoPose(targetTorso, _analysis.inertia, dt, playerTransform);
 
-            // 2. POSE DEL ARMA EN ESPACIO DEL PECHO -> MUNDO
+            // 2. OBJETIVO DE LA MANO DERECHA EN MUNDO
             Vector3 worldGrip = _chestBone.TransformPoint(targetGripChest);
             Quaternion worldRot = _chestBone.rotation * targetRotChest;
 
-            // Filtro SmoothDamp final según inercia (0.03s ligera, 0.08s pesada)
-            float filterTime = Mathf.Lerp(0.03f, 0.08f, Mathf.Clamp01(_analysis.inertia / 3.5f));
-            _weaponHolder.position = Vector3.Lerp(_weaponHolder.position, worldGrip, dt / filterTime);
-            _weaponHolder.rotation = Quaternion.Slerp(_weaponHolder.rotation, worldRot, dt / filterTime);
-
-            // 3. DESLIZAMIENTO DE AGARRE EN ASTA
-            bool isPolearm = _currentStance == WeaponCombatStance.Polearm;
-            if (isPolearm && _gripSocketFront != null)
-            {
-                float slide = TorsoDriver.CalculatePolearmGripSlide(
-                    _attackProgress,
-                    _currentMove != null ? _currentMove.motionType : AttackMotionType.Thrust,
-                    0.35f);
-                _gripSocketFront.localPosition = new Vector3(0f, slide, 0f);
-            }
-
-            // 4. ALCANCE Y ASISTENCIA ESCALONADA (Hombro -> Torso -> Caderas)
-            Vector3 targetR = _gripSocketRear != null ? _gripSocketRear.position : _weaponHolder.position;
+            Vector3 targetR = worldGrip;
             if (_rightUpperArm != null)
             {
                 ArmIK.ApplyReachAssistance(
                     _rightShoulder, _spineBone, _hipsBone,
-                    ref targetR, _rightUpperArm.position, _rightArmLength, _weaponHolder);
+                    ref targetR, _rightUpperArm.position, _rightArmLength, null);
             }
 
-            // 5. VERIFICACIÓN BIMANUAL EN 2H
-            bool isBimanual = _currentStance == WeaponCombatStance.TwoHanded || isPolearm;
-            Vector3 targetL = _gripSocketFront != null ? _gripSocketFront.position : targetR;
-            if (isBimanual && _rightUpperArm != null && _leftUpperArm != null)
-            {
-                ArmIK.EnsureBimanualReachable(
-                    _rightUpperArm.position, _leftUpperArm.position,
-                    ref targetR, ref targetL,
-                    _rightArmLength, _leftArmLength, _weaponHolder);
-            }
-
-            // 6. POLE DE CODOS CON CÁPSULA ANTI-PENETRACIÓN DEL TORSO
+            // 3. POLE Y RESOLUCIÓN TWO-BONE IK DE BRAZO DOMINANTE
             Vector3 rPole = ArmIK.CalculateElbowPoleWithTorsoCapsule(_chestBone, _rightUpperArm.position, targetR, true);
-            Vector3 lPole = ArmIK.CalculateElbowPoleWithTorsoCapsule(_chestBone, _leftUpperArm.position, targetL, false);
-
-            // 7. TWO-BONE IK DE BRAZOS
             ArmIK.SolveTwoBone(_rightUpperArm, _rightForearm, _rightHand, targetR, rPole, _currentIkWeight);
 
-            if (isBimanual)
-            {
-                ArmIK.SolveTwoBone(_leftUpperArm, _leftForearm, _leftHand, targetL, lPole, _currentIkWeight);
-            }
-            else
-            {
-                // Mano libre en 1H con pose de contrapeso atlético
-                Vector3 freeHandChest = TorsoDriver.CalculateFreeHandCounterweight(
-                    _attackProgress,
-                    _currentMove != null ? _currentMove.motionType : AttackMotionType.HorizontalSlash,
-                    _leftArmLength);
-                Vector3 worldFreeHand = _chestBone.TransformPoint(freeHandChest);
-                ArmIK.SolveTwoBone(_leftUpperArm, _leftForearm, _leftHand, worldFreeHand, lPole, _currentIkWeight);
-            }
-
-            // 8. LÍMITES DE MUÑECA Y REPARTO DE PRONACIÓN
+            // 4. ORIENTACIÓN DE LA MUÑECA PARA ALINEAR EL ARMA
             Quaternion rOffsetRot = Quaternion.Euler(rightHandOffsetRot);
-            Quaternion targetHandRotR = _weaponHolder.rotation * Quaternion.Inverse(rOffsetRot);
+            Quaternion targetHandRotR = worldRot * Quaternion.Inverse(rOffsetRot);
             ArmIK.ApplyWristAndPronationLimits(_rightForearm, _rightHand, targetHandRotR, _currentIkWeight);
 
-            if (isBimanual && _gripSocketFront != null)
+            // 5. BRAZO SECUNDARIO (IZQUIERDO)
+            bool isPolearm = _currentStance == WeaponCombatStance.Polearm;
+            bool isBimanual = _currentStance == WeaponCombatStance.TwoHanded || isPolearm;
+
+            if (_leftUpperArm != null && _leftForearm != null && _leftHand != null)
             {
-                Quaternion lOffsetRot = Quaternion.Euler(leftHandOffsetRot);
-                Quaternion targetHandRotL = _gripSocketFront.rotation * Quaternion.Inverse(lOffsetRot);
-                ArmIK.ApplyWristAndPronationLimits(_leftForearm, _leftHand, targetHandRotL, _currentIkWeight);
+                if (!isBimanual)
+                {
+                    // 1H: Mano izquierda en guardia atlética defensiva junto a las costillas (sin cruzar el pecho)
+                    Vector3 leftGuardChest = new Vector3(-0.20f, -0.06f, 0.26f);
+                    Vector3 worldLeftHand = _chestBone.TransformPoint(leftGuardChest);
+                    Vector3 lPole = _chestBone.TransformPoint(new Vector3(-0.35f, -0.50f, -0.15f));
+                    ArmIK.SolveTwoBone(_leftUpperArm, _leftForearm, _leftHand, worldLeftHand, lPole, _currentIkWeight);
+                }
+                else
+                {
+                    // 2H: Agarre secundario con relajación de peso en caso de sobre-extensión
+                    float leftArmWeight = _currentIkWeight;
+                    Vector3 targetL = _gripSocketFront != null ? _gripSocketFront.position : targetR;
+
+                    ArmIK.EnsureBimanualReachable(
+                        _rightUpperArm.position, _leftUpperArm.position,
+                        ref targetR, ref targetL,
+                        _rightArmLength, _leftArmLength,
+                        ref leftArmWeight);
+
+                    Vector3 lPole = ArmIK.CalculateElbowPoleWithTorsoCapsule(_chestBone, _leftUpperArm.position, targetL, false);
+                    ArmIK.SolveTwoBone(_leftUpperArm, _leftForearm, _leftHand, targetL, lPole, leftArmWeight);
+
+                    if (_gripSocketFront != null)
+                    {
+                        Quaternion lOffsetRot = Quaternion.Euler(leftHandOffsetRot);
+                        Quaternion targetHandRotL = _gripSocketFront.rotation * Quaternion.Inverse(lOffsetRot);
+                        ArmIK.ApplyWristAndPronationLimits(_leftForearm, _leftHand, targetHandRotL, leftArmWeight);
+                    }
+                }
             }
         }
 

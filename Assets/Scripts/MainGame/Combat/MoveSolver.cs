@@ -94,7 +94,8 @@ namespace ForjaGame.Combat
                 return lateralVelocity;
             }
 
-            return Vector3.Cross(forwardTip, lateralVelocity);
+            // Filo (+Y canónico): apunta directamente en la dirección del tajo (lateralVelocity)
+            return lateralVelocity;
         }
 
         private static Quaternion EnsureQuaternionHemisphere(Quaternion target, Quaternion reference)

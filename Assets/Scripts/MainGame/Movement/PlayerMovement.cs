@@ -193,20 +193,24 @@ namespace ForjaGame.Core
 
             if (_attackCtrl != null && _attackCtrl.IsAttacking)
             {
-                // Permitir direccionamiento suave y desplazamiento fluido durante el ataque
-                if (isMoving && moveDir.sqrMagnitude > 0.001f)
+                float phaseMult = _attackCtrl.GetCurrentPhaseSpeedMultiplier();
+                bool dirLocked = _attackCtrl.IsDirectionLocked();
+
+                if (!dirLocked && isMoving && moveDir.sqrMagnitude > 0.001f)
                 {
                     Quaternion targetRot = Quaternion.LookRotation(moveDir);
                     transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 8.0f * Time.fixedDeltaTime);
+                }
 
-                    float combatMoveSpeed = walkSpeed * 0.75f;
-                    Vector3 combatVel = moveDir * combatMoveSpeed;
-                    _rb.linearVelocity = new Vector3(combatVel.x, _rb.linearVelocity.y, combatVel.z);
-                }
-                else
+                float combatMoveSpeed = walkSpeed * phaseMult;
+                Vector3 combatVel = (isMoving && moveDir.sqrMagnitude > 0.001f) ? (moveDir * combatMoveSpeed) : Vector3.zero;
+
+                if (dirLocked && _attackCtrl.ActiveMove != null)
                 {
-                    _rb.linearVelocity = new Vector3(_rb.linearVelocity.x * 0.2f, _rb.linearVelocity.y, _rb.linearVelocity.z * 0.2f);
+                    combatVel += transform.forward * (_attackCtrl.ActiveMove.lungeDistance * 2.5f);
                 }
+
+                _rb.linearVelocity = new Vector3(combatVel.x, _rb.linearVelocity.y, combatVel.z);
                 return;
             }
             IsSprinting = isMoving && Keyboard.current != null &&

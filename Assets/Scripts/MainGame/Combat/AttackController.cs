@@ -1,14 +1,14 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using ForjaGame.Core;
-using ForjaGame.Resources;
 using ForjaGame.Forge;
 
 namespace ForjaGame.Combat
 {
     /// <summary>
-    /// Gestiona los ataques del jugador, registro de combos y detección de impacto físico.
-    /// Opera de forma desacoplada de animaciones de cuerpo humanoide.
+    /// Gestiona los ataques del jugador basados en datos de movimiento (AttackMove) y combos de 5 golpes.
+    /// Fuente de verdad unificada en espacio del pecho gobernando el IK y las fases marciales.
     /// </summary>
     public partial class AttackController : MonoBehaviour
     {
@@ -26,28 +26,36 @@ namespace ForjaGame.Combat
 
         private Rigidbody _rb;
         private WeaponStats _equippedWeapon;
-        private float _lastAttackTime = -1f, _currentAttackStartTime = -1f, _comboAvailableTime = -1f;
-        private int _currentComboIndex = 0, _maxComboSteps = 0, _lastAttackInputFrame = -1;
-        private bool _isAttacking = false, _isCarryingAttackStep = false, _hasBufferedNextStrike = false;
+        private WeaponAnalysis _currentAnalysis;
+        private AttackMove[] _currentComboMoves;
+        private AttackMove _activeMove;
+
+        private float _currentAttackStartTime = -1f;
+        private float _comboAvailableTime = -1f;
+        private float _hitStopUntil = -1f;
+        private int _currentComboIndex = 0;
+        private int _maxComboSteps = 5;
+        private int _lastAttackInputFrame = -1;
+        private bool _isAttacking = false;
+        private bool _hasBufferedNextStrike = false;
+        private readonly HashSet<IDamageable> _hitTargetsThisSwing = new();
+
         private HitboxVisualizer _attackHitboxVisualizer;
         private float _hitBlackTime = -1f;
 
         public bool HasPickaxeEquipped { get; set; } = false;
         public float AttackCooldown => attackCooldown;
         public bool IsAttacking => _isAttacking;
-        public bool IsCarryingAttackStep => _isCarryingAttackStep;
         public int CurrentComboIndex => _currentComboIndex;
         public int MaxComboSteps => _maxComboSteps;
-        public bool HasBufferedNextStrike => _hasBufferedNextStrike;
+        public AttackMove ActiveMove => _activeMove;
+        public bool IsHitStopped => Time.time < _hitStopUntil;
 
         private void Awake()
         {
             _rb = GetComponent<Rigidbody>();
             if (gameStateController == null) gameStateController = FindFirstObjectByType<GameStateController>();
-
-            if (GetComponent<PlayerHealthController>() == null)
-                gameObject.AddComponent<PlayerHealthController>();
-
+            if (GetComponent<PlayerHealthController>() == null) gameObject.AddComponent<PlayerHealthController>();
             SetupAttackHitboxVisualizer();
         }
 
@@ -73,14 +81,23 @@ namespace ForjaGame.Combat
 
             UpdateHitboxVisualizer();
 
-            if (!_isAttacking) return;
+            if (!_isAttacking || _activeMove == null) return;
+
+            // Pausa por Hit-Stop
+            if (Time.time < _hitStopUntil) return;
+
             float elapsed = Time.time - _currentAttackStartTime;
-            if (_isCarryingAttackStep && elapsed > 0.22f) _isCarryingAttackStep = false;
-
             float progress = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, attackDuration));
-            PlayerCombatIKDriver.Instance?.SetAttackState(true, _currentComboIndex, progress);
 
-            // Transición de combo por click durante la ventana
+            PlayerCombatIKDriver.Instance?.UpdateAttackProgress(progress);
+
+            // Barrido de hitbox durante la ventana activa
+            if (progress >= _activeMove.hitWindowStart && progress <= _activeMove.hitWindowEnd)
+            {
+                PerformSweepHitDetection();
+            }
+
+            // Buffer de combo para transicionar al siguiente golpe
             if (elapsed >= comboTransitionTime)
             {
                 if (_hasBufferedNextStrike && _currentComboIndex + 1 < _maxComboSteps)
@@ -91,15 +108,7 @@ namespace ForjaGame.Combat
                 }
             }
 
-            // Fin del ataque al completar recuperación
             if (elapsed >= attackDuration)
-            {
-                EndAttack();
-                return;
-            }
-
-            // Cancelación suave por movimiento si no hay golpe en cola
-            if (!_hasBufferedNextStrike && elapsed >= attackDuration * 0.85f && HasMovementInput())
             {
                 EndAttack();
             }
@@ -128,7 +137,7 @@ namespace ForjaGame.Combat
             if (gameStateController != null && !gameStateController.IsInState(GameState.Exploration)) return;
 
             var equipment = PlayerEquipmentController.Instance;
-            if (equipment == null || !equipment.HasWeaponEquipped || _maxComboSteps <= 0) return;
+            if (equipment == null || !equipment.HasWeaponEquipped) return;
 
             if (_isAttacking)
             {
@@ -151,49 +160,56 @@ namespace ForjaGame.Combat
             _isAttacking = true;
             _currentComboIndex = comboIndex;
             _currentAttackStartTime = Time.time;
-            _lastAttackTime = Time.time;
+            _hitTargetsThisSwing.Clear();
 
-            // Reorientar hacia la dirección del input de movimiento del jugador si existe
+            EnsureComboMoves();
+
+            AttackMove desired = _currentComboMoves != null && comboIndex < _currentComboMoves.Length
+                ? _currentComboMoves[comboIndex]
+                : null;
+
+            _activeMove = WeaponAnalyzer.ResolveMove(desired, _currentAnalysis);
+
+            float speedMult = _equippedWeapon != null ? Mathf.Max(0.5f, _equippedWeapon.attackSpeed) : 1.0f;
+            attackDuration = (_activeMove != null ? _activeMove.baseDuration : 0.65f) / speedMult;
+            comboTransitionTime = attackDuration * 0.70f;
+
+            // Reorientar al iniciar el golpe
             Vector3 attackDir = GetPlayerAttackInputDirection();
             if (attackDir.sqrMagnitude > 0.01f)
             {
                 transform.rotation = Quaternion.LookRotation(attackDir);
             }
-            else
-            {
-                attackDir = transform.forward;
-            }
 
-            if (_rb == null) _rb = GetComponent<Rigidbody>();
-            if (_rb != null)
-            {
-                // Mantener los pies firmes y anclados al suelo en la postura de combate (CombatIdle), sin patinar
-                _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
-            }
-            _isCarryingAttackStep = false;
-            PlayerCombatIKDriver.Instance?.SetAttackState(true, comboIndex, 0f);
+            PlayerCombatIKDriver.Instance?.StartAttackMove(_activeMove, attackDuration);
+        }
 
-            if (WeaponComboAnimator.Instance != null)
+        private void EnsureComboMoves()
+        {
+            if (_currentComboMoves == null || _currentComboMoves.Length != 5)
             {
-                WeaponComboAnimator.Instance.PlayStrike(comboIndex, attackDuration, PerformHitDetection);
-            }
-            else
-            {
-                PerformHitDetection();
+                _currentAnalysis = WeaponAnalyzer.Analyze(_equippedWeapon);
+                _currentComboMoves = ComboCatalog.GetCombo(_currentAnalysis.archetype);
+                _maxComboSteps = 5;
             }
         }
 
-        public void TriggerHitDetection() => PerformHitDetection();
+        public void TriggerHitStop(float duration)
+        {
+            _hitStopUntil = Time.time + Mathf.Clamp(duration, 0.035f, 0.075f);
+        }
 
         private void EndAttack()
         {
             _isAttacking = false;
-            _isCarryingAttackStep = false;
             _hasBufferedNextStrike = false;
             _currentComboIndex = 0;
+            _activeMove = null;
+            _hitTargetsThisSwing.Clear();
             _comboAvailableTime = Time.time + postComboCooldown;
-            PlayerCombatIKDriver.Instance?.SetAttackState(false, 0, 0f);
-            WeaponComboAnimator.Instance?.CancelOrReturnToGuard();
+
+            PlayerCombatIKDriver.Instance?.EndAttack();
+
             if (_attackHitboxVisualizer != null)
             {
                 _attackHitboxVisualizer.IsVolumeActive = false;

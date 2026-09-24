@@ -4,26 +4,23 @@ using ForjaGame.Forge;
 namespace ForjaGame.Combat
 {
     /// <summary>
-    /// Controlador anatómico de Cinemática Inversa (IK) y Cadena Cinética (Hips, Spine, Chest) para el Paladín.
-    /// - Cadena Cinética y Torsión de Cadera: La cadera (Hips), columna (Spine) y pecho (Chest) rotan de forma
-    ///   coordinada para proyectar los ataques con potencia marcial, manteniendo las piernas en postura de combate.
-    /// - Restricciones de Brazos: Two-Bone IK analítico con alcance seguro para evitar quiebres o deformaciones.
-    /// - Alineación de Muñecas: Garantiza que las manos se adapten firmemente al mango del arma sin quiebres ni saltos.
+    /// Controlador anatómico unificado de Combate e IK para el Paladín.
+    /// Fuente de verdad única: la trayectoria del arma en espacio del Pecho gobierna el torso y los brazos.
     /// </summary>
     [RequireComponent(typeof(Animator))]
     public partial class PlayerCombatIKDriver : MonoBehaviour
     {
         public static PlayerCombatIKDriver Instance { get; private set; }
 
-        [Header("Calibración Anatómica del Torso y Brazos")]
-        [SerializeField] private float maxReachRatio = 0.96f;
-        [SerializeField] private float ikFadeSpeed = 8.0f;
-
         [Header("Offsets de Agarre")]
         [SerializeField] private Vector3 rightHandOffsetPos = new Vector3(0.035f, 0.075f, -0.015f);
         [SerializeField] private Vector3 rightHandOffsetRot = new Vector3(-90f, 0f, 90f);
         [SerializeField] private Vector3 leftHandOffsetPos = new Vector3(-0.035f, 0.075f, -0.015f);
         [SerializeField] private Vector3 leftHandOffsetRot = new Vector3(-90f, 0f, -90f);
+
+        [Header("Parámetros de Suavizado")]
+        [SerializeField] private float ikFadeSpeed = 8.0f;
+        [SerializeField] private float returnToGuardTime = 0.22f;
 
         private Animator _animator;
         private Transform _hipsBone;
@@ -41,44 +38,30 @@ namespace ForjaGame.Combat
         private float _rightArmLength = 0.65f;
         private float _leftArmLength = 0.65f;
 
-        // Estado del arma
         private bool _isEquipped = false;
         private Transform _weaponHolder;
         private Transform _gripSocketRear;
         private Transform _gripSocketFront;
         private WeaponCombatStance _currentStance = WeaponCombatStance.OneHanded;
         private WeaponStats _currentWeapon;
+        private WeaponAnalysis _analysis;
 
-        // Pesos dinámicos
+        private TorsoDriver _torsoDriver;
+        private AttackMove _currentMove;
+        private float _attackProgress = 0f;
+        private bool _isAttacking = false;
+
         private float _currentIkWeight = 0f;
         private float _targetIkWeight = 0f;
 
-        // Cinemática de Cadera y Torso (Hips, Spine, Chest) con Yaw, Pitch y Roll
-        private bool _isAttacking = false;
-        private int _currentComboIndex = 0;
-        private float _attackProgress = 0f;
-
-        private float _currentHipsYaw = 0f;
-        private float _currentHipsPitch = 0f;
-        private float _currentHipsRoll = 0f;
-        private float _currentSpineYaw = 0f;
-        private float _currentSpinePitch = 0f;
-        private float _currentSpineRoll = 0f;
-        private float _currentChestYaw = 0f;
-        private float _currentChestPitch = 0f;
-        private float _currentChestRoll = 0f;
-
-        private float _strikeStartHipsYaw = 0f;
-        private float _strikeStartHipsPitch = 0f;
-        private float _strikeStartHipsRoll = 0f;
-        private float _strikeStartSpineYaw = 0f;
-        private float _strikeStartSpinePitch = 0f;
-        private float _strikeStartSpineRoll = 0f;
-        private float _strikeStartChestYaw = 0f;
-        private float _strikeStartChestPitch = 0f;
-        private float _strikeStartChestRoll = 0f;
+        private Vector3 _guardGripChest = new Vector3(0.24f, -0.16f, 0.38f);
+        private Quaternion _guardRotChest = Quaternion.Euler(0f, 15f, 25f);
+        private Vector3 _springVelocity = Vector3.zero;
 
         public float CurrentWeight => _currentIkWeight;
+        public float RightArmLength => _rightArmLength;
+        public Transform ChestBone => _chestBone;
+        public WeaponAnalysis CurrentAnalysis => _analysis;
 
         private void Awake()
         {
@@ -122,6 +105,8 @@ namespace ForjaGame.Combat
                 float lenLower = Vector3.Distance(_leftForearm.position, _leftHand.position);
                 _leftArmLength = Mathf.Max(0.55f, lenUpper + lenLower);
             }
+
+            _torsoDriver = new TorsoDriver(_hipsBone, _spineBone, _chestBone);
         }
 
         public void SetWeaponEquipped(bool equipped, Transform weaponHolder, Transform gripRear, Transform gripFront, WeaponCombatStance stance, WeaponStats weapon = null)
@@ -133,71 +118,63 @@ namespace ForjaGame.Combat
             _currentStance = stance;
             _currentWeapon = weapon;
             _targetIkWeight = equipped ? 1.0f : 0.0f;
+
+            if (equipped && weapon != null)
+            {
+                _analysis = WeaponAnalyzer.Analyze(weapon, _rightArmLength);
+                ConfigureGuardPose(_analysis.archetype);
+            }
+        }
+
+        private void ConfigureGuardPose(WeaponArchetype archetype)
+        {
+            switch (archetype)
+            {
+                case WeaponArchetype.Dagger:
+                    _guardGripChest = new Vector3(0.20f, -0.12f, 0.32f);
+                    _guardRotChest = Quaternion.Euler(0f, 10f, 15f);
+                    break;
+                case WeaponArchetype.Heavy2H:
+                    _guardGripChest = new Vector3(0.18f, -0.22f, 0.35f);
+                    _guardRotChest = Quaternion.Euler(15f, 20f, 35f);
+                    break;
+                case WeaponArchetype.Polearm:
+                    _guardGripChest = new Vector3(0.20f, -0.20f, 0.34f);
+                    _guardRotChest = Quaternion.Euler(10f, 15f, 20f);
+                    break;
+                default:
+                    _guardGripChest = new Vector3(0.24f, -0.16f, 0.38f);
+                    _guardRotChest = Quaternion.Euler(0f, 15f, 25f);
+                    break;
+            }
+        }
+
+        public void StartAttackMove(AttackMove move, float duration)
+        {
+            _currentMove = move;
+            _attackProgress = 0f;
+            _isAttacking = true;
+        }
+
+        public void UpdateAttackProgress(float progress)
+        {
+            _attackProgress = Mathf.Clamp01(progress);
+        }
+
+        public void EndAttack()
+        {
+            _isAttacking = false;
         }
 
         public void SetAttackState(bool isAttacking, int comboIndex, float progress)
         {
-            if (isAttacking && (!_isAttacking || comboIndex != _currentComboIndex))
-            {
-                _strikeStartHipsYaw = _currentHipsYaw;
-                _strikeStartHipsPitch = _currentHipsPitch;
-                _strikeStartHipsRoll = _currentHipsRoll;
-                _strikeStartSpineYaw = _currentSpineYaw;
-                _strikeStartSpinePitch = _currentSpinePitch;
-                _strikeStartSpineRoll = _currentSpineRoll;
-                _strikeStartChestYaw = _currentChestYaw;
-                _strikeStartChestPitch = _currentChestPitch;
-                _strikeStartChestRoll = _currentChestRoll;
-            }
-
             _isAttacking = isAttacking;
-            _currentComboIndex = comboIndex;
             _attackProgress = Mathf.Clamp01(progress);
         }
 
         private void Update()
         {
             _currentIkWeight = Mathf.MoveTowards(_currentIkWeight, _targetIkWeight, Time.deltaTime * ikFadeSpeed);
-
-            if (_isAttacking && _isEquipped)
-            {
-                CalculateTorsoKinematics(_currentComboIndex, _attackProgress,
-                    out float hY, out float hP, out float hR,
-                    out float sY, out float sP, out float sR,
-                    out float cY, out float cP, out float cR);
-
-                _currentHipsYaw = hY;
-                _currentHipsPitch = hP;
-                _currentHipsRoll = hR;
-                _currentSpineYaw = sY;
-                _currentSpinePitch = sP;
-                _currentSpineRoll = sR;
-                _currentChestYaw = cY;
-                _currentChestPitch = cP;
-                _currentChestRoll = cR;
-            }
-            else
-            {
-                float speed = Time.deltaTime * 60f;
-                _currentHipsYaw = Mathf.MoveTowards(_currentHipsYaw, 0f, speed);
-                _currentHipsPitch = Mathf.MoveTowards(_currentHipsPitch, 0f, speed);
-                _currentHipsRoll = Mathf.MoveTowards(_currentHipsRoll, 0f, speed);
-                _currentSpineYaw = Mathf.MoveTowards(_currentSpineYaw, 0f, speed);
-                _currentSpinePitch = Mathf.MoveTowards(_currentSpinePitch, 0f, speed);
-                _currentSpineRoll = Mathf.MoveTowards(_currentSpineRoll, 0f, speed);
-                _currentChestYaw = Mathf.MoveTowards(_currentChestYaw, 0f, speed);
-                _currentChestPitch = Mathf.MoveTowards(_currentChestPitch, 0f, speed);
-                _currentChestRoll = Mathf.MoveTowards(_currentChestRoll, 0f, speed);
-            }
-        }
-
-        private void LateUpdate()
-        {
-            if (_animator == null || !_animator.isHuman || _currentIkWeight <= 0.001f) return;
-
-            Transform playerTransform = transform.parent != null ? transform.parent : transform;
-            ApplyTorsoAndHipsKinematics(playerTransform);
-            SolveArmKinematics(playerTransform);
         }
     }
 }

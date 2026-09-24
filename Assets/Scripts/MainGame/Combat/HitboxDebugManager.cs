@@ -138,14 +138,15 @@ namespace ForjaGame.Combat
                 if (atk != null && atk.IsAttacking)
                 {
                     int step = atk.CurrentComboIndex;
-                    var motion = WeaponComboAnimator.GetMotionType(style, step);
+                    var motion = atk.ActiveMove != null ? atk.ActiveMove.motionType : WeaponComboAnimator.GetMotionType(style, step);
                     string motionName = motion switch
                     {
                         AttackMotionType.Thrust => "Estocada Frontal",
                         AttackMotionType.OverheadSlam => "Hachazo/Aplastamiento Vertical",
                         _ => "Tajo Horizontal Amplio"
                     };
-                    comboInfo = $"<color=#33FFAA><b>[Golpe {step + 1}/{w.MaxComboCount}]</b> {motionName}</color>";
+                    string moveTitle = atk.ActiveMove != null ? atk.ActiveMove.moveName : motionName;
+                    comboInfo = $"<color=#33FFAA><b>[Golpe {step + 1}/{w.MaxComboCount}]</b> {moveTitle} ({motionName})</color>";
                 }
                 else
                 {

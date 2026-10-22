@@ -1,0 +1,44 @@
+================================================================================
+                    ANOTACIONES DE DESARROLLO - SISTEMA DE FORJA
+================================================================================
+
+1. ARQUITECTURA DEL YUNQUE (Assets/Scripts/MainGame/Forge/Yunque/)
+--------------------------------------------------------------------------------
+- Todos los scripts en la carpeta Yunque se mantienen bajo la restricción estricta
+  de <= 250 líneas por archivo para modularidad y mantenibilidad.
+- Compilación verificada vía Roslyn csc.dll sobre Assembly-CSharp.rsp y
+  Assembly-CSharp-Editor.rsp (0 errores, 0 advertencias).
+
+2. SISTEMA DE CORTE (AnvilMeshCutter, AnvilHammerInput.Cut)
+--------------------------------------------------------------------------------
+- Cortes de 2 puntos (Slice):
+  * Utiliza un rebanador analítico hiperplanar (SliceTrianglesByLine) que divide
+    los triángulos contra el plano 2D de la línea y reconstruye la malla estanca.
+- Cortes de 3 o más puntos (Polilínea):
+  * Cortes abiertos: Los extremos inicial (pts[0]) y final (pts[K-1]) se extienden
+    automáticamente hacia las aristas exteriores del lingote (b0 y b1), logrando
+    partición continua de borde a borde hacia los puntos externos.
+  * Lazos cerrados: Detección por proximidad de extremos estricta (endGap <= 0.035m)
+    o auto-intersección dentro de los límites del lingote (tRay < distB1).
+  * Cortes internos/externos: Clasificación analítica por baricentro (IsPointInPolygon2D).
+    [R] ejecuta corte exterior (conserva dentro, elimina exceso exterior).
+    [Tab] alterna a corte interior (conserva lingote, ahueca la forma interna).
+
+3. MARTILLADO Y REQUISITOS DE FILO (AnvilController, AnvilController.Deformation)
+--------------------------------------------------------------------------------
+- Área de impacto del martillo en la espada:
+  * Escala aumentada a 0.65f (radio interno 6.5 cm, externo 13 cm), cubriendo
+    fácilmente el ancho de la hoja en cada golpe sin deformación desmedida.
+- Requisitos mínimos de filo para la espada:
+  * Lingote inicial de espada: Requiere 14 columnas aplanadas al filo mínimo.
+  * Pieza recortada (hoja de espada): Requiere el 50% de las columnas perimetrales
+    del borde más largo (mínimo 7 columnas continuas), exigiendo un forjado
+    completo y realista a lo largo de la hoja antes de habilitar el templado.
+
+4. NOTA SOBRE ARCHIVOS TEMPORALES DE DIAGNÓSTICO
+--------------------------------------------------------------------------------
+- Los archivos de pruebas (inspect_steps, search_history, test_cut_simulation, etc.)
+  fueron scripts transitorios utilizados por la IA para auditar el historial de
+  conversación y simular la geometría del corte sin alterar el código del juego.
+- Dichos archivos han sido eliminados por completo del espacio de trabajo.
+================================================================================

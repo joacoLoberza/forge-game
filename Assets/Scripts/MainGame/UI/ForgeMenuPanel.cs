@@ -1,131 +1,176 @@
-using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using ForjaGame.UI.Core;
+using ForjaGame.Forge;
 
 namespace ForjaGame.UI
 {
     /// <summary>
-    /// Panel de Forja. Muestra botones para cada zona de trabajo de forma LINEAL
-    /// (Horno -> Prensa -> Conformación) y actualiza un texto con el estado.
-    ///
-    /// Nada de esto usa cercanía/mirada ni mueve cámara: eso se agrega después 
-    /// implementando nuevas clases, sin romper esta (OCP).
+    /// Vista de la forja. Muestra la fase que administra ForgeController.
     /// </summary>
     public class ForgeMenuPanel : UIPanelBase
     {
         [SerializeField] private ForgeZoneOption[] zones;
         [SerializeField] private Text statusLabel;
+        [SerializeField] private TMP_Text statusLabelTMP;
+
+        [SerializeField] private ForgeController forgeController;
 
         [Tooltip("Botón de prueba para simular que terminaste el minijuego de la fase actual.")]
         [SerializeField] private Button debugAdvanceButton;
 
-        private int _currentPhaseIndex = 0;
-        private bool _isResetting = false;
-
         protected override void Awake()
         {
             base.Awake();
+
+            if (forgeController == null)
+                forgeController = FindFirstObjectByType<ForgeController>();
+
+            if (statusLabelTMP == null)
+                statusLabelTMP = GetComponentInChildren<TMP_Text>();
 
             for (int i = 0; i < zones.Length; i++)
             {
                 int capturedIndex = i; // Evita el bug de closures compartidas en loops
                 if (zones[capturedIndex].button != null)
                 {
-                    // Usamos el índice para saber en qué fase hizo clic el jugador
-                    zones[capturedIndex].button.onClick.AddListener(() => SelectZone(capturedIndex));
+                    BindPressDown(zones[capturedIndex].button, () => SelectZone(capturedIndex));
                 }
             }
 
             if (debugAdvanceButton != null)
-                debugAdvanceButton.onClick.AddListener(AdvancePhase);
+                BindPressDown(debugAdvanceButton, AdvancePhase);
+        }
+
+            private void OnEnable()
+            {
+                if (forgeController != null)
+                forgeController.PhaseChanged += OnPhaseChanged;
+            }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+            if (forgeController != null)
+                forgeController.PhaseChanged -= OnPhaseChanged;
         }
 
         protected override void OnOpened()
         {
             base.OnOpened();
             
-            // Al abrir el menú, actualizamos los botones según la fase en la que vamos
-            if (!_isResetting) 
-                UpdateVisuals();
+            forgeController?.StartForge();
+            UpdateVisuals();
         }
 
         private void SelectZone(int index)
         {
-            if (_isResetting) return; // Bloquea clics durante el mensaje final
+            if (forgeController == null || index < 0 || index >= zones.Length)
+                return;
 
-            if (index == _currentPhaseIndex)
-            {
-                statusLabel.text = $"Trabajando en: {zones[index].zoneName}...";
-
-                // TODO (checkpoint 17/9): acá se dispararía el movimiento de
-                // cámara con Cinemachine hacia la zona seleccionada.
-            }
-            else if (index < _currentPhaseIndex)
-            {
-                statusLabel.text = $"La fase {zones[index].zoneName} ya está completada.";
-            }
+            ForgePhase selectedPhase = GetPhaseForZone(index);
+            forgeController.ChangePhase(selectedPhase);
+            SetStatus($"Trabajando en: {zones[index].zoneName}...");
         }
 
         /// <summary>
-        /// Se llama cuando el jugador termina la tarea de la zona actual.
+        /// Se llama cuando el jugador termina la tarea de la zona actual o pulsa debug.
         /// </summary>
         public void AdvancePhase()
         {
-            if (_isResetting) return;
+            if (forgeController == null) return;
 
-            if (_currentPhaseIndex < zones.Length - 1)
+            switch (forgeController.CurrentPhase)
             {
-                _currentPhaseIndex++; // Avanza a la siguiente zona
-                UpdateVisuals();
-                statusLabel.text = $"¡Fase completada! Siguiente: {zones[_currentPhaseIndex].zoneName}";
-            }
-            else
-            {
-                // Si llegamos a la última zona, disparamos el final
-                StartCoroutine(FinishAndResetRoutine());
+                case ForgePhase.RawMaterial:
+                    forgeController.StartForge();
+                    break;
+                case ForgePhase.Furnace:
+                    forgeController.ChangePhase(ForgePhase.Press);
+                    break;
+                case ForgePhase.Press:
+                    forgeController.ChangePhase(ForgePhase.WeaponSelection);
+                    break;
+                case ForgePhase.WeaponSelection:
+                    forgeController.SelectWeaponType(WeaponType.Sword);
+                    break;
+                case ForgePhase.Anvil:
+                    forgeController.ChangePhase(ForgePhase.Quenching);
+                    break;
+                case ForgePhase.Quenching:
+                    forgeController.ChangePhase(ForgePhase.HandleAssembly);
+                    break;
+                case ForgePhase.HandleAssembly:
+                    forgeController.SelectHandle(HandleLength.Medium);
+                    break;
             }
         }
 
-        private IEnumerator FinishAndResetRoutine()
+        private void OnPhaseChanged(ForgePhase phase)
         {
-            _isResetting = true;
-
-            // 1. Mensaje de éxito
-            if (statusLabel != null)
-                statusLabel.text = "¡Arma conformada exitosamente!";
-
-            // Apagamos visualmente las opciones mientras el jugador lee
-            foreach (var z in zones)
-            {
-                if (z.highlight != null) z.highlight.SetActive(false);
-                if (z.button != null) z.button.interactable = false;
-            }
-
-            // 2. Esperamos 2.5 segundos
-            yield return new WaitForSeconds(2.5f);
-
-            // 3. Reiniciamos el menú al estado inicial (Horno)
-            _currentPhaseIndex = 0;
-            _isResetting = false;
             UpdateVisuals();
         }
 
         private void UpdateVisuals()
         {
+            if (forgeController == null || zones == null)
+                return;
+
+            ForgePhase currentPhase = forgeController.CurrentPhase;
             for (int i = 0; i < zones.Length; i++)
             {
-                // El resaltado solo se activa en la fase actual
                 if (zones[i].highlight != null) 
-                    zones[i].highlight.SetActive(i == _currentPhaseIndex);
+                    zones[i].highlight.SetActive(GetPhaseForZone(i) == currentPhase);
 
-                // Bloquea los botones de las fases futuras para que sea lineal
                 if (zones[i].button != null)
-                    zones[i].button.interactable = (i <= _currentPhaseIndex);
+                    zones[i].button.interactable = IsZoneAvailable(GetPhaseForZone(i), currentPhase);
             }
 
-            if (statusLabel != null && !_isResetting)
-                statusLabel.text = $"Fase Actual: {zones[_currentPhaseIndex].zoneName}";
+            SetStatus(GetPhaseLabel(currentPhase));
+        }
+
+        private ForgePhase GetPhaseForZone(int index)
+        {
+            return index switch
+            {
+                0 => ForgePhase.Furnace,
+                1 => ForgePhase.Press,
+                _ => ForgePhase.Anvil
+            };
+        }
+
+        private bool IsZoneAvailable(ForgePhase zonePhase, ForgePhase currentPhase)
+        {
+            return zonePhase == currentPhase ||
+                   (zonePhase == ForgePhase.Furnace && currentPhase > ForgePhase.Furnace) ||
+                   (zonePhase == ForgePhase.Press && currentPhase > ForgePhase.Press) ||
+                   (zonePhase == ForgePhase.Anvil && currentPhase >= ForgePhase.Anvil);
+        }
+
+        private string GetPhaseLabel(ForgePhase phase)
+        {
+            return phase switch
+            {
+                ForgePhase.RawMaterial => "Current Phase: Raw Materials",
+                ForgePhase.Furnace => "Current Phase: Furnace (Smelting)",
+                ForgePhase.Press => "Current Phase: Mechanical Press",
+                ForgePhase.WeaponSelection => "Current Phase: Weapon Selection",
+                ForgePhase.Anvil => "Current Phase: Anvil (Hammering)",
+                ForgePhase.Quenching => "Current Phase: Quenching",
+                ForgePhase.HandleAssembly => "Current Phase: Handle Assembly",
+                ForgePhase.Completed => "Weapon Finished!",
+                _ => "Forge Phase"
+            };
+        }
+
+        private void SetStatus(string message)
+        {
+            if (statusLabel != null)
+                statusLabel.text = message;
+
+            if (statusLabelTMP != null)
+                statusLabelTMP.text = message;
         }
     }
 }

@@ -5,10 +5,8 @@ using UnityEngine.UI;
 namespace ForjaGame.UI
 {
     /// <summary>
-    /// Configuración de una zona de la Forja (Horno, Prensa, Conformación...).
-    /// Al ser datos que se arrastran en el Inspector -en vez de un switch/case
-    /// en código- agregar o sacar una zona NO requiere tocar ForgeMenuPanel.cs
-    /// -> Open/Closed Principle.
+    /// Configuration for a forge station zone.
+    /// Follows Open/Closed Principle.
     /// </summary>
     [Serializable]
     public class ForgeZoneOption
@@ -16,7 +14,7 @@ namespace ForjaGame.UI
         public string zoneName;
         public Button button;
 
-        [Tooltip("Opcional: outline/imagen que se resalta cuando esta zona está seleccionada.")]
+        [Tooltip("Optional highlight outline/image when this zone is selected.")]
         public GameObject highlight;
     }
 }

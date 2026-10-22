@@ -1,0 +1,10 @@
+﻿=== LISTA DE ANIMACIONES DISPONIBLES EN EL PROYECTO ===
+Total AnimationClips encontrados: 8
+[CLIP] IK@BazookaIdle | FileID: 7400000 | GUID: ac32a3774933f8b44934ae7d2e5e5624 | Length: 2,27s | Path: Assets/Kevin Iglesias/IKHelperTool/Animations/IK@BazookaIdle.anim
+[CLIP] IK@BazookaRun | FileID: 7400000 | GUID: b7f49268374559243a677f9de4280151 | Length: 0,67s | Path: Assets/Kevin Iglesias/IKHelperTool/Animations/IK@BazookaRun.anim
+[CLIP] IK@GreatswordAttack | FileID: 7400000 | GUID: 9d782f2c324acc64faf8062426958029 | Length: 1,60s | Path: Assets/Kevin Iglesias/IKHelperTool/Animations/IK@GreatswordAttack.anim
+[CLIP] IK@GreatswordIdle | FileID: 7400000 | GUID: 1933edd0a7dd04e469941456ad166bb4 | Length: 1,47s | Path: Assets/Kevin Iglesias/IKHelperTool/Animations/IK@GreatswordIdle.anim
+[CLIP] IK@RifleIdle | FileID: 7400000 | GUID: bbdd76204af593845aab783a64efccff | Length: 2,27s | Path: Assets/Kevin Iglesias/IKHelperTool/Animations/IK@RifleIdle.anim
+[CLIP] IK@RifleRun | FileID: 7400000 | GUID: d6d873e0405a3fb47a885ceafa2756c4 | Length: 0,67s | Path: Assets/Kevin Iglesias/IKHelperTool/Animations/IK@RifleRun.anim
+[CLIP] IK@SpearAttack | FileID: 7400000 | GUID: c114e1d9b40b4064caa74f1129c5a13a | Length: 1,37s | Path: Assets/Kevin Iglesias/IKHelperTool/Animations/IK@SpearAttack.anim
+[CLIP] IK@SpearIdle | FileID: 7400000 | GUID: 5f80186f2f924a24bb9903bbc54a15a3 | Length: 1,47s | Path: Assets/Kevin Iglesias/IKHelperTool/Animations/IK@SpearIdle.anim

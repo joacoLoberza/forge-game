@@ -3,6 +3,13 @@ using UnityEngine;
 
 namespace ForjaGame.Combat
 {
+    public enum AttackMotionType
+    {
+        HorizontalSlash,
+        Thrust,
+        OverheadSlam
+    }
+
     [Serializable]
     public struct TorsoAngles
     {

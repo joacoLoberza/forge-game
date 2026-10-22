@@ -42,6 +42,16 @@ namespace ForjaGame.Combat
         private static WeaponArchetype DetermineArchetype(
             WeaponStats weapon, float totalMass, float handleLen, float totalLen, WeaponCapabilities caps)
         {
+            if (weapon.weaponType == WeaponType.Hammer)
+            {
+                return WeaponArchetype.Hammer1H;
+            }
+
+            if (weapon.weaponType == WeaponType.Axe)
+            {
+                return WeaponArchetype.Axe1H;
+            }
+
             if (handleLen >= 1.25f && totalLen >= 1.65f)
             {
                 return WeaponArchetype.Polearm;
@@ -51,9 +61,6 @@ namespace ForjaGame.Combat
             {
                 return WeaponArchetype.Heavy2H;
             }
-
-            if (weapon.weaponType == WeaponType.Axe) return WeaponArchetype.Axe1H;
-            if (weapon.weaponType == WeaponType.Hammer) return WeaponArchetype.Hammer1H;
 
             if (weapon.weaponType == WeaponType.Sword && (handleLen <= 0.40f && totalLen <= 0.65f))
             {

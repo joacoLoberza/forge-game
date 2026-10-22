@@ -29,6 +29,12 @@ namespace ForjaGame.Forge
                 _ => (1.0f, 1.0f, 1.25f)
             };
 
+            // El dano por impacto aumenta de forma continua cuando el alcance es menor;
+            // el intercambio se calcula por alcance, sin bonificaciones discretas por tipo.
+            float reachRisk = Mathf.InverseLerp(0.80f, 1.35f, handle.rangeModifier);
+            float closeRangeDamageFactor = Mathf.Lerp(1.22f, 0.90f, reachRisk);
+            typeDmgMult *= closeRangeDamageFactor;
+
             (float baseSizeDmgMult, float baseSizeSpeedMod, float sizeDurabilityMult) = ingot.size switch
             {
                 ItemSize.Small => (0.80f, +0.15f, 0.80f),

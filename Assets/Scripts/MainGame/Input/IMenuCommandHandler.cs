@@ -7,6 +7,7 @@ namespace ForjaGame.Input
     /// </summary>
     public interface IMenuCommandHandler
     {
+        bool IsMovementBlocked { get; }
         void TogglePause();
         void ToggleForge();
         void ToggleInventory();

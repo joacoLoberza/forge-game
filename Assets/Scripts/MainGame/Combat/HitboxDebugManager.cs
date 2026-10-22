@@ -138,7 +138,7 @@ namespace ForjaGame.Combat
                 if (atk != null && atk.IsAttacking)
                 {
                     int step = atk.CurrentComboIndex;
-                    var motion = atk.ActiveMove != null ? atk.ActiveMove.motionType : WeaponComboAnimator.GetMotionType(style, step);
+                    var motion = atk.ActiveMove != null ? atk.ActiveMove.motionType : AttackMotionType.HorizontalSlash;
                     string motionName = motion switch
                     {
                         AttackMotionType.Thrust => "Estocada Frontal",

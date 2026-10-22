@@ -1,16 +1,17 @@
+using System.Collections.Generic;
 using UnityEngine;
 using ForjaGame.Core;
 
 namespace ForjaGame.Combat
 {
     /// <summary>
-    /// Gestiona la salud del jugador (100 HP), impacto de daño (15 por golpe enemigo),
-    /// visualización de hurtbox corporal y pantalla de derrota con botón interactivo de Reiniciar.
-    /// No reaparece hasta que el usuario pulse [REINICIAR].
+    /// Gestiona la salud del jugador (100 HP), impacto de daño, visualización de hurtbox corporal
+    /// y pantalla de derrota. Soporta registro multi-jugador para cooperativo local.
     /// </summary>
     public class PlayerHealthController : MonoBehaviour, IDamageable
     {
         public static PlayerHealthController Instance { get; private set; }
+        public static readonly List<PlayerHealthController> AllPlayers = new();
 
         [Header("Configuración de Salud")]
         [SerializeField] private int maxHealth = 100;
@@ -22,16 +23,29 @@ namespace ForjaGame.Combat
         private HitboxVisualizer _bodyHurtbox;
         private float _hurtboxBlackUntil = -1f;
         private bool _isDefeated = false;
+        private PlayerMovement _playerMovement;
 
         public int CurrentHealth => currentHealth;
         public int MaxHealth => maxHealth;
         public bool IsAlive => currentHealth > 0 && !_isDefeated;
         public bool IsDefeated => _isDefeated;
 
+        private void OnEnable()
+        {
+            if (!AllPlayers.Contains(this))
+                AllPlayers.Add(this);
+        }
+
+        private void OnDisable()
+        {
+            AllPlayers.Remove(this);
+        }
+
         private void Awake()
         {
             if (Instance == null) Instance = this;
             _rb = GetComponent<Rigidbody>();
+            _playerMovement = GetComponent<PlayerMovement>();
             currentHealth = maxHealth;
             _spawnPosition = transform.position;
             _spawnRotation = transform.rotation;
@@ -51,7 +65,6 @@ namespace ForjaGame.Combat
             hurtboxObj.transform.SetParent(transform, false);
             _bodyHurtbox = hurtboxObj.AddComponent<HitboxVisualizer>();
             _bodyHurtbox.SetShape(HitboxShape.Capsule);
-            // El origen local del Player tiene la cápsula física centrada en Vector3.zero (altura 2m, desde -1m a +1m)
             _bodyHurtbox.UpdateCapsule(Vector3.zero, 0.45f, 2.0f);
         }
 
@@ -71,7 +84,8 @@ namespace ForjaGame.Combat
             if (!IsAlive || _isDefeated) return;
 
             currentHealth = Mathf.Max(0, currentHealth - amount);
-            Debug.Log($"[Jugador] Recibió {amount} de daño. Salud restante: {currentHealth}/{maxHealth}");
+            int pNum = (_playerMovement != null ? _playerMovement.PlayerIndex : 0) + 1;
+            Debug.Log($"[Jugador {pNum}] Recibió {amount} de daño. Salud restante: {currentHealth}/{maxHealth}");
 
             // Teñir hurtbox de negro al recibir daño (contacto)
             if (_bodyHurtbox != null)
@@ -80,8 +94,15 @@ namespace ForjaGame.Combat
                 _hurtboxBlackUntil = Time.time + 0.30f;
             }
 
-            // Impulso de cámara por impacto
-            PlayerCameraFollow.Instance?.TriggerImpulse(0.12f);
+            // Impulso en la cámara propia del jugador
+            if (_playerMovement != null && _playerMovement.PlayerCamera != null)
+            {
+                _playerMovement.PlayerCamera.GetComponent<PlayerCameraFollow>()?.TriggerImpulse(0.12f);
+            }
+            else
+            {
+                PlayerCameraFollow.Instance?.TriggerImpulse(0.12f);
+            }
 
             if (currentHealth <= 0)
             {
@@ -93,7 +114,8 @@ namespace ForjaGame.Combat
         {
             if (_isDefeated) return;
             _isDefeated = true;
-            Debug.Log("<color=red><b>[Jugador] ¡HAS SIDO DERROTADO!</b></color>");
+            int pNum = (_playerMovement != null ? _playerMovement.PlayerIndex : 0) + 1;
+            Debug.Log($"<color=red><b>[Jugador {pNum}] ¡HAS SIDO DERROTADO!</b></color>");
 
             if (_rb != null)
             {
@@ -101,15 +123,29 @@ namespace ForjaGame.Combat
                 _rb.angularVelocity = Vector3.zero;
             }
 
-            // Soltar el mouse para que el jugador pueda interactuar con el panel de derrota existente
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-
-            // Notificar al GameLoopController existente de la escena
-            GameLoopController gameLoop = FindFirstObjectByType<GameLoopController>();
-            if (gameLoop != null)
+            // En cooperativo local, comprobar si todos los jugadores fueron derrotados
+            bool anyOtherAlive = false;
+            for (int i = 0; i < AllPlayers.Count; i++)
             {
-                gameLoop.TriggerDefeat();
+                var p = AllPlayers[i];
+                if (p != null && p != this && p.IsAlive)
+                {
+                    anyOtherAlive = true;
+                    break;
+                }
+            }
+
+            // Si ningún jugador queda vivo, disparar fin de partida global
+            if (!anyOtherAlive)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+
+                GameLoopController gameLoop = FindFirstObjectByType<GameLoopController>();
+                if (gameLoop != null)
+                {
+                    gameLoop.TriggerDefeat();
+                }
             }
         }
 
@@ -125,27 +161,20 @@ namespace ForjaGame.Combat
                 Cursor.visible = false;
             }
 
-            Debug.Log("<color=green>[Jugador] Salud restaurada por completo (100 HP).</color>");
+            int pNum = (_playerMovement != null ? _playerMovement.PlayerIndex : 0) + 1;
+            Debug.Log($"<color=green>[Jugador {pNum}] Salud restaurada por completo ({maxHealth} HP).</color>");
         }
 
         public void RespawnPlayer()
         {
-            GameLoopController gameLoop = FindFirstObjectByType<GameLoopController>();
-            if (gameLoop != null)
+            transform.position = _spawnPosition;
+            transform.rotation = _spawnRotation;
+            if (_rb != null)
             {
-                gameLoop.AcceptDefeat();
+                _rb.linearVelocity = Vector3.zero;
+                _rb.angularVelocity = Vector3.zero;
             }
-            else
-            {
-                transform.position = _spawnPosition;
-                transform.rotation = _spawnRotation;
-                if (_rb != null)
-                {
-                    _rb.linearVelocity = Vector3.zero;
-                    _rb.angularVelocity = Vector3.zero;
-                }
-                RestoreHealthFull();
-            }
+            RestoreHealthFull();
         }
 
         private void OnGUI()
@@ -153,24 +182,29 @@ namespace ForjaGame.Combat
             GUI.skin.box.fontSize = 13;
             GUI.skin.label.fontSize = 13;
 
-            // HUD SUPERIOR IZQUIERDO: Salud del Jugador
-            float padX = 15f;
-            float topY = 15f;
+            int pIdx = _playerMovement != null ? _playerMovement.PlayerIndex : 0;
             float boxWidth = 260f;
+            float padX = (pIdx == 0) ? 15f : (Screen.width - boxWidth - 15f);
+            float topY = 15f;
+
+            string playerColorTag = (pIdx == 0) ? "#55AAFF" : "#FFAA33";
+            string playerName = $"<color={playerColorTag}><b>JUGADOR {pIdx + 1} HP:</b></color> {currentHealth} / {maxHealth}";
 
             GUI.Box(new Rect(padX, topY, boxWidth, 75f), "");
-            GUI.Label(new Rect(padX + 10f, topY + 6f, boxWidth - 20f, 22f), $"<b>JUGADOR HP:</b> {currentHealth} / {maxHealth}");
+            GUI.Label(new Rect(padX + 10f, topY + 6f, boxWidth - 20f, 22f), playerName);
 
             // Barra de vida del jugador
             float barWidth = boxWidth - 20f;
             float healthRatio = Mathf.Clamp01((float)currentHealth / maxHealth);
             GUI.DrawTexture(new Rect(padX + 10f, topY + 30f, barWidth, 14f), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.2f, 0.2f, 0.2f, 0.9f), 0f, 0f);
-            Color barColor = healthRatio > 0.5f ? Color.Lerp(Color.yellow, Color.green, (healthRatio - 0.5f) * 2f) : Color.Lerp(Color.red, Color.yellow, healthRatio * 2f);
+            Color barColor = (pIdx == 0)
+                ? (healthRatio > 0.5f ? Color.Lerp(Color.yellow, new Color(0.2f, 0.7f, 1f), (healthRatio - 0.5f) * 2f) : Color.Lerp(Color.red, Color.yellow, healthRatio * 2f))
+                : (healthRatio > 0.5f ? Color.Lerp(Color.yellow, new Color(1.0f, 0.6f, 0.1f), (healthRatio - 0.5f) * 2f) : Color.Lerp(Color.red, Color.yellow, healthRatio * 2f));
             GUI.DrawTexture(new Rect(padX + 10f, topY + 30f, barWidth * healthRatio, 14f), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, barColor, 0f, 0f);
 
-            // Recordatorio F3
-            string f3Text = HitboxDebugManager.ShowHitboxes ? "<color=#00FF66><b>[F3] HITBOXES: VISIBLES</b></color>" : "<color=#AAAAAA>[F3] Hitboxes: Ocultas</color>";
-            GUI.Label(new Rect(padX + 10f, topY + 48f, boxWidth - 20f, 22f), f3Text);
+            // Recordatorio de debug o estado
+            string subText = _isDefeated ? "<color=red><b>CAÍDO EN COMBATE</b></color>" : (HitboxDebugManager.ShowHitboxes ? "<color=#00FF66>[F3] Hitboxes</color>" : "<color=#888888>En exploración</color>");
+            GUI.Label(new Rect(padX + 10f, topY + 48f, boxWidth - 20f, 22f), subText);
         }
     }
 }

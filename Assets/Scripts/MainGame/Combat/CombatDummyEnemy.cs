@@ -112,13 +112,35 @@ namespace ForjaGame.Combat
 
         private void FindPlayer()
         {
-            var pHealth = PlayerHealthController.Instance;
-            if (pHealth != null) _playerTransform = pHealth.transform;
-            else
+            _playerTransform = GetClosestLivingPlayerTransform();
+        }
+
+        public Transform GetClosestLivingPlayerTransform()
+        {
+            Transform closest = null;
+            float minDist = float.PositiveInfinity;
+            var list = PlayerHealthController.AllPlayers;
+            for (int i = 0; i < list.Count; i++)
             {
-                var pMove = FindFirstObjectByType<ForjaGame.Core.PlayerMovement>();
-                if (pMove != null) _playerTransform = pMove.transform;
+                var p = list[i];
+                if (p != null && p.IsAlive)
+                {
+                    float d = Vector3.Distance(transform.position, p.transform.position);
+                    if (d < minDist)
+                    {
+                        minDist = d;
+                        closest = p.transform;
+                    }
+                }
             }
+
+            if (closest != null) return closest;
+
+            var pHealth = PlayerHealthController.Instance;
+            if (pHealth != null && pHealth.IsAlive) return pHealth.transform;
+
+            var pMove = FindFirstObjectByType<ForjaGame.Core.PlayerMovement>();
+            return pMove != null ? pMove.transform : null;
         }
 
         public void TakeDamage(int amount)

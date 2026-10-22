@@ -5,6 +5,7 @@ using TMPro;
 using ForjaGame.UI.Core;
 using ForjaGame.Inventory;
 using ForjaGame.Forge;
+using ForjaGame.Combat;
 
 namespace ForjaGame.UI
 {
@@ -128,6 +129,13 @@ namespace ForjaGame.UI
             }
         }
 
+        public void RefreshCurrentView()
+        {
+            PopulateLeftPage();
+            UpdateTabVisuals();
+            RenderRightPage(_selectedItem);
+        }
+
         public void SelectCategory(ForgeItemCategory category)
         {
             _currentCategory = category;
@@ -135,11 +143,29 @@ namespace ForjaGame.UI
             RefreshCurrentView();
         }
 
-        private void RefreshCurrentView()
+        public void OpenFor(InventoryController inv, PlayerEquipmentController equip)
         {
-            EnsureController();
-            PopulateLeftPage();
-            RenderRightPage(_selectedItem);
+            if (IsOpen && inventoryController == inv)
+            {
+                Close();
+                return;
+            }
+
+            if (inventoryController != null && inventoryController != inv)
+            {
+                inventoryController.InventoryUpdated -= OnInventoryUpdated;
+            }
+
+            inventoryController = inv;
+            _equipmentController = equip;
+
+            if (inventoryController != null)
+            {
+                inventoryController.InventoryUpdated += OnInventoryUpdated;
+            }
+
+            Open();
+            RefreshCurrentView();
         }
 
         private void EnsureController()

@@ -48,9 +48,6 @@ namespace ForjaGame.Combat
 
             _gripSocketRear = gripRear;
             _gripSocketFront = gripFront;
-
-            // Conectar sockets al controlador de IK del Paladín
-            PlayerCombatIKDriver.Instance?.SetWeaponEquipped(true, _weaponHolder, gripRear, gripFront, stance, weapon);
         }
 
         private RuntimeAnimatorController GetOverrideControllerForWeapon(WeaponStats weapon)
@@ -59,22 +56,26 @@ namespace ForjaGame.Combat
             string overridePath = "Assets/Animations/Character/Sword1H_Override.overrideController";
 
             var stance = weapon.GetCombatStance();
-            if (stance == WeaponCombatStance.Polearm)
+            if (weapon.weaponType == WeaponType.Hammer)
+            {
+                overridePath = (stance == WeaponCombatStance.TwoHanded || stance == WeaponCombatStance.Polearm)
+                    ? "Assets/Animations/Character/Hammer2H_Override.overrideController"
+                    : "Assets/Animations/Character/Hammer1H_Override.overrideController";
+            }
+            else if (stance == WeaponCombatStance.Polearm)
             {
                 overridePath = "Assets/Animations/Character/Polearm_Override.overrideController";
             }
             else if (stance == WeaponCombatStance.TwoHanded)
             {
-                overridePath = (weapon.weaponType == WeaponType.Hammer)
-                    ? "Assets/Animations/Character/Hammer2H_Override.overrideController"
-                    : "Assets/Animations/Character/Heavy2H_Override.overrideController";
+                overridePath = "Assets/Animations/Character/Heavy2H_Override.overrideController";
             }
             else
             {
-                if (weapon.weaponType == WeaponType.Hammer)
-                    overridePath = "Assets/Animations/Character/Hammer1H_Override.overrideController";
-                else if (weapon.weaponType == WeaponType.Axe)
+                if (weapon.weaponType == WeaponType.Axe)
                     overridePath = "Assets/Animations/Character/Axe1H_Override.overrideController";
+                else if (weapon.weaponType == WeaponType.Sword && weapon.handleLength == HandleLength.Short)
+                    overridePath = "Assets/Animations/Character/Dagger_Override.overrideController";
                 else
                     overridePath = "Assets/Animations/Character/Sword1H_Override.overrideController";
             }
@@ -131,11 +132,6 @@ namespace ForjaGame.Combat
                     {
                         _paladinAnimator.runtimeAnimatorController = _baseAnimatorController;
                     }
-                }
-
-                if (paladinGo.GetComponent<PlayerCombatIKDriver>() == null)
-                {
-                    paladinGo.AddComponent<PlayerCombatIKDriver>();
                 }
 
                 var movement = GetComponent<ForjaGame.Core.PlayerMovement>();

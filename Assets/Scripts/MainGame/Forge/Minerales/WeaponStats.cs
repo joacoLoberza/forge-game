@@ -15,6 +15,7 @@ namespace ForjaGame.Forge
     {
         Unarmed,
         Sword1H,
+        Dagger1H,
         Axe1H,
         Hammer1H,
         Heavy2H,
@@ -52,7 +53,7 @@ namespace ForjaGame.Forge
         public WeaponProfile Profile => _profile.mass > 0.01f ? _profile : CalculateProfile();
         public void SetProfile(WeaponProfile profile) => _profile = profile;
 
-        public WeaponProfile CalculateProfile(ProceduralCombatConfigSO config = null)
+        public WeaponProfile CalculateProfile()
         {
             // 1. Longitud del mango en metros
             float hLen = 0.50f;
@@ -119,7 +120,7 @@ namespace ForjaGame.Forge
             };
             float totalMass = headMass + handleMass;
 
-            _profile = WeaponProfile.Calculate(hLen, headL, headW, headT, sh, latExt, totalMass, config);
+            _profile = WeaponProfile.Calculate(hLen, headL, headW, headT, sh, latExt, totalMass);
             return _profile;
         }
 
@@ -141,6 +142,7 @@ namespace ForjaGame.Forge
             {
                 WeaponType.Axe => WeaponAnimationStyle.Axe1H,
                 WeaponType.Hammer => WeaponAnimationStyle.Hammer1H,
+                WeaponType.Sword when handleLength == HandleLength.Short => WeaponAnimationStyle.Dagger1H,
                 _ => WeaponAnimationStyle.Sword1H
             };
         }
@@ -176,40 +178,54 @@ namespace ForjaGame.Forge
 
             float typeBonus = weaponType switch
             {
-                WeaponType.Hammer => 0.15f,
-                WeaponType.Axe => 0.08f,
+                WeaponType.Hammer => 0.18f,
+                WeaponType.Axe => 0.10f,
                 _ => 0.0f
             };
 
-            return Mathf.Clamp01(headVal * 0.60f + handleVal * 0.40f + typeBonus);
+            // Factor de densidad según composición mineral (Cobre: ligero ~0.80, Hierro: 1.0, Oro: 1.25)
+            float mineralDensityMult = 1.0f;
+            if (composition != null && composition.ingredients != null && composition.ingredients.Count > 0)
+            {
+                float mineralSpeed = composition.CalculateWeightedProperties().baseAttackSpeed;
+                mineralDensityMult = Mathf.Clamp(1.0f / Mathf.Max(0.5f, mineralSpeed), 0.75f, 1.35f);
+            }
+
+            return Mathf.Clamp01((headVal * 0.60f + handleVal * 0.40f + typeBonus) * mineralDensityMult);
         }
 
         public float GetSpeedMultiplier()
         {
             float weight = GetNormalizedWeight();
-            return Mathf.Clamp(1.35f - (weight * 0.60f), 0.70f, 1.30f);
+            float mineralSpeed = composition != null ? composition.CalculateWeightedProperties().baseAttackSpeed : 1.0f;
+            float handleLengthRatio = Mathf.InverseLerp((float)HandleLength.Short, (float)HandleLength.Long, (float)handleLength);
+            float handleLengthPenalty = Mathf.Lerp(1.0f, 0.78f, handleLengthRatio);
+            return Mathf.Clamp((1.42f - (weight * 0.72f)) * handleLengthPenalty * (mineralSpeed / 1.0f), 0.58f, 1.65f);
         }
 
-        public int MaxComboCount => 3;
+        public int MaxComboCount => GetAnimationStyle() switch
+        {
+            WeaponAnimationStyle.Sword1H => 5,
+            WeaponAnimationStyle.Dagger1H => 5,
+            WeaponAnimationStyle.Polearm => 5,
+            WeaponAnimationStyle.Hammer1H => 5,
+            WeaponAnimationStyle.Axe1H => 5,
+            WeaponAnimationStyle.Heavy2H => 5,
+            _ => 3
+        };
 
         public float GetBaseAttackDuration() => GetAnimationStyle() switch
         {
-            WeaponAnimationStyle.Sword1H => 0.70f,
-            WeaponAnimationStyle.Axe1H => 0.80f,
-            WeaponAnimationStyle.Hammer1H => 0.90f,
-            WeaponAnimationStyle.Heavy2H => 1.15f,
-            WeaponAnimationStyle.Polearm => 0.85f,
-            _ => 0.80f
+            WeaponAnimationStyle.Dagger1H => 0.45f, WeaponAnimationStyle.Sword1H => 0.55f, WeaponAnimationStyle.Axe1H => 0.60f,
+            WeaponAnimationStyle.Hammer1H => 0.65f, WeaponAnimationStyle.Heavy2H => 0.75f,
+            WeaponAnimationStyle.Polearm => 0.65f, _ => 0.55f
         };
 
         public float GetComboLinkRatio() => GetAnimationStyle() switch
         {
-            WeaponAnimationStyle.Sword1H => 0.58f,
-            WeaponAnimationStyle.Axe1H => 0.62f,
-            WeaponAnimationStyle.Hammer1H => 0.65f,
-            WeaponAnimationStyle.Heavy2H => 0.68f,
-            WeaponAnimationStyle.Polearm => 0.60f,
-            _ => 0.62f
+            WeaponAnimationStyle.Dagger1H => 0.65f, WeaponAnimationStyle.Sword1H => 0.68f, WeaponAnimationStyle.Axe1H => 0.70f,
+            WeaponAnimationStyle.Hammer1H => 0.72f, WeaponAnimationStyle.Heavy2H => 0.72f,
+            WeaponAnimationStyle.Polearm => 0.68f, _ => 0.68f
         };
 
         public float damage { get => baseDamage; set => baseDamage = value; }
@@ -227,7 +243,6 @@ namespace ForjaGame.Forge
 
         public void ConsumeSharpness(float amount = 1f) => currentSharpness = Mathf.Max(0f, currentSharpness - amount);
         public void RestoreSharpness(float amount) => currentSharpness = Mathf.Min(maxSharpness, currentSharpness + amount);
-
         public string Description => $"Damage: {EffectiveDamage:F1} (Base: {baseDamage:F1}) | Speed: {attackSpeed:F2} | Range: {attackRange:F2}m | Sharpness: {currentSharpness:F0}/{maxSharpness:F0} ({SharpnessRatio * 100:F0}%) | Purity: {PurityPercentage}%";
         public override string ToString() => $"{DisplayName} [{ingotSize}|{handleLength}] -> Dmg: {EffectiveDamage:F1}, Spd: {attackSpeed:F2}, Rng: {attackRange:F2}m, Shp: {currentSharpness:F0}/{maxSharpness:F0}";
     }

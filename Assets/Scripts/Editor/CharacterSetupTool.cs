@@ -1,34 +1,20 @@
 using UnityEngine;
 using UnityEditor;
-using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 using ForjaGame.Core;
+using ForjaGame.Combat;
 
 namespace ForjaGame.EditorTools
 {
-    [InitializeOnLoad]
-    public static partial class CharacterSetupTool
+    /// <summary>
+    /// Herramienta de Editor para configurar el personaje del jugador con el modelo 3D del Paladín,
+    /// locomoción física grounded y combate procedural con WeaponComboAnimator y PlayerCombatIKDriver.
+    /// </summary>
+    public static class CharacterSetupTool
     {
-        static CharacterSetupTool()
-        {
-            EditorApplication.update += RunOnEditorReady;
-            EditorApplication.playModeStateChanged += OnPlayModeChanged;
-        }
-
-        private static void OnPlayModeChanged(PlayModeStateChange state)
-        {
-            if (state == PlayModeStateChange.EnteredEditMode)
-            {
-                EditorApplication.update += RunOnEditorReady;
-            }
-        }
-
-        private static void RunOnEditorReady()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling) return;
-            EditorApplication.update -= RunOnEditorReady;
-            CheckAndRunSetup();
-        }
+        private const string PaladinModelPath = "Assets/Models/Character/character.fbx";
+        private const string PaladinMaterialPath = "Assets/Models/Character/Materials/Paladin_Mat.mat";
+        private const string AnimatorControllerPath = "Assets/Animations/Character/PlayerAnimator.controller";
 
         [MenuItem("Forja/Abrir Escena de Forja (Furnace)")]
         public static void OpenFurnaceScene()
@@ -37,233 +23,101 @@ namespace ForjaGame.EditorTools
             EditorSceneManager.OpenScene("Assets/Scenes/Furnace.unity");
         }
 
-        private static void CheckAndRunSetup()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
-
-            SetupCombatAnimatorAndOverrides();
-
-            var activeScene = EditorSceneManager.GetActiveScene();
-            if (activeScene.path != "Assets/Scenes/Furnace.unity" && System.IO.File.Exists("Assets/Scenes/Furnace.unity"))
-            {
-                activeScene = EditorSceneManager.OpenScene("Assets/Scenes/Furnace.unity");
-            }
-
-            if (activeScene.IsValid() && activeScene.path == "Assets/Scenes/Furnace.unity")
-            {
-                RunFullSetup();
-            }
-        }
-
-        [MenuItem("Forja/Configurar Personaje y Camara")]
-        [MenuItem("Tools/Forja/Configurar Personaje y Camara")]
+        [MenuItem("Forja/Configurar Modelo Paladín y Combate Procedural")]
+        [MenuItem("Tools/Forja/Configurar Modelo Paladín y Combate Procedural")]
         public static void RunFullSetup()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
-            Debug.Log("[CharacterSetup] Iniciando configuración de personaje, animaciones, texturas y cámara...");
+            Debug.Log("[CharacterSetup] Configurando modelo 3D del Paladín y combate procedural...");
 
             var scene = EditorSceneManager.GetActiveScene();
             if (!scene.IsValid()) return;
 
-            // 1. Extraer texturas del modelo y configurar material Paladín
-            ExtractCharacterTextures();
-
-            // 2. Configurar loop y bloquear root motion en las animaciones FBX
-            ConfigureFbxLoopAndBake("Assets/Animations/Character/Breathing Idle.fbx");
-            ConfigureFbxLoopAndBake("Assets/Animations/Character/Walking.fbx");
-            ConfigureFbxLoopAndBake("Assets/Animations/Character/Running.fbx");
-
-            // 3. Crear o cargar el Animator Controller con Blend Tree
-            RuntimeAnimatorController controller = GetOrCreateAnimatorController();
-
-            // 4. Configurar el Player en la escena actual
-            SetupPlayerInScene(controller);
-
-            // 5. Configurar la cámara orbital en tercera persona
+            SetupPlayerCapsuleInScene();
             SetupCameraInScene();
 
-            if (!EditorApplication.isPlaying && !EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                if (scene.IsValid())
-                {
-                    EditorSceneManager.MarkSceneDirty(scene);
-                    EditorSceneManager.SaveScene(scene);
-                }
-
-                EditorSceneManager.SaveOpenScenes();
-                AssetDatabase.SaveAssets();
-            }
-
-            Debug.Log("<color=#33FFAA><b>[CharacterSetup] ¡Configuración de Personaje y Cámara completada con éxito!</b></color>");
+            EditorSceneManager.MarkSceneDirty(scene);
+            Debug.Log("[CharacterSetup] Configuración completada con éxito. Paladín activo con pies firmes en el suelo.");
         }
 
-        private static RuntimeAnimatorController GetOrCreateAnimatorController()
-        {
-            string controllerPath = "Assets/Animations/Character/PlayerAnimator.controller";
-            var existing = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
-            if (existing != null) return existing;
-
-            var controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
-            controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
-
-            var rootSm = controller.layers[0].stateMachine;
-            var state = rootSm.AddState("Locomotion");
-
-            var blendTree = new BlendTree
-            {
-                name = "LocomotionBlend",
-                blendType = BlendTreeType.Simple1D,
-                blendParameter = "Speed"
-            };
-
-            AnimationClip idleClip = LoadFirstClip("Assets/Animations/Character/Breathing Idle.fbx");
-            AnimationClip walkClip = LoadFirstClip("Assets/Animations/Character/Walking.fbx");
-            AnimationClip runClip = LoadFirstClip("Assets/Animations/Character/Running.fbx");
-
-            if (idleClip != null) blendTree.AddChild(idleClip, 0.0f);
-            if (walkClip != null) blendTree.AddChild(walkClip, 1.0f);
-            if (runClip != null) blendTree.AddChild(runClip, 2.0f);
-
-            AssetDatabase.AddObjectToAsset(blendTree, controller);
-            state.motion = blendTree;
-            rootSm.defaultState = state;
-
-            AssetDatabase.SaveAssets();
-            return controller;
-        }
-
-        private static AnimationClip LoadFirstClip(string fbxPath)
-        {
-            Object[] allAssets = AssetDatabase.LoadAllAssetsAtPath(fbxPath);
-            foreach (var asset in allAssets)
-            {
-                if (asset is AnimationClip clip && !clip.name.StartsWith("__preview__"))
-                    return clip;
-            }
-            return null;
-        }
-
-        private static void SetupPlayerInScene(RuntimeAnimatorController controller)
+        public static void SetupPlayerCapsuleInScene()
         {
             var movement = Object.FindFirstObjectByType<PlayerMovement>();
-            if (movement == null) return;
+            if (movement == null)
+            {
+                Debug.LogWarning("[CharacterSetup] No se encontró PlayerMovement en la escena.");
+                return;
+            }
 
             GameObject player = movement.gameObject;
 
-            // Ocultar la malla de la cápsula primitiva
+            // 1. Ocultar el MeshRenderer de la cápsula blanca física
             var mr = player.GetComponent<MeshRenderer>();
-            if (mr != null) mr.enabled = false;
-
-            // Ocultar la esfera de rango de interacción si existe
-            Transform ir = player.transform.Find("InteractionRange");
-            if (ir != null)
+            if (mr != null)
             {
-                var irMr = ir.GetComponent<MeshRenderer>();
-                if (irMr != null) irMr.enabled = false;
+                mr.enabled = false;
             }
 
-            // Comprobar o instanciar el visual del personaje
-            Transform visualTrans = player.transform.Find("CharacterVisual");
-            GameObject visualObj = visualTrans != null ? visualTrans.gameObject : null;
-
-            if (visualObj == null)
+            // 2. Configurar la cápsula física con dimensiones correctas
+            var col = player.GetComponent<CapsuleCollider>();
+            if (col != null)
             {
-                string modelPath = "Assets/Models/Character/character.fbx";
-                var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
-                if (modelPrefab != null)
+                col.height = 2.0f;
+                col.radius = 0.45f;
+                col.center = Vector3.zero;
+            }
+
+            // 3. Buscar o instanciar el modelo del Paladín
+            Transform paladinChild = player.transform.Find("PaladinVisual");
+            GameObject paladinGo = paladinChild != null ? paladinChild.gameObject : null;
+
+            if (paladinGo == null)
+            {
+                GameObject fbxPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PaladinModelPath);
+                if (fbxPrefab != null)
                 {
-                    visualObj = PrefabUtility.InstantiatePrefab(modelPrefab) as GameObject;
-                    if (visualObj != null)
-                    {
-                        visualObj.name = "CharacterVisual";
-                        visualObj.transform.SetParent(player.transform, false);
-                        visualObj.transform.localRotation = Quaternion.identity;
-                    }
+                    paladinGo = Object.Instantiate(fbxPrefab, player.transform);
+                    paladinGo.name = "PaladinVisual";
                 }
             }
 
-            if (visualObj != null)
+            if (paladinGo != null)
             {
-                var smr = visualObj.GetComponentInChildren<SkinnedMeshRenderer>();
-                if (smr != null)
+                paladinGo.transform.localPosition = new Vector3(0f, -1.0f, 0f);
+                paladinGo.transform.localRotation = Quaternion.identity;
+                paladinGo.transform.localScale = Vector3.one;
+
+                // Asignar material
+                Material paladinMat = AssetDatabase.LoadAssetAtPath<Material>(PaladinMaterialPath);
+                var renderers = paladinGo.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in renderers)
                 {
-                    Material paladinMat = GetOrCreatePaladinMaterial();
-                    if (paladinMat != null) smr.sharedMaterial = paladinMat;
-                }
-                // Escala aumentada en un 40% respecto al valor base (1.08f * 1.40 = 1.512f)
-                float targetScale = 1.512f;
-                visualObj.transform.localScale = Vector3.one * targetScale;
-                visualObj.transform.localPosition = new Vector3(0f, -1.33f, 0f);
-
-                var anim = visualObj.GetComponent<Animator>() ?? visualObj.AddComponent<Animator>();
-                anim.runtimeAnimatorController = controller;
-                anim.applyRootMotion = false; // Evita conflicto con Rigidbody
-
-                Avatar avatar = AssetDatabase.LoadAssetAtPath<Avatar>("Assets/Models/Character/character.fbx");
-                if (avatar != null)
-                    anim.avatar = avatar;
-
-                movement.SetAnimator(anim);
-
-                var col = player.GetComponent<CapsuleCollider>();
-                if (col != null)
-                {
-                    col.height = 2.66f;
-                    col.radius = 0.58f;
-                    col.center = Vector3.zero;
+                    if (paladinMat != null) r.sharedMaterial = paladinMat;
                 }
 
-                var eq = player.GetComponent<ForjaGame.Combat.PlayerEquipmentController>() ?? player.AddComponent<ForjaGame.Combat.PlayerEquipmentController>();
-                SerializedObject eqSo = new SerializedObject(eq);
-                eqSo.Update();
-                var animProp = eqSo.FindProperty("characterAnimator");
-                if (animProp != null) animProp.objectReferenceValue = anim;
-                var atkProp = eqSo.FindProperty("attackController");
-                if (atkProp != null) atkProp.objectReferenceValue = player.GetComponent<ForjaGame.Combat.AttackController>();
-                var baseProp = eqSo.FindProperty("baseController");
-                if (baseProp != null) baseProp.objectReferenceValue = controller;
-                var swordProp = eqSo.FindProperty("swordOverride");
-                if (swordProp != null) swordProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Animations/Character/Sword1H_Override.overrideController");
-                var axeProp = eqSo.FindProperty("axeOverride");
-                if (axeProp != null) axeProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Animations/Character/Axe1H_Override.overrideController");
-                var hammerProp = eqSo.FindProperty("hammerOverride");
-                if (hammerProp != null) hammerProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Animations/Character/Hammer1H_Override.overrideController");
-                var heavy2HProp = eqSo.FindProperty("heavy2HOverride");
-                if (heavy2HProp != null) heavy2HProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Animations/Character/Heavy2H_Override.overrideController");
-                var polearmProp = eqSo.FindProperty("polearmOverride");
-                if (polearmProp != null) polearmProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Animations/Character/Polearm_Override.overrideController");
-                var swordPrefProp = eqSo.FindProperty("swordPrefab");
-                if (swordPrefProp != null) swordPrefProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Kevin Iglesias/Human Animations/Unity Demo Scenes/Human Melee Animations/Prefabs/Weapons/Human_Sword.prefab");
-                var hammerPrefProp = eqSo.FindProperty("hammerPrefab");
-                if (hammerPrefProp != null) hammerPrefProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Kevin Iglesias/Human Animations/Unity Demo Scenes/Human Melee Animations/Prefabs/Weapons/Human_Warhammer.prefab");
-                var axePrefProp = eqSo.FindProperty("axePrefab");
-                if (axePrefProp != null) axePrefProp.objectReferenceValue = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Kevin Iglesias/Human Animations/Unity Demo Scenes/Human Melee Animations/Prefabs/Weapons/Human_Greatsword.prefab");
-                eqSo.ApplyModifiedProperties();
-
-                var procCombat = player.GetComponent<ForjaGame.Combat.ProceduralCombatController>() ?? player.AddComponent<ForjaGame.Combat.ProceduralCombatController>();
-                procCombat.InitializeSkeletonAndPivot();
-
-                var ikBridge = anim.GetComponent<ForjaGame.Combat.PlayerIKBridge>() ?? anim.gameObject.AddComponent<ForjaGame.Combat.PlayerIKBridge>();
-                ikBridge.SetProceduralController(procCombat);
-
-                var testBench = player.GetComponent<ForjaGame.Combat.ProceduralCombatTestBench>() ?? player.AddComponent<ForjaGame.Combat.ProceduralCombatTestBench>();
-
-                var atkCtrl = player.GetComponent<ForjaGame.Combat.AttackController>();
-                if (atkCtrl != null)
+                // Configurar Animator
+                var anim = paladinGo.GetComponent<Animator>();
+                if (anim != null)
                 {
-                    SerializedObject atkSo = new SerializedObject(atkCtrl);
-                    atkSo.Update();
-                    var atkAnimProp = atkSo.FindProperty("characterAnimator");
-                    if (atkAnimProp != null) atkAnimProp.objectReferenceValue = anim;
-                    atkSo.ApplyModifiedProperties();
+                    anim.applyRootMotion = false;
+                    var ctrl = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(AnimatorControllerPath);
+                    if (ctrl != null) anim.runtimeAnimatorController = ctrl;
+                    movement.SetAnimator(anim);
                 }
             }
+
+            // 4. Asegurar controladores esenciales en Player
+            if (player.GetComponent<AttackController>() == null)
+                player.AddComponent<AttackController>();
+
+            if (player.GetComponent<PlayerEquipmentController>() == null)
+                player.AddComponent<PlayerEquipmentController>();
 
             EditorUtility.SetDirty(player);
         }
 
-        private static void SetupCameraInScene()
+        public static void SetupCameraInScene()
         {
             Camera cam = Camera.main;
             if (cam == null) return;
@@ -273,8 +127,8 @@ namespace ForjaGame.EditorTools
             if (movement != null)
                 follow.Target = movement.transform;
 
-            follow.TargetHeight = 2.05f;
-            follow.Distance = 6.2f;
+            follow.TargetHeight = 1.75f;
+            follow.Distance = 5.2f;
 
             EditorUtility.SetDirty(cam.gameObject);
         }

@@ -65,14 +65,15 @@ namespace ForjaGame.Combat
 
         private void UpdateAnimatorUnequipped()
         {
-            if (_paladinAnimator != null && _baseAnimatorController != null)
+            if (_paladinAnimator != null)
             {
-                if (_paladinAnimator.runtimeAnimatorController != _baseAnimatorController)
+                if (_baseAnimatorController != null && _paladinAnimator.runtimeAnimatorController != _baseAnimatorController)
                 {
                     _paladinAnimator.runtimeAnimatorController = _baseAnimatorController;
                 }
+                if (_paladinAnimator.layerCount > 1) _paladinAnimator.SetLayerWeight(1, 0f);
+                if (_paladinAnimator.layerCount > 2) _paladinAnimator.SetLayerWeight(2, 0f);
             }
-            PlayerCombatIKDriver.Instance?.SetWeaponEquipped(false, null, null, null, WeaponCombatStance.OneHanded);
         }
 
         private void EnsureHolder()
@@ -156,9 +157,19 @@ namespace ForjaGame.Combat
                 SetupGripGauntlets(weapon, _spawnedWeaponInstance.transform, separation);
             }
 
+            var overrideCtrl = GetOverrideControllerForWeapon(weapon);
+            if (_paladinAnimator != null)
+            {
+                if (overrideCtrl != null)
+                {
+                    _paladinAnimator.runtimeAnimatorController = overrideCtrl;
+                }
+                if (_paladinAnimator.layerCount > 1) _paladinAnimator.SetLayerWeight(1, 0f);
+                if (_paladinAnimator.layerCount > 2) _paladinAnimator.SetLayerWeight(2, 1.0f);
+            }
+
             if (attackController != null) attackController.ApplyWeaponStats(weapon);
 
-            PlayerCombatIKDriver.Instance?.SetWeaponEquipped(true, _weaponHolder, _gripSocketRear, _gripSocketFront, stance, weapon);
             OnWeaponEquipped?.Invoke(weapon);
         }
 

@@ -108,6 +108,10 @@ namespace ForjaGame.Combat
             foreach (Collider target in targets)
             {
                 if (target.gameObject == gameObject || target.transform.IsChildOf(transform)) continue;
+
+                // Evitar daño entre jugadores aliados (Friendly Fire) salvo que esté habilitado explícitamente
+                if (!allowFriendlyFire && target.GetComponentInParent<PlayerMovement>() != null) continue;
+
                 IDamageable d = target.GetComponentInParent<IDamageable>() ?? target.GetComponentInChildren<IDamageable>();
                 if (d == null || !d.IsAlive) continue;
 
@@ -122,11 +126,22 @@ namespace ForjaGame.Combat
                 if (d is ResourceNodeController node) node.TakeDamageFrom(finalDamage, gameObject);
                 else d.TakeDamage(finalDamage);
 
-                if (isFinisher) PlayerCameraFollow.Instance?.TriggerImpulse(0.08f);
+                if (isFinisher) TriggerImpulseOnPlayerCamera(0.09f);
+                else TriggerImpulseOnPlayerCamera(0.04f);
 
-                // Activar Hit-Stop táctil
-                float hitStopDur = _activeMove != null ? _activeMove.hitStopDuration : 0.055f;
+                // Activar Hit-Stop táctil para sensación de impacto contundente
+                float hitStopDur = isFinisher ? 0.10f : (_activeMove != null ? _activeMove.hitStopDuration : 0.055f);
                 TriggerHitStop(hitStopDur);
+
+                // Retroceso físico (Knockback) en el objetivo
+                Rigidbody targetRb = target.attachedRigidbody;
+                if (targetRb != null && !targetRb.isKinematic)
+                {
+                    Vector3 pushDir = (target.transform.position - transform.position);
+                    pushDir.y = 0.15f;
+                    float pushForce = isFinisher ? 10.0f : 5.5f;
+                    targetRb.AddForce(pushDir.normalized * pushForce, ForceMode.Impulse);
+                }
 
                 if (_equippedWeapon != null)
                 {
@@ -142,26 +157,66 @@ namespace ForjaGame.Combat
             }
         }
 
+        private void TriggerImpulseOnPlayerCamera(float intensity)
+        {
+            if (_movementCtrl != null && _movementCtrl.PlayerCamera != null)
+            {
+                var camFollow = _movementCtrl.PlayerCamera.GetComponent<PlayerCameraFollow>();
+                if (camFollow != null)
+                {
+                    camFollow.TriggerImpulse(intensity);
+                    return;
+                }
+            }
+            PlayerCameraFollow.Instance?.TriggerImpulse(intensity);
+        }
+
         public Vector3 GetPlayerAttackInputDirection()
         {
-            var kb = Keyboard.current;
-            if (kb == null) return transform.forward;
+            Vector2 input = Vector2.zero;
+            if (_movementCtrl != null && _movementCtrl.MoveInput.sqrMagnitude > 0.01f)
+            {
+                input = _movementCtrl.MoveInput;
+            }
+            else if (_playerInput == null)
+            {
+                var kb = Keyboard.current;
+                if (kb != null)
+                {
+                    float x = 0f, y = 0f;
+                    if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y += 1f;
+                    if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y -= 1f;
+                    if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x -= 1f;
+                    if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x += 1f;
+                    input = new Vector2(x, y);
+                }
+            }
 
-            float x = 0f, y = 0f;
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y += 1f;
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y -= 1f;
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x -= 1f;
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x += 1f;
-
-            Vector2 input = new Vector2(x, y);
             if (input.sqrMagnitude < 0.01f) return transform.forward;
 
-            Transform cam = Camera.main != null ? Camera.main.transform : null;
+            Transform cam = (_movementCtrl != null && _movementCtrl.PlayerCamera != null)
+                ? _movementCtrl.PlayerCamera.transform
+                : (Camera.main != null ? Camera.main.transform : null);
+
             Vector3 camFwd = cam != null ? Vector3.ProjectOnPlane(cam.forward, Vector3.up).normalized : Vector3.forward;
             Vector3 camRgt = cam != null ? Vector3.ProjectOnPlane(cam.right, Vector3.up).normalized : Vector3.right;
 
             Vector3 dir = (camFwd * input.y + camRgt * input.x).normalized;
             return dir.sqrMagnitude > 0.01f ? dir : transform.forward;
+        }
+
+        private void SetupAttackHitboxVisualizer()
+        {
+            GameObject atkObj = new GameObject("PlayerAttackHitbox");
+            atkObj.transform.SetParent(transform, false);
+            _attackHitboxVisualizer = atkObj.AddComponent<HitboxVisualizer>();
+            _attackHitboxVisualizer.SetShape(HitboxShape.Box);
+            _attackHitboxVisualizer.IsVolumeActive = false;
+        }
+
+        public void TriggerHitStop(float duration)
+        {
+            _hitStopUntil = Time.time + Mathf.Clamp(duration, 0.040f, 0.12f);
         }
     }
 }

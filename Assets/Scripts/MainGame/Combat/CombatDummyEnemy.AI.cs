@@ -19,14 +19,15 @@ namespace ForjaGame.Combat
                 }
             }
 
-            if (_playerTransform == null) FindPlayer();
+            Transform closest = GetClosestLivingPlayerTransform();
+            if (closest != null) _playerTransform = closest;
             if (_playerTransform == null) return;
 
             Vector3 toPlayer = _playerTransform.position - transform.position;
             toPlayer.y = 0f;
             float distToPlayer = toPlayer.magnitude;
 
-            var pHealth = PlayerHealthController.Instance;
+            var pHealth = _playerTransform.GetComponent<PlayerHealthController>() ?? PlayerHealthController.Instance;
             bool isPlayerAlive = pHealth != null && pHealth.IsAlive && !pHealth.IsDefeated;
 
             // 1. Gestión de estado de detección (Aggro circundante)

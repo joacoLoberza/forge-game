@@ -6,8 +6,8 @@ namespace ForjaGame.Core
 {
     /// <summary>
     /// Cámara orbital en tercera persona inspirada en Monster Hunter.
-    /// Bloquea el cursor del ratón para orbitar con suavidad alrededor del jugador
-    /// y cede el control cuando el jugador opera una estación de forja o abre menús.
+    /// Soporta múltiples instancias para Split-Screen / Multijugador local.
+    /// Lee rotación desde Ratón y Stick Derecho de Gamepad.
     /// </summary>
     public class PlayerCameraFollow : MonoBehaviour
     {
@@ -15,6 +15,7 @@ namespace ForjaGame.Core
 
         [Header("Target Configuration")]
         [SerializeField] private Transform target;
+        [SerializeField] private PlayerMovement targetPlayer;
         [SerializeField] private float targetHeight = 2.05f;
         [SerializeField] private float distance = 6.2f;
         [SerializeField] private float shoulderOffset = 0.45f;
@@ -22,6 +23,7 @@ namespace ForjaGame.Core
         [Header("Orbit & Sensitivity")]
         [SerializeField] private float sensitivityX = 0.16f;
         [SerializeField] private float sensitivityY = 0.14f;
+        [SerializeField] private float gamepadSensitivity = 120f;
         [SerializeField] private float minPitch = -18f;
         [SerializeField] private float maxPitch = 62f;
         [SerializeField] private float smoothSpeed = 14f;
@@ -38,11 +40,27 @@ namespace ForjaGame.Core
         private Vector3 _stationTargetPos;
         private Quaternion _stationTargetRot;
         private float _stationTransitionSpeed = 8.5f;
+        private Vector2 _lookInput;
+        private float _shakeIntensity = 0f;
 
         public Transform Target
         {
             get => target;
             set => target = value;
+        }
+
+        public PlayerMovement TargetPlayer
+        {
+            get => targetPlayer;
+            set
+            {
+                targetPlayer = value;
+                if (targetPlayer != null)
+                {
+                    target = targetPlayer.transform;
+                    targetPlayer.PlayerCamera = GetComponent<Camera>();
+                }
+            }
         }
 
         public float TargetHeight
@@ -61,7 +79,12 @@ namespace ForjaGame.Core
 
         private void Awake()
         {
-            Instance = this;
+            if (Instance == null) Instance = this;
+
+            if (targetPlayer == null && target != null)
+            {
+                targetPlayer = target.GetComponent<PlayerMovement>();
+            }
         }
 
         private void Start()
@@ -74,38 +97,93 @@ namespace ForjaGame.Core
             {
                 _yaw = transform.eulerAngles.y;
             }
+
+            if (targetPlayer != null && targetPlayer.PlayerCamera == null)
+            {
+                targetPlayer.PlayerCamera = GetComponent<Camera>();
+            }
+        }
+
+        public void OnLook(InputAction.CallbackContext context)
+        {
+            _lookInput = context.ReadValue<Vector2>();
         }
 
         private void Update()
         {
-            if (target == null) return;
+            if (target == null)
+            {
+                if (targetPlayer != null) target = targetPlayer.transform;
+                else return;
+            }
 
             bool inStation = _isStationViewActive || BaseForgeStationController.IsPlayerOccupyingAnyStation(target.gameObject);
             bool isPanelOpen = ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen;
 
-            if (inStation || isPanelOpen)
+            // Gestión del cursor para el Jugador 1 / Primario
+            bool isPrimaryCam = (Instance == this || (targetPlayer != null && targetPlayer.PlayerIndex == 0));
+            if (isPrimaryCam)
             {
-                // En estación o con UI abierta: liberar cursor
-                if (Cursor.lockState != CursorLockMode.None)
+                if (inStation || isPanelOpen)
                 {
-                    Cursor.lockState = CursorLockMode.None;
-                    Cursor.visible = true;
+                    if (Cursor.lockState != CursorLockMode.None)
+                    {
+                        Cursor.lockState = CursorLockMode.None;
+                        Cursor.visible = true;
+                    }
                 }
-                return;
+                else
+                {
+                    if (Cursor.lockState != CursorLockMode.Locked)
+                    {
+                        Cursor.lockState = CursorLockMode.Locked;
+                        Cursor.visible = false;
+                    }
+                }
             }
 
-            // En exploración activa: bloquear cursor para orbitar como en Monster Hunter
-            if (Cursor.lockState != CursorLockMode.Locked)
+            if (inStation || isPanelOpen) return;
+
+            // 1. Lectura de Look Input directo desde eventos / gamepad
+            if (_lookInput.sqrMagnitude > 0.001f)
             {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
+                // Si la magnitud es menor o igual a 1 (stick de gamepad normalizado), aplicar delta de tiempo
+                if (_lookInput.sqrMagnitude <= 1.5f)
+                {
+                    _yaw += _lookInput.x * gamepadSensitivity * Time.deltaTime;
+                    _pitch = Mathf.Clamp(_pitch - _lookInput.y * gamepadSensitivity * Time.deltaTime, minPitch, maxPitch);
+                }
+                else
+                {
+                    // Movimiento delta de ratón
+                    _yaw += _lookInput.x * sensitivityX;
+                    _pitch = Mathf.Clamp(_pitch - _lookInput.y * sensitivityY, minPitch, maxPitch);
+                }
             }
-
-            if (Mouse.current != null)
+            // 2. Si no hay evento y es cámara primaria, leer mouse delta directamente
+            else if (isPrimaryCam && Mouse.current != null)
             {
                 Vector2 delta = Mouse.current.delta.ReadValue();
-                _yaw += delta.x * sensitivityX;
-                _pitch = Mathf.Clamp(_pitch - delta.y * sensitivityY, minPitch, maxPitch);
+                if (delta.sqrMagnitude > 0.001f)
+                {
+                    _yaw += delta.x * sensitivityX;
+                    _pitch = Mathf.Clamp(_pitch - delta.y * sensitivityY, minPitch, maxPitch);
+                }
+            }
+
+            // 3. Fallback de gamepad directo si este jugador tiene gamepad asignado
+            if (targetPlayer != null)
+            {
+                var pInput = targetPlayer.GetComponent<PlayerInput>();
+                if (pInput != null && pInput.currentControlScheme == "Gamepad" && Gamepad.current != null)
+                {
+                    Vector2 stick = Gamepad.current.rightStick.ReadValue();
+                    if (stick.sqrMagnitude > 0.01f)
+                    {
+                        _yaw += stick.x * gamepadSensitivity * Time.deltaTime;
+                        _pitch = Mathf.Clamp(_pitch - stick.y * gamepadSensitivity * Time.deltaTime, minPitch, maxPitch);
+                    }
+                }
             }
         }
 
@@ -154,7 +232,6 @@ namespace ForjaGame.Core
             }
         }
 
-        private float _shakeIntensity = 0f;
         public void TriggerImpulse(float intensity = 0.22f) => _shakeIntensity = Mathf.Max(_shakeIntensity, intensity);
 
         public void SetStationView(Vector3 targetPos, Quaternion targetRot, float speed = 8.5f)
@@ -178,5 +255,15 @@ namespace ForjaGame.Core
         }
 
         public void SetFollowing(bool follow) => _isOrbitEnabled = follow;
+
+        public void SetTarget(Transform newTarget, PlayerMovement newPlayer = null)
+        {
+            target = newTarget;
+            targetPlayer = newPlayer ?? (newTarget != null ? newTarget.GetComponent<PlayerMovement>() : null);
+            if (targetPlayer != null)
+            {
+                targetPlayer.PlayerCamera = GetComponent<Camera>();
+            }
+        }
     }
 }

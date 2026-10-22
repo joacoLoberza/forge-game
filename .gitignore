@@ -104,3 +104,8 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Project specific backups and recovery
+LegacyCombat_Backup*
+/[Aa]ssets/_Recovery/
+.backup_checkpoint_*

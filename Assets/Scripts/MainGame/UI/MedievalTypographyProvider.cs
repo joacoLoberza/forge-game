@@ -39,9 +39,9 @@ namespace ForjaGame.UI
 
         public static void ApplyToTMP(TMP_Text text)
         {
-            if (text == null) return;
+            if (text == null || !Application.isPlaying) return;
             TMP_FontAsset f = GetTMPFont();
-            if (f != null && text.font != f)
+            if (f != null && f.material != null && text.font != f)
             {
                 text.font = f;
                 text.UpdateMeshPadding();
@@ -50,9 +50,9 @@ namespace ForjaGame.UI
 
         public static void ApplyToAllTMPInHierarchy(Transform root)
         {
-            if (root == null) return;
+            if (root == null || !Application.isPlaying) return;
             TMP_FontAsset f = GetTMPFont();
-            if (f == null) return;
+            if (f == null || f.material == null) return;
 
             var texts = root.GetComponentsInChildren<TMP_Text>(true);
             for (int i = 0; i < texts.Length; i++)
@@ -67,8 +67,9 @@ namespace ForjaGame.UI
 
         public static void ApplyToAllSceneTMP()
         {
+            if (!Application.isPlaying) return;
             TMP_FontAsset f = GetTMPFont();
-            if (f == null) return;
+            if (f == null || f.material == null) return;
 
             var all = Object.FindObjectsByType<TMP_Text>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             for (int i = 0; i < all.Length; i++)
@@ -126,7 +127,7 @@ namespace ForjaGame.UI
                 catch (System.Exception) { }
             }
 
-            if (_cachedTmpFont == null)
+            if (_cachedTmpFont == null || _cachedTmpFont.material == null)
                 _cachedTmpFont = TMP_Settings.defaultFontAsset;
         }
     }

@@ -101,7 +101,7 @@ namespace ForjaGame.Combat
                 return greatswordPrefab != null ? greatswordPrefab : (swordPrefab != null ? swordPrefab : hammerPrefab);
             }
 
-            if (weapon.weaponType == WeaponType.Hammer)
+            if (weapon.weaponType is WeaponType.Hammer or WeaponType.Pickaxe)
             {
                 return hammerPrefab != null ? hammerPrefab : swordPrefab;
             }
@@ -116,18 +116,18 @@ namespace ForjaGame.Combat
 
         private void LoadDefaultAssetsIfMissing()
         {
-#if UNITY_EDITOR
-            if (swordPrefab == null)
-                swordPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Sword.prefab");
-            if (greatswordPrefab == null)
-                greatswordPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Greatsword.prefab");
-            if (hammerPrefab == null)
-                hammerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Warhammer.prefab");
-            if (polearmPrefab == null)
-                polearmPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Polearm.prefab");
-            if (daggerPrefab == null)
-                daggerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Dagger.prefab");
+            if (swordPrefab == null) swordPrefab = UnityEngine.Resources.Load<GameObject>("Weapons/Human_Sword");
+            if (greatswordPrefab == null) greatswordPrefab = UnityEngine.Resources.Load<GameObject>("Weapons/Human_Greatsword");
+            if (hammerPrefab == null) hammerPrefab = UnityEngine.Resources.Load<GameObject>("Weapons/Human_Warhammer");
+            if (polearmPrefab == null) polearmPrefab = UnityEngine.Resources.Load<GameObject>("Weapons/Human_Polearm");
+            if (daggerPrefab == null) daggerPrefab = UnityEngine.Resources.Load<GameObject>("Weapons/Human_Dagger");
 
+#if UNITY_EDITOR
+            if (swordPrefab == null) swordPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Sword.prefab");
+            if (greatswordPrefab == null) greatswordPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Greatsword.prefab");
+            if (hammerPrefab == null) hammerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Warhammer.prefab");
+            if (polearmPrefab == null) polearmPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Polearm.prefab");
+            if (daggerPrefab == null) daggerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Weapons/Human_Dagger.prefab");
 #endif
         }
     }

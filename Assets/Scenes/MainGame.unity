@@ -966,7 +966,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &214947917
 Transform:
   m_ObjectHideFlags: 0
@@ -1004,6 +1004,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   animator: {fileID: 0}
+  playerIndex: 0
+  playerCamera: {fileID: 0}
 --- !u!114 &214947919
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1249,8 +1251,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1869ad2813db0914f9c0c4b301cc5c52, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ForjaGame.Interaction.InteractionController
-  gameStateController: {fileID: 168679302}
-  maxInteractionDistance: 2.2
+  interactionSphere: {fileID: 0}
+  interactionRadius: 2.4
 --- !u!114 &214947925
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1266,16 +1268,14 @@ MonoBehaviour:
   damage: 1
   attackRange: 2
   attackCooldown: 0.8
-  attackAngleCos: 0.35
   targetLayers:
     serializedVersion: 2
     m_Bits: 4294967295
   gameStateController: {fileID: 168679302}
-  characterAnimator: {fileID: 0}
-  comboWindowStart: 0.25
-  comboWindowEnd: 0.8
   comboTransitionTime: 0.55
   attackDuration: 0.85
+  postComboCooldown: 0.22
+  allowFriendlyFire: 0
 --- !u!114 &214947926
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1316,10 +1316,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f842fbe9f407cd64eb1cedfeaa449953, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ForjaGame.Combat.PlayerEquipmentController
-  attackController: {fileID: 214947925}
-  handRadius: 0.13
-  handColor: {r: 0.24, g: 0.2, b: 0.18, a: 1}
-  customHandMaterial: {fileID: 0}
   swordPrefab: {fileID: 0}
   greatswordPrefab: {fileID: 0}
   hammerPrefab: {fileID: 0}
@@ -1333,8 +1329,14 @@ MonoBehaviour:
   handSeparation_Polearm: 0.5
   edgeAngleOffset: 0
   hammerImpactAngleOffset: 0
+  axeBladeAngleOffset: 0
   globalPositionOffset: {x: 0, y: 0, z: 0}
   globalRotationOffset: {x: 0, y: 0, z: 0}
+  attackController: {fileID: 214947925}
+  gripInHandPos: {x: 0.035, y: 0.075, z: -0.015}
+  gripInHandRot: {x: -90, y: 0, z: 90}
+  paladinPrefab: {fileID: 0}
+  paladinAnimatorController: {fileID: 0}
 --- !u!1 &227478073
 GameObject:
   m_ObjectHideFlags: 0
@@ -4377,11 +4379,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ForjaGame.Core.PlayerCameraFollow
   target: {fileID: 214947917}
+  targetPlayer: {fileID: 0}
   targetHeight: 2.05
   distance: 6.2
   shoulderOffset: 0.35
   sensitivityX: 0.16
   sensitivityY: 0.14
+  gamepadSensitivity: 120
   minPitch: -18
   maxPitch: 62
   smoothSpeed: 14
@@ -4389,6 +4393,128 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   collisionRadius: 0.22
+--- !u!1 &1496664927
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1496664931}
+  - component: {fileID: 1496664930}
+  - component: {fileID: 1496664929}
+  - component: {fileID: 1496664928}
+  m_Layer: 0
+  m_Name: NetworkManager_LAN
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1496664928
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496664927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: afcfe2cb4efa3a442a7a6f663e2846b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ForjaGame.Multiplayer.LANNetworkManagerUI
+  targetIp: 127.0.0.1
+  port: 7777
+  autoDetectLocalIp: 1
+--- !u!114 &1496664929
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496664927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6960e84d07fb87f47956e7a81d71c4e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Transports.UTP.UnityTransport
+  m_ProtocolType: 0
+  m_UseWebSockets: 0
+  m_UseEncryption: 0
+  m_MaxPacketQueueSize: 128
+  m_MaxPayloadSize: 6144
+  m_HeartbeatTimeoutMS: 500
+  m_ConnectTimeoutMS: 1000
+  m_MaxConnectAttempts: 60
+  m_DisconnectTimeoutMS: 30000
+  ConnectionData:
+    Address: 127.0.0.1
+    Port: 7777
+    WebSocketPath: /
+    ServerListenAddress: 0.0.0.0
+    ClientBindPort: 0
+  DebugSimulator:
+    PacketDelayMS: 0
+    PacketJitterMS: 0
+    PacketDropRate: 0
+--- !u!114 &1496664930
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496664927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 593a2fe42fa9d37498c96f9a383b6521, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkManager
+  NetworkManagerExpanded: 0
+  NetworkConfig:
+    ProtocolVersion: 0
+    NetworkTransport: {fileID: 1496664929}
+    PlayerPrefab: {fileID: 2417135247224953749, guid: e761d503cdc89694595bcc73900336ec, type: 3}
+    Prefabs:
+      NetworkPrefabsLists:
+      - {fileID: 11400000, guid: 8f093a9d9c107074b92434e22fca9357, type: 2}
+    TickRate: 30
+    ClientConnectionBufferTimeout: 10
+    ConnectionApproval: 0
+    ConnectionData: 
+    EnableTimeResync: 0
+    TimeResyncInterval: 30
+    EnsureNetworkVariableLengthSafety: 0
+    EnableSceneManagement: 1
+    ForceSamePrefabs: 1
+    RecycleNetworkIds: 1
+    NetworkIdRecycleDelay: 120
+    RpcHashSize: 0
+    LoadSceneTimeOut: 120
+    SpawnTimeout: 10
+    EnableNetworkLogs: 1
+    NetworkTopology: 0
+    UseCMBService: 0
+    AutoSpawnPlayerPrefabClientSide: 1
+    NetworkProfilingMetrics: 1
+    OldPrefabList: []
+  RunInBackground: 1
+  LogLevel: 1
+--- !u!4 &1496664931
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496664927}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1498212728
 GameObject:
   m_ObjectHideFlags: 0
@@ -6471,8 +6597,9 @@ MonoBehaviour:
   rightItemDescriptionText: {fileID: 0}
   rightScrollRect: {fileID: 0}
   emptySelectionNotice: {fileID: 0}
-  equipWeaponButton: {fileID: 0}
-  equipWeaponButtonText: {fileID: 0}
+  equipButton: {fileID: 0}
+  equipButtonText: {fileID: 0}
+  weaponDefaultIcon: {fileID: 0}
 --- !u!1 &2132396446
 GameObject:
   m_ObjectHideFlags: 0
@@ -6519,3 +6646,4 @@ SceneRoots:
   - {fileID: 1650622368}
   - {fileID: 360171150}
   - {fileID: 2132396447}
+  - {fileID: 1496664931}

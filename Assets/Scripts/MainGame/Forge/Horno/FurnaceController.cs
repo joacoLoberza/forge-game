@@ -12,12 +12,12 @@ namespace ForjaGame.Forge
     {
         [Header("Configuración Térmica")]
         [SerializeField] private float ambientTemperature = 0f; // Comienza en 0°C apagado
-        [SerializeField] private float coolingRate = 12f;  // °C por segundo
-        [SerializeField] private float heatingRate = 15f;  // °C por segundo (subida suave y controlable del carbón)
+        [SerializeField] private float coolingRate = 35f;  // Enfriamiento pasivo natural suave (°C/s)
+        [SerializeField] private float heatingRate = 260f;  // Velocidad de subida constante y predecible del carbón (°C/s)
         [SerializeField] private float maxTemperature = 1600f;
 
         [Header("Combustible")]
-        [SerializeField] private float coalHeatBonus = 110f; // °C aportados por unidad de carbón
+        [SerializeField] private float coalHeatBonus = 140f; // °C añadidos por unidad de carbón de forma constante
 
         [Header("Calidad y Tolerancia")]
         [SerializeField] private float currentQuality = 1.0f;
@@ -56,7 +56,7 @@ namespace ForjaGame.Forge
         public MetalType? FirstEnteredMetal => _firstEnteredMetal;
         public float SweetSpotCenter => (targetMinTemp + targetMaxTemp) * 0.5f;
         public bool IsInOptimumRange => currentTemperature >= targetMinTemp && currentTemperature <= targetMaxTemp && targetMinTemp > 0f;
-        public bool IsInSweetSpot => IsInOptimumRange && Mathf.Abs(currentTemperature - SweetSpotCenter) <= 45f;
+        public bool IsInSweetSpot => IsInOptimumRange && Mathf.Abs(currentTemperature - SweetSpotCenter) <= 20f;
         public float SweetSpotRatio => _totalSmeltTimeSpent > 0f ? (_sweetSpotTime / _totalSmeltTimeSpent) : (IsInSweetSpot ? 1f : 0f);
         public bool HasReachedSharedRangeOnce => hasReachedSharedRangeOnce;
         public bool IsOverheating => hasReachedSharedRangeOnce && currentTemperature > targetMaxTemp && targetMaxTemp > 0f;
@@ -96,6 +96,8 @@ namespace ForjaGame.Forge
 
             if (_bellowsCooldown > 0f)
                 _bellowsCooldown -= deltaTime;
+
+            UpdateBellowsCharge(deltaTime);
 
             // 1. Dinámica térmica: sube de forma suave hacia targetTemperature
             if (currentTemperature < targetTemperature)
@@ -208,27 +210,8 @@ namespace ForjaGame.Forge
 
         private void UpdateQualityFromSmelt()
         {
-            float sweetSpotRatio = _totalSmeltTimeSpent > 0f ? (_sweetSpotTime / _totalSmeltTimeSpent) : (IsInSweetSpot ? 1f : 0f);
-            float baseQuality;
-
-            if (sweetSpotRatio >= 0.70f && currentImpurityPercentage == 0)
-            {
-                baseQuality = 1.0f; // Maestra: 70%+ en el punto perfecto y sin impurezas
-            }
-            else if (sweetSpotRatio >= 0.35f && currentImpurityPercentage <= 10)
-            {
-                baseQuality = 0.85f; // Estándar
-            }
-            else if (currentImpurityPercentage <= 25)
-            {
-                baseQuality = 0.60f; // Impura
-            }
-            else
-            {
-                baseQuality = 0.35f; // Quebradiza
-            }
-
-            currentQuality = Mathf.Clamp(baseQuality - (currentImpurityPercentage / 100f), 0.10f, 1.0f);
+            // La Lupa no tiene impurezas a menos que ocurran errores térmicos en el horno.
+            currentQuality = Mathf.Clamp(1.0f - (currentImpurityPercentage / 100f), 0.05f, 1.0f);
             QualityChanged?.Invoke(currentQuality);
         }
     }

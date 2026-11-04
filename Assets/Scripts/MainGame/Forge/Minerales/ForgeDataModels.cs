@@ -16,7 +16,8 @@ namespace ForjaGame.Forge
     {
         Sword,   // Balanced sword
         Axe,     // Higher damage, slower speed
-        Hammer   // Heavy impact, highest damage, slowest speed
+        Hammer,  // Heavy impact, highest damage, slowest speed
+        Pickaxe  // Mining tool and armor piercing strike
     }
 
     public enum ItemSize
@@ -63,6 +64,9 @@ namespace ForjaGame.Forge
         public string Id => id;
         public ForgeItemCategory Category => ForgeItemCategory.Bloom;
         public int PurityPercentage => Mathf.RoundToInt(quality * 100f);
+        public int ImpurityPercentage => (composition != null && composition.impurityPercentage > 0)
+            ? Mathf.Clamp(composition.impurityPercentage, 0, 95)
+            : Mathf.Clamp(100 - PurityPercentage, 0, 95);
         public string PurityRank => PurityPercentage >= 90 ? "Master" : PurityPercentage >= 70 ? "Standard" : PurityPercentage >= 50 ? "Impure" : "Brittle";
         public string PurityColorHex => PurityPercentage >= 90 ? "#FFD700" : PurityPercentage >= 70 ? "#00E676" : PurityPercentage >= 50 ? "#FFB74D" : "#FF5252";
         public string SizeLabel => size switch { ItemSize.Small => "Small (3)", ItemSize.Medium => "Medium (6)", ItemSize.Large => "Large (9)", _ => "Medium" };
@@ -100,6 +104,9 @@ namespace ForjaGame.Forge
         public string Id => id;
         public ForgeItemCategory Category => ForgeItemCategory.Ingot;
         public int PurityPercentage => Mathf.RoundToInt(quality * 100f);
+        public int ImpurityPercentage => (composition != null && composition.impurityPercentage > 0)
+            ? Mathf.Clamp(composition.impurityPercentage, 0, 95)
+            : Mathf.Clamp(100 - PurityPercentage, 0, 95);
         public string PurityRank => PurityPercentage >= 90 ? "Master" : PurityPercentage >= 70 ? "Standard" : PurityPercentage >= 50 ? "Impure" : "Brittle";
         public string PurityColorHex => PurityPercentage >= 90 ? "#FFD700" : PurityPercentage >= 70 ? "#00E676" : PurityPercentage >= 50 ? "#FFB74D" : "#FF5252";
         public string SizeLabel => size switch { ItemSize.Small => "Small (3)", ItemSize.Medium => "Medium (6)", ItemSize.Large => "Large (9)", _ => "Medium" };
@@ -183,14 +190,16 @@ namespace ForjaGame.Forge
     public static class RawMaterialCatalog
     {
         public static bool IsRawMaterial(string itemId) =>
-            itemId == "Iron" || itemId == "Copper" || itemId == "Gold" || itemId == "Coal";
+            itemId == "Iron" || itemId == "Copper" || itemId == "Gold" || itemId == "Coal" || itemId == "Wood" || itemId == "MonsterBones";
 
         public static string GetDisplayName(string itemId) => itemId switch
         {
-            "Iron" => "Iron Ore",
-            "Copper" => "Copper Ore",
-            "Gold" => "Gold Ore",
-            "Coal" => "Coal",
+            "Iron" => "Mineral de Hierro",
+            "Copper" => "Mineral de Cobre",
+            "Gold" => "Mineral de Oro",
+            "Coal" => "Carbón Mineral",
+            "Wood" => "Madera de Roble",
+            "MonsterBones" => "Huesos de Monstruo",
             _ => itemId
         };
 
@@ -200,6 +209,8 @@ namespace ForjaGame.Forge
             "Copper" => "#E07A5F",
             "Gold" => "#FFD700",
             "Coal" => "#4B5563",
+            "Wood" => "#8D5B4C",
+            "MonsterBones" => "#E5E5DC",
             _ => "#FFFFFF"
         };
     }

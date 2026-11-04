@@ -66,7 +66,7 @@ namespace ForjaGame.Combat
         private void OnDestroy()
         {
             HitboxDebugManager.OnHitboxVisibilityChanged -= HandleVisibilityChanged;
-            if (_visualObj != null) Destroy(_visualObj);
+            if (_visualObj != null) ForjaGame.Core.UnitySafeUtility.DestroyGameObjectSafe(_visualObj);
         }
 
         private void HandleVisibilityChanged(bool show)
@@ -89,7 +89,7 @@ namespace ForjaGame.Combat
             // Obtener malla compartida sin instanciar colisionadores
             GameObject tempPrimitive = GameObject.CreatePrimitive(shape == HitboxShape.Capsule ? PrimitiveType.Capsule : PrimitiveType.Cube);
             _meshFilter.sharedMesh = tempPrimitive.GetComponent<MeshFilter>().sharedMesh;
-            Destroy(tempPrimitive);
+            ForjaGame.Core.UnitySafeUtility.DestroyGameObjectSafe(tempPrimitive);
 
             UpdateMaterial();
             UpdateVisibility();
@@ -103,7 +103,7 @@ namespace ForjaGame.Combat
             EnsureVisualObject();
             GameObject temp = GameObject.CreatePrimitive(shape == HitboxShape.Capsule ? PrimitiveType.Capsule : PrimitiveType.Cube);
             _meshFilter.sharedMesh = temp.GetComponent<MeshFilter>().sharedMesh;
-            Destroy(temp);
+            ForjaGame.Core.UnitySafeUtility.DestroyGameObjectSafe(temp);
         }
 
         public void UpdateBox(Vector3 localCenter, Vector3 size)

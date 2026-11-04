@@ -61,7 +61,7 @@ namespace ForjaGame.UI
                 sb.AppendLine("• Base damage: <b>20</b> (Balanced)");
                 sb.AppendLine("• Attack speed: <b>1.0x</b> (Standard)");
                 sb.AppendLine("• Sharpness / Durability: <b>100</b> (High durability)");
-                sb.AppendLine("• Optimum smelting range: <b>750°C - 1100°C</b>");
+                sb.AppendLine("• Optimum smelting range: <b>780°C - 1000°C</b>");
                 sb.AppendLine("\n<i>The backbone of any alloy. Provides consistency and durability.</i>");
             }
             else if (id == "Copper")
@@ -70,7 +70,7 @@ namespace ForjaGame.UI
                 sb.AppendLine("• Base damage: <b>14</b> (Light)");
                 sb.AppendLine("• Attack speed: <b>1.25x</b> (+25% faster)");
                 sb.AppendLine("• Sharpness / Durability: <b>75</b>");
-                sb.AppendLine("• Optimum smelting range: <b>550°C - 950°C</b>");
+                sb.AppendLine("• Optimum smelting range: <b>560°C - 780°C</b>");
                 sb.AppendLine("\n<i>Light and ductile metal. Ideal for fast-striking weapons.</i>");
             }
             else if (id == "Gold")
@@ -79,7 +79,7 @@ namespace ForjaGame.UI
                 sb.AppendLine("• Base damage: <b>26</b> (Highest impact)");
                 sb.AppendLine("• Attack speed: <b>1.05x</b>");
                 sb.AppendLine("• Sharpness / Durability: <b>50</b> (Soft metal, dulls faster)");
-                sb.AppendLine("• Optimum smelting range: <b>650°C - 1000°C</b>");
+                sb.AppendLine("• Optimum smelting range: <b>670°C - 890°C</b>");
                 sb.AppendLine("\n<i>Dense and destructive metal. Raises damage at the cost of losing sharpness quickly.</i>");
             }
             else if (id == "Coal")
@@ -136,7 +136,7 @@ namespace ForjaGame.UI
             SetRightHeader(weapon.DisplayName, $"Finished Weapon • {weapon.weaponType}");
             StringBuilder sb = new StringBuilder();
 
-            sb.AppendLine($"<b>Effective Damage:</b> <size=120%><color=#FFD700>{weapon.EffectiveDamage:F1}</color></size> (Base: {weapon.baseDamage:F1})");
+            sb.AppendLine($"<b>Effective Damage:</b> <size=120%><color=#9E5B00>{weapon.EffectiveDamage:F1}</color></size> (Base: {weapon.baseDamage:F1})");
             sb.AppendLine($"<b>Remaining Sharpness:</b> {weapon.currentSharpness:F0}/{weapon.maxSharpness:F0} ({weapon.SharpnessRatio * 100:F0}%)");
             sb.AppendLine($"<b>Attack Speed:</b> {weapon.attackSpeed:F2} hits/sec");
             sb.AppendLine($"<b>Reach:</b> {weapon.attackRange:F2} m\n");
@@ -145,7 +145,7 @@ namespace ForjaGame.UI
             sb.AppendLine($"<b>Blade Purity:</b> {weapon.PurityPercentage}% [{weapon.qualityPrefix}]");
             sb.AppendLine($"<b>{weapon.composition.GetCompositionDescription()}</b>\n");
 
-            sb.AppendLine("<size=85%><color=#9CA3AF>Note: In combat, sharpness gradually dulls, reducing damage by up to 40%. Weapons never break or disappear.</color></size>");
+            sb.AppendLine("<size=85%><color=#5C4632>Nota: En combate el filo disminuye gradualmente hasta un 40%, pero las armas nunca se rompen.</color></size>");
             SetRightDescription(sb.ToString());
         }
 
@@ -157,7 +157,14 @@ namespace ForjaGame.UI
 
         private void SetRightDescription(string description)
         {
-            if (rightItemDescriptionText != null) rightItemDescriptionText.text = description;
+            if (rightItemDescriptionText == null) return;
+            rightItemDescriptionText.text = description;
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(rightItemDescriptionText.rectTransform);
+            if (rightScrollRect != null && rightScrollRect.content != null)
+            {
+                UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(rightScrollRect.content);
+                rightScrollRect.verticalNormalizedPosition = 1f;
+            }
         }
 
         private void UpdateTabVisuals()
@@ -172,6 +179,8 @@ namespace ForjaGame.UI
         private void SetTab(UnityEngine.UI.Button btn, bool active)
         {
             if (btn == null) return;
+            var ind = btn.GetComponent<BookTabIndicator>();
+            if (ind != null) { ind.SetIndicatorActive(active); return; }
             var txt = btn.GetComponentInChildren<TMPro.TMP_Text>();
             if (txt == null) return;
             txt.color = active ? new Color(1f, 0.80f, 0.20f) : new Color(0.70f, 0.70f, 0.70f);

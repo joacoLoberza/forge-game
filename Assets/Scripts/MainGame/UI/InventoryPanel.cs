@@ -78,12 +78,32 @@ namespace ForjaGame.UI
                 }
             }
 
-            if (tabMineralsButton != null) BindPressDown(tabMineralsButton, () => SelectCategory(ForgeItemCategory.RawMaterial));
-            if (tabBloomsButton != null) BindPressDown(tabBloomsButton, () => SelectCategory(ForgeItemCategory.Bloom));
-            if (tabIngotsButton != null) BindPressDown(tabIngotsButton, () => SelectCategory(ForgeItemCategory.Ingot));
-            if (tabHandlesButton != null) BindPressDown(tabHandlesButton, () => SelectCategory(ForgeItemCategory.Handle));
-            if (tabWeaponsButton != null) BindPressDown(tabWeaponsButton, () => SelectCategory(ForgeItemCategory.Weapon));
-            if (closeButton != null) BindPressDown(closeButton, Close);
+            CleanAndBindTabButton(tabMineralsButton, () => SelectCategory(ForgeItemCategory.RawMaterial));
+            CleanAndBindTabButton(tabBloomsButton, () => SelectCategory(ForgeItemCategory.Bloom));
+            CleanAndBindTabButton(tabIngotsButton, () => SelectCategory(ForgeItemCategory.Ingot));
+            CleanAndBindTabButton(tabHandlesButton, () => SelectCategory(ForgeItemCategory.Handle));
+            CleanAndBindTabButton(tabWeaponsButton, () => SelectCategory(ForgeItemCategory.Weapon));
+            if (closeButton != null)
+            {
+                closeButton.onClick.RemoveAllListeners();
+                closeButton.onClick.AddListener(Close);
+            }
+        }
+
+        private void CleanAndBindTabButton(Button btn, UnityEngine.Events.UnityAction action)
+        {
+            if (btn == null) return;
+            var trigger = btn.GetComponent<UnityEngine.EventSystems.EventTrigger>();
+            if (trigger != null) Destroy(trigger);
+
+            btn.navigation = new Navigation { mode = Navigation.Mode.None };
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(action);
+
+            var img = btn.GetComponent<Image>();
+            if (img != null) img.raycastTarget = true;
+            var txt = btn.GetComponentInChildren<TMP_Text>(true);
+            if (txt != null) txt.raycastTarget = false;
         }
 
         protected override void OnDestroy()
@@ -117,8 +137,23 @@ namespace ForjaGame.UI
         protected override void OnOpened()
         {
             base.OnOpened();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Inventory);
             EnsureController();
             SelectCategory(_currentCategory);
+        }
+
+        protected override void OnClosed()
+        {
+            base.OnClosed();
+            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+
+            if (!IsAnyPanelOpen)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
         }
 
         private void OnInventoryUpdated()
@@ -131,9 +166,11 @@ namespace ForjaGame.UI
 
         public void RefreshCurrentView()
         {
+            EnsureController();
             PopulateLeftPage();
             UpdateTabVisuals();
             RenderRightPage(_selectedItem);
+            Canvas.ForceUpdateCanvases();
         }
 
         public void SelectCategory(ForgeItemCategory category)
@@ -145,7 +182,7 @@ namespace ForjaGame.UI
 
         public void OpenFor(InventoryController inv, PlayerEquipmentController equip)
         {
-            if (IsOpen && inventoryController == inv)
+            if (IsOpen)
             {
                 Close();
                 return;
@@ -156,8 +193,8 @@ namespace ForjaGame.UI
                 inventoryController.InventoryUpdated -= OnInventoryUpdated;
             }
 
-            inventoryController = inv;
-            _equipmentController = equip;
+            inventoryController = inv ?? InventoryController.LocalInstance ?? FindFirstObjectByType<InventoryController>();
+            _equipmentController = equip ?? PlayerEquipmentController.LocalInstance ?? FindFirstObjectByType<PlayerEquipmentController>();
 
             if (inventoryController != null)
             {
@@ -166,144 +203,31 @@ namespace ForjaGame.UI
 
             Open();
             RefreshCurrentView();
+            Canvas.ForceUpdateCanvases();
         }
 
         private void EnsureController()
         {
             if (inventoryController == null)
             {
-                inventoryController = FindFirstObjectByType<InventoryController>();
+                inventoryController = InventoryController.LocalInstance ?? InventoryController.Instance ?? FindFirstObjectByType<InventoryController>();
                 if (inventoryController == null)
                 {
                     GameObject player = GameObject.FindWithTag("Player");
                     if (player != null) inventoryController = player.GetComponent<InventoryController>();
                 }
             }
-        }
 
-        private void PopulateLeftPage()
-        {
-            if (leftItemsContainer == null) return;
-
-            _activeEntries.Clear();
-            foreach (Transform child in leftItemsContainer)
+            if (_equipmentController == null)
             {
-                Destroy(child.gameObject);
-            }
-
-            ForgeScrollViewStyler.ConfigureFixedScrollView(leftItemsContainer);
-
-            if (leftPageTitleText != null)
-            {
-                leftPageTitleText.text = _currentCategory switch
+                _equipmentController = PlayerEquipmentController.LocalInstance ?? FindFirstObjectByType<PlayerEquipmentController>();
+                if (_equipmentController == null)
                 {
-                    ForgeItemCategory.RawMaterial => "Página: Minerales y Carbón",
-                    ForgeItemCategory.Bloom => "Página: Lupas Forjadas",
-                    ForgeItemCategory.Ingot => "Página: Lingotes Prensados",
-                    ForgeItemCategory.Handle => "Página: Mangos de Armas",
-                    ForgeItemCategory.Weapon => "Página: Armas Forjadas",
-                    _ => "Página: Inventario"
-                };
-            }
-
-            if (inventoryController == null) return;
-
-            switch (_currentCategory)
-            {
-                case ForgeItemCategory.RawMaterial:
-                    PopulateMinerals();
-                    break;
-                case ForgeItemCategory.Bloom:
-                    PopulateItems(inventoryController.Blooms, new Color(0.95f, 0.48f, 0.20f), "No hay lupas forjadas en el inventario.");
-                    break;
-                case ForgeItemCategory.Ingot:
-                    PopulateItems(inventoryController.Ingots, new Color(0.72f, 0.78f, 0.88f), "No hay lingotes prensados en el inventario.");
-                    break;
-                case ForgeItemCategory.Handle:
-                    PopulateHandles();
-                    break;
-                case ForgeItemCategory.Weapon:
-                    PopulateItems(inventoryController.Weapons, Color.white, "No hay armas forjadas en el inventario.", weaponDefaultIcon);
-                    break;
-            }
-        }
-
-        private void PopulateHandles()
-        {
-            var handles = inventoryController.Handles;
-            if (handles == null || handles.Count == 0)
-            {
-                ForgeScrollViewStyler.CreateNoticeEntry(leftItemsContainer, "No hay mangos tallados en el inventario.");
-                return;
-            }
-
-            var groups = new Dictionary<(string name, HandleLength len, float rng, float spd), (HandleData rep, int count)>();
-            for (int i = 0; i < handles.Count; i++)
-            {
-                var h = handles[i];
-                var key = (h.handleName, h.length, h.rangeModifier, h.speedModifier);
-                if (groups.TryGetValue(key, out var val))
-                {
-                    groups[key] = (val.rep, val.count + 1);
-                }
-                else
-                {
-                    groups[key] = (h, 1);
+                    GameObject player = GameObject.FindWithTag("Player");
+                    if (player != null) _equipmentController = player.GetComponent<PlayerEquipmentController>();
                 }
             }
-
-            foreach (var kvp in groups.Values)
-            {
-                string title = kvp.count > 1 ? $"{kvp.rep.DisplayName}  x{kvp.count}" : kvp.rep.DisplayName;
-                var groupData = new HandleGroupData(kvp.rep, kvp.count);
-                CreateItemEntry(title, groupData, () => SelectItem(groupData), null, new Color(0.62f, 0.42f, 0.22f));
-            }
         }
 
-        private void PopulateMinerals()
-        {
-            var raw = inventoryController.RawMaterials;
-            if (raw == null || raw.Count == 0)
-            {
-                ForgeScrollViewStyler.CreateNoticeEntry(leftItemsContainer, "No tienes minerales ni carbón recolectados.");
-                return;
-            }
-
-            bool hasAny = false;
-            foreach (var kvp in raw)
-            {
-                if (kvp.Key == "Lupa" || kvp.Key.StartsWith("Lingote") || kvp.Key.StartsWith("Mango"))
-                    continue;
-
-                hasAny = true;
-                string displayName = RawMaterialCatalog.GetDisplayName(kvp.Key);
-                string title = $"{displayName}  x{kvp.Value}";
-                var mineralData = new KeyValuePair<string, int>(kvp.Key, kvp.Value);
-                Color color = GetMineralColor(kvp.Key);
-
-                CreateItemEntry(title, mineralData, () => SelectItem(mineralData), null, color);
-            }
-
-            if (!hasAny)
-            {
-                ForgeScrollViewStyler.CreateNoticeEntry(leftItemsContainer, "No tienes minerales ni carbón recolectados.");
-            }
-        }
-
-        private void PopulateItems<T>(IReadOnlyList<T> items, Color fallbackColor, string emptyNotice, Sprite icon = null) where T : class
-        {
-            if (items == null || items.Count == 0)
-            {
-                ForgeScrollViewStyler.CreateNoticeEntry(leftItemsContainer, emptyNotice);
-                return;
-            }
-
-            for (int i = 0; i < items.Count; i++)
-            {
-                T item = items[i];
-                string title = item is IForgeItem forgeItem ? forgeItem.DisplayName : item.ToString();
-                CreateItemEntry(title, item, () => SelectItem(item), icon, fallbackColor);
-            }
-        }
     }
 }

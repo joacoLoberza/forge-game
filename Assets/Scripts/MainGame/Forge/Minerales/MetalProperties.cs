@@ -51,8 +51,8 @@ namespace ForjaGame.Forge
                 MetalType.Iron => new MetalProperties
                 {
                     metalType = MetalType.Iron,
-                    minOptimumTemp = 750f,
-                    maxOptimumTemp = 1100f,
+                    minOptimumTemp = 780f,
+                    maxOptimumTemp = 1000f,
                     smeltDuration = 12f,
                     baseDamage = 20f,
                     baseAttackSpeed = 1.0f,
@@ -63,8 +63,8 @@ namespace ForjaGame.Forge
                 MetalType.Copper => new MetalProperties
                 {
                     metalType = MetalType.Copper,
-                    minOptimumTemp = 550f,
-                    maxOptimumTemp = 950f,
+                    minOptimumTemp = 560f,
+                    maxOptimumTemp = 780f,
                     smeltDuration = 9f,
                     baseDamage = 14f,
                     baseAttackSpeed = 1.25f,
@@ -75,8 +75,8 @@ namespace ForjaGame.Forge
                 MetalType.Gold => new MetalProperties
                 {
                     metalType = MetalType.Gold,
-                    minOptimumTemp = 650f,
-                    maxOptimumTemp = 1000f,
+                    minOptimumTemp = 670f,
+                    maxOptimumTemp = 890f,
                     smeltDuration = 10f,
                     baseDamage = 26f,
                     baseAttackSpeed = 1.05f,
@@ -86,8 +86,8 @@ namespace ForjaGame.Forge
                 _ => new MetalProperties
                 {
                     metalType = MetalType.Iron,
-                    minOptimumTemp = 750f,
-                    maxOptimumTemp = 1100f,
+                    minOptimumTemp = 780f,
+                    maxOptimumTemp = 1000f,
                     smeltDuration = 12f,
                     baseDamage = 20f,
                     baseAttackSpeed = 1.0f,

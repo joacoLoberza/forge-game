@@ -53,9 +53,9 @@ namespace ForjaGame.Combat
             // Fases estándar
             move.anticipationEnd = 0.22f;
             move.hitApex = 0.46f;
-            move.hitWindowStart = 0.40f;
-            move.hitWindowEnd = 0.54f;
-            move.recoveryStart = 0.60f;
+            move.hitWindowStart = 0.32f;
+            move.hitWindowEnd = 0.65f;
+            move.recoveryStart = 0.75f;
             move.hitStopDuration = 0.055f;
 
             return move;

@@ -64,11 +64,15 @@ namespace ForjaGame.UI
 
         private void EnsureEquipmentController()
         {
+            if (PlayerEquipmentController.LocalInstance != null)
+            {
+                _equipmentController = PlayerEquipmentController.LocalInstance;
+                return;
+            }
             if (_equipmentController == null)
             {
                 _equipmentController = PlayerEquipmentController.Instance ??
-                                      FindFirstObjectByType<PlayerEquipmentController>() ??
-                                      GameObject.FindWithTag("Player")?.GetComponent<PlayerEquipmentController>();
+                                      FindFirstObjectByType<PlayerEquipmentController>();
             }
         }
     }

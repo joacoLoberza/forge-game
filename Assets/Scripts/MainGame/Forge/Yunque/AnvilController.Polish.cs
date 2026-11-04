@@ -154,5 +154,51 @@ namespace ForjaGame.Forge
             if (totalW < 1e-5f) return Vector3.forward;
             return Mathf.Abs(sumZ) >= Mathf.Abs(sumX) ? (sumZ > 0f ? Vector3.forward : Vector3.back) : (sumX > 0f ? Vector3.right : Vector3.left);
         }
+
+        public void GetEffectiveStrikeRadii(out float innerR, out float outerR)
+        {
+            bool isSword = _selectedWeaponType == WeaponType.Sword;
+            float scale = isSword ? 0.65f : ((_currentBaseSize.x > 0.05f ? _currentBaseSize.x : 0.85f) / 0.85f);
+            innerR = hitInnerRadius * scale;
+            outerR = hitOuterRadius * scale;
+        }
+
+        public bool IsPointOverstruck(Vector3 localPoint)
+        {
+            if (_columns == null || _columns.Length == 0) return false;
+            bool isSword = _selectedWeaponType == WeaponType.Sword;
+            float scale = isSword ? 0.65f : ((_currentBaseSize.x > 0.05f ? _currentBaseSize.x : 0.85f) / 0.85f);
+            float rSqr = (0.07f * scale) * (0.07f * scale);
+            float minSharpThreshold = minLayerY + 0.0025f;
+            for (int k = 0; k < _columns.Length; k++)
+            {
+                float dx = _columns[k].x - localPoint.x, dz = _columns[k].z - localPoint.z;
+                if (dx * dx + dz * dz <= rSqr && _columns[k].y <= minSharpThreshold)
+                    return true;
+            }
+            return false;
+        }
+
+        public float GetSurfaceTopYAt(Vector3 localPoint, out float maxTopY)
+        {
+            float fallback = (_currentBaseSize.y > 0.005f ? _currentBaseSize.y : 0.10f) * 0.5f;
+            maxTopY = fallback;
+            if (_columns == null || _columns.Length == 0) return fallback;
+            maxTopY = minLayerY;
+            float bestDistSqr = float.MaxValue;
+            float localTopY = fallback;
+            for (int i = 0; i < _columns.Length; i++)
+            {
+                if (_columns[i].y > maxTopY) maxTopY = _columns[i].y;
+                float dx = _columns[i].x - localPoint.x, dz = _columns[i].z - localPoint.z;
+                float dSqr = dx * dx + dz * dz;
+                if (dSqr < bestDistSqr)
+                {
+                    bestDistSqr = dSqr;
+                    localTopY = _columns[i].y;
+                }
+            }
+            return localTopY;
+        }
     }
 }

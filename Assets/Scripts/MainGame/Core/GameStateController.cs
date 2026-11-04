@@ -51,7 +51,7 @@ namespace ForjaGame.Core
         private bool CanChangeTo(GameState nextState)
         {
             if (CurrentState == GameState.Victory || CurrentState == GameState.Defeat)
-                return false;
+                return nextState == GameState.Exploration;
 
             if (nextState == GameState.Pause)
                 return CurrentState != GameState.Pause;

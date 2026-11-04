@@ -81,20 +81,16 @@ namespace ForjaGame.Forge
             if (activeIngotMeshCollider == null)
             {
                 var oldBox = activeIngotMeshFilter.GetComponent<BoxCollider>();
-                if (oldBox != null) Destroy(oldBox);
+                if (oldBox != null) ForjaGame.Core.UnitySafeUtility.DestroySafe(oldBox);
                 activeIngotMeshCollider = activeIngotMeshFilter.gameObject.AddComponent<MeshCollider>();
             }
             activeIngotMeshCollider.convex = true;
-            if (_thermalController == null)
-            {
-                _thermalController = GetComponent<AnvilThermalController>() ?? gameObject.AddComponent<AnvilThermalController>();
-                _thermalController.Initialize(this);
-            }
-            if (_quenchDifferential == null)
-            {
-                _quenchDifferential = GetComponent<AnvilQuenchDifferential>() ?? gameObject.AddComponent<AnvilQuenchDifferential>();
-                _quenchDifferential.Initialize(this);
-            }
+            if (_thermalController == null && !TryGetComponent<AnvilThermalController>(out _thermalController))
+                _thermalController = gameObject.AddComponent<AnvilThermalController>();
+            _thermalController?.Initialize(this);
+            if (_quenchDifferential == null && !TryGetComponent<AnvilQuenchDifferential>(out _quenchDifferential))
+                _quenchDifferential = gameObject.AddComponent<AnvilQuenchDifferential>();
+            _quenchDifferential?.Initialize(this);
         }
 
         public bool PlaceIngot(IngotData ingot, WeaponType weaponType, MeshFilter meshFilter = null)

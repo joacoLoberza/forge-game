@@ -65,6 +65,7 @@ namespace ForjaGame.Forge
             float push = basePushAmount * progressFactor * resistanceFactor;
 
             _currentProgress = Mathf.Clamp01(_currentProgress + push);
+            ForjaGame.Audio.ForgeAudioSystem.PlayPressCrush(transform.position);
             PressProgressChanged?.Invoke(_currentProgress);
 
             if (_currentProgress >= 1.0f)

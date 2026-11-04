@@ -53,35 +53,42 @@ namespace ForjaGame.Combat
         private RuntimeAnimatorController GetOverrideControllerForWeapon(WeaponStats weapon)
         {
             if (weapon == null) return _baseAnimatorController;
-            string overridePath = "Assets/Animations/Character/Sword1H_Override.overrideController";
+            string resName = "Sword1H_Override";
 
             var stance = weapon.GetCombatStance();
-            if (weapon.weaponType == WeaponType.Hammer)
+            if (weapon.weaponType == WeaponType.Pickaxe)
             {
-                overridePath = (stance == WeaponCombatStance.TwoHanded || stance == WeaponCombatStance.Polearm)
-                    ? "Assets/Animations/Character/Hammer2H_Override.overrideController"
-                    : "Assets/Animations/Character/Hammer1H_Override.overrideController";
+                resName = "Pickaxe_Override";
+            }
+            else if (weapon.weaponType == WeaponType.Hammer)
+            {
+                resName = (stance == WeaponCombatStance.TwoHanded || stance == WeaponCombatStance.Polearm)
+                    ? "Hammer2H_Override"
+                    : "Hammer1H_Override";
             }
             else if (stance == WeaponCombatStance.Polearm)
             {
-                overridePath = "Assets/Animations/Character/Polearm_Override.overrideController";
+                resName = "Polearm_Override";
             }
             else if (stance == WeaponCombatStance.TwoHanded)
             {
-                overridePath = "Assets/Animations/Character/Heavy2H_Override.overrideController";
+                resName = "Heavy2H_Override";
             }
             else
             {
                 if (weapon.weaponType == WeaponType.Axe)
-                    overridePath = "Assets/Animations/Character/Axe1H_Override.overrideController";
+                    resName = "Axe1H_Override";
                 else if (weapon.weaponType == WeaponType.Sword && weapon.handleLength == HandleLength.Short)
-                    overridePath = "Assets/Animations/Character/Dagger_Override.overrideController";
+                    resName = "Dagger_Override";
                 else
-                    overridePath = "Assets/Animations/Character/Sword1H_Override.overrideController";
+                    resName = "Sword1H_Override";
             }
 
+            var loaded = UnityEngine.Resources.Load<RuntimeAnimatorController>($"Animations/{resName}");
+            if (loaded != null) return loaded;
+
 #if UNITY_EDITOR
-            var overrideCtrl = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(overridePath);
+            var overrideCtrl = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>($"Assets/Animations/Character/{resName}.overrideController");
             if (overrideCtrl != null) return overrideCtrl;
 #endif
             return _baseAnimatorController;
@@ -94,7 +101,7 @@ namespace ForjaGame.Combat
 
             if (paladinGo == null)
             {
-                GameObject prefab = paladinPrefab;
+                GameObject prefab = paladinPrefab ?? UnityEngine.Resources.Load<GameObject>("PaladinVisual");
 #if UNITY_EDITOR
                 if (prefab == null)
                 {
@@ -114,13 +121,29 @@ namespace ForjaGame.Combat
                 paladinGo.transform.localRotation = Quaternion.identity;
                 paladinGo.transform.localScale = Vector3.one;
 
-                _paladinAnimator = paladinGo.GetComponent<Animator>();
+                Material paladinMat = UnityEngine.Resources.Load<Material>("Paladin_Mat");
+#if UNITY_EDITOR
+                if (paladinMat == null)
+                {
+                    paladinMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Models/Character/Materials/Paladin_Mat.mat");
+                }
+#endif
+                if (paladinMat != null)
+                {
+                    foreach (var r in paladinGo.GetComponentsInChildren<Renderer>(true))
+                    {
+                        if (r.sharedMaterial == null || r.sharedMaterial.name.StartsWith("Default-") || r.sharedMaterial.name == "Paladin_Mat")
+                            r.sharedMaterial = paladinMat;
+                    }
+                }
+
+                paladinGo.TryGetComponent<Animator>(out _paladinAnimator);
                 if (_paladinAnimator != null)
                 {
                     _paladinAnimator.applyRootMotion = false;
                     if (_baseAnimatorController == null)
                     {
-                        _baseAnimatorController = paladinAnimatorController;
+                        _baseAnimatorController = paladinAnimatorController != null ? paladinAnimatorController : UnityEngine.Resources.Load<RuntimeAnimatorController>("PlayerAnimator");
 #if UNITY_EDITOR
                         if (_baseAnimatorController == null)
                         {

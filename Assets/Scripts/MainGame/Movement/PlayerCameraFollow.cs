@@ -9,7 +9,7 @@ namespace ForjaGame.Core
     /// Soporta múltiples instancias para Split-Screen / Multijugador local.
     /// Lee rotación desde Ratón y Stick Derecho de Gamepad.
     /// </summary>
-    public class PlayerCameraFollow : MonoBehaviour
+    public partial class PlayerCameraFollow : MonoBehaviour
     {
         public static PlayerCameraFollow Instance { get; private set; }
 
@@ -43,90 +43,74 @@ namespace ForjaGame.Core
         private Vector2 _lookInput;
         private float _shakeIntensity = 0f;
 
-        public Transform Target
-        {
-            get => target;
-            set => target = value;
-        }
-
+        public Transform Target { get => target; set => target = value; }
         public PlayerMovement TargetPlayer
         {
             get => targetPlayer;
             set
             {
                 targetPlayer = value;
-                if (targetPlayer != null)
-                {
-                    target = targetPlayer.transform;
-                    targetPlayer.PlayerCamera = GetComponent<Camera>();
-                }
+                if (targetPlayer != null) { target = targetPlayer.transform; targetPlayer.PlayerCamera = GetComponent<Camera>(); }
             }
         }
-
-        public float TargetHeight
-        {
-            get => targetHeight;
-            set => targetHeight = value;
-        }
-
-        public float Distance
-        {
-            get => distance;
-            set => distance = value;
-        }
-
-        public bool IsInStationView => _isStationViewActive;
+        public float TargetHeight { get => targetHeight; set => targetHeight = value; }
+        public float Distance { get => distance; set => distance = value; }
 
         private void Awake()
         {
             if (Instance == null) Instance = this;
+            if (targetPlayer == null && target != null) targetPlayer = target.GetComponent<PlayerMovement>();
+        }
 
-            if (targetPlayer == null && target != null)
-            {
-                targetPlayer = target.GetComponent<PlayerMovement>();
-            }
+        private void OnDisable()
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         private void Start()
         {
-            if (target != null)
-            {
-                _yaw = target.eulerAngles.y;
-            }
-            else
-            {
-                _yaw = transform.eulerAngles.y;
-            }
-
+            _yaw = target != null ? target.eulerAngles.y : transform.eulerAngles.y;
             if (targetPlayer != null && targetPlayer.PlayerCamera == null)
-            {
                 targetPlayer.PlayerCamera = GetComponent<Camera>();
-            }
         }
 
-        public void OnLook(InputAction.CallbackContext context)
-        {
-            _lookInput = context.ReadValue<Vector2>();
-        }
+        public void OnLook(InputAction.CallbackContext context) => _lookInput = context.ReadValue<Vector2>();
 
         private void Update()
         {
             if (target == null)
             {
                 if (targetPlayer != null) target = targetPlayer.transform;
-                else return;
+                else
+                {
+                    var local = PlayerMovement.LocalInstance ?? FindFirstObjectByType<PlayerMovement>();
+                    if (local != null)
+                    {
+                        targetPlayer = local;
+                        target = local.transform;
+                    }
+                    else return;
+                }
             }
 
             bool inStation = _isStationViewActive || BaseForgeStationController.IsPlayerOccupyingAnyStation(target.gameObject);
-            bool isPanelOpen = ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen;
+            bool isPanelOpen = ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen || GameLoopController.IsEndScreenOpen;
 
-            // Gestión del cursor para el Jugador 1 / Primario
-            bool isPrimaryCam = (Instance == this || (targetPlayer != null && targetPlayer.PlayerIndex == 0));
+            // Gestión del cursor para el Jugador 1 / Primario / Local
+            bool isPrimaryCam = (Instance == this || targetPlayer == null || targetPlayer.PlayerIndex == 0 || (PlayerMovement.LocalInstance != null && targetPlayer == PlayerMovement.LocalInstance));
             if (isPrimaryCam)
             {
                 if (inStation || isPanelOpen)
                 {
-                    if (Cursor.lockState != CursorLockMode.None)
+                    if (Cursor.lockState != CursorLockMode.None || !Cursor.visible)
                     {
                         Cursor.lockState = CursorLockMode.None;
                         Cursor.visible = true;
@@ -134,10 +118,18 @@ namespace ForjaGame.Core
                 }
                 else
                 {
-                    if (Cursor.lockState != CursorLockMode.Locked)
+                    if (Cursor.lockState != CursorLockMode.Locked || Cursor.visible)
                     {
                         Cursor.lockState = CursorLockMode.Locked;
                         Cursor.visible = false;
+                    }
+
+                    if (Mouse.current != null && (Mouse.current.leftButton.wasPressedThisFrame || Mouse.current.rightButton.wasPressedThisFrame))
+                    {
+                        Cursor.lockState = CursorLockMode.Locked;
+                        Cursor.visible = false;
+                        if (UnityEngine.EventSystems.EventSystem.current != null)
+                            UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(null);
                     }
                 }
             }
@@ -193,8 +185,7 @@ namespace ForjaGame.Core
 
             if (_isStationViewActive)
             {
-                transform.position = Vector3.Lerp(transform.position, _stationTargetPos, _stationTransitionSpeed * Time.deltaTime);
-                transform.rotation = Quaternion.Slerp(transform.rotation, _stationTargetRot, _stationTransitionSpeed * Time.deltaTime);
+                ApplyStationCameraFrame();
                 return;
             }
 
@@ -234,25 +225,6 @@ namespace ForjaGame.Core
 
         public void TriggerImpulse(float intensity = 0.22f) => _shakeIntensity = Mathf.Max(_shakeIntensity, intensity);
 
-        public void SetStationView(Vector3 targetPos, Quaternion targetRot, float speed = 8.5f)
-        {
-            _isStationViewActive = true;
-            _stationTargetPos = targetPos;
-            _stationTargetRot = targetRot;
-            _stationTransitionSpeed = speed;
-        }
-
-        public void ClearStationView()
-        {
-            if (_isStationViewActive)
-            {
-                _isStationViewActive = false;
-                float eulerPitch = transform.eulerAngles.x;
-                if (eulerPitch > 180f) eulerPitch -= 360f;
-                _pitch = Mathf.Clamp(eulerPitch, minPitch, maxPitch);
-                _yaw = transform.eulerAngles.y;
-            }
-        }
 
         public void SetFollowing(bool follow) => _isOrbitEnabled = follow;
 

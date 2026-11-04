@@ -62,31 +62,45 @@ namespace ForjaGame.Combat
         public bool IsPlayerDetected => _isPlayerDetected;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void EnsureEnemyInScene()
+        private static void InitSceneWatcher()
         {
-            if (FindFirstObjectByType<CombatDummyEnemy>() == null)
-            {
-                var player = FindFirstObjectByType<PlayerHealthController>();
-                float floorY = player != null ? player.transform.position.y : 0.05f;
-                Vector3 specificSpawn = new Vector3(18.0f, floorY, 18.0f);
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) => CheckSceneForEnemy(scene.name);
+            CheckSceneForEnemy(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+        }
 
-                CreateDummyGameObject(specificSpawn);
+        private static void CheckSceneForEnemy(string sceneName)
+        {
+            var existing = FindObjectsByType<CombatDummyEnemy>(FindObjectsSortMode.None);
+            foreach (var dummy in existing)
+            {
+                if (dummy != null && dummy.gameObject != null) Destroy(dummy.gameObject);
+            }
+
+            // Limpiar Golem antiguo suelto en el campamento central (ahora residen dentro de la cueva)
+            GameObject strayCampGolem = GameObject.Find("GolemEnemy_Boss");
+            if (strayCampGolem != null && strayCampGolem.transform.position.z < 22f)
+            {
+                Destroy(strayCampGolem);
             }
         }
 
         public static GameObject CreateDummyGameObject(Vector3 position)
         {
-            GameObject enemyObj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            enemyObj.name = "DummyEnemy_Capsule";
-            enemyObj.transform.position = position + Vector3.up * 1.5f;
-
-            var dummy = enemyObj.AddComponent<CombatDummyEnemy>();
-            dummy.mapSpawnPoint = position;
-            return enemyObj;
+            GameObject golem = new GameObject("GolemEnemy_Boss");
+            var ctrl = golem.AddComponent<GolemEnemyController>();
+            golem.transform.position = position;
+            return golem;
         }
 
         private void Awake()
         {
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (sceneName.Equals("MainMenu", System.StringComparison.OrdinalIgnoreCase) || sceneName.IndexOf("menu", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
             Instance = this;
             currentHealth = maxHealth;
 
@@ -170,6 +184,7 @@ namespace ForjaGame.Combat
         private IEnumerator DefeatedRoutine()
         {
             _respawnEndTime = Time.time + 30.0f;
+            GetComponent<EnemyLootDropper>()?.DropLoot(transform.position);
             Debug.Log("<color=red>[Enemigo Cápsula] Derrotado! Reapareciendo en su área 2D en 30 segundos...</color>");
 
             _isPlayerDetected = false;

@@ -93,6 +93,7 @@ namespace ForjaGame.Forge
                     }
                 }
                 if (hammerAudioSource != null && strikeSound != null) hammerAudioSource.PlayOneShot(strikeSound);
+                else ForjaGame.Audio.ForgeAudioSystem.PlayChiselCut(worldPos);
                 ResetCutState(true);
 
                 if (anvilController.IsCarvingHandle && anvilController.CheckAndApplyHandleFracture(out bool fractured))

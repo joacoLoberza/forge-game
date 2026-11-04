@@ -37,14 +37,40 @@ namespace ForjaGame.Forge
                 var panel = FindFirstObjectByType<UI.AnvilPanel>(FindObjectsInactive.Include);
                 if (panel != null) stationUI = panel.gameObject;
             }
+
+            ForgeStationModelSetup.SetupAnvilVisual(false);
         }
 
-        public override string InteractionPrompt => "Forjar en el Yunque";
+        public override string InteractionPrompt
+        {
+            get
+            {
+                var bridge = GetComponent<ForjaGame.Multiplayer.NetworkForgeStationBridge>();
+                if (bridge != null && bridge.IsSpawned && bridge.IsOccupiedInNetwork)
+                {
+                    if (Unity.Netcode.NetworkManager.Singleton != null && bridge.CurrentOccupantClientId != Unity.Netcode.NetworkManager.Singleton.LocalClientId)
+                        return "Yunque ocupado";
+                }
+                return "Forjar en el Yunque";
+            }
+        }
 
-        public override bool CanInteract(GameObject interactor) => true;
+        public override bool CanInteract(GameObject interactor)
+        {
+            var bridge = GetComponent<ForjaGame.Multiplayer.NetworkForgeStationBridge>();
+            if (bridge != null && bridge.IsSpawned && bridge.IsOccupiedInNetwork)
+            {
+                if (Unity.Netcode.NetworkManager.Singleton != null && bridge.CurrentOccupantClientId != Unity.Netcode.NetworkManager.Singleton.LocalClientId)
+                    return false;
+            }
+            if (!_isOccupied) return true;
+            return IsOccupiedBy(interactor);
+        }
 
         public override void Interact(GameObject interactor)
         {
+            if (!CanInteract(interactor)) return;
+
             // Toggle: si la estación ya está en uso por este jugador o su UI está abierta, cerrarla y liberar
             bool isAlreadyOpen = _isOccupied && _currentInteractor != null && IsOccupiedBy(interactor);
             if (stationUI != null)
@@ -58,6 +84,8 @@ namespace ForjaGame.Forge
                 ReleaseStation();
                 return;
             }
+
+            GetComponent<ForjaGame.Multiplayer.NetworkForgeStationBridge>()?.RequestOccupyStation();
 
             if (anvilController != null && (anvilController.HasIngotOnAnvil || anvilController.IsCarvingHandle))
             {
@@ -97,37 +125,16 @@ namespace ForjaGame.Forge
             OnStationEntered(interactor);
         }
 
-        private void StartSmoothCameraToAnvil(GameObject interactor)
+        protected override void GetStationCameraFocus(out Vector3 focusPoint, out Vector3 camOffset)
         {
-            var cam = GetInteractorCamera(interactor);
-            if (cam == null) return;
-
-            // Calcular el punto de enfoque sobre la mesa del yunque
-            Vector3 focusPoint = anvilController != null
-                ? anvilController.transform.position + new Vector3(0f, 0.55f, 0f)
-                : transform.position + new Vector3(0f, 0.55f, 0f);
-
-            // Posición de cámara oblicua desde arriba y ligeramente atrás del yunque
-            Vector3 camOffset = transform.TransformDirection(new Vector3(0f, 0.90f, -0.18f));
-            Vector3 camPos = focusPoint + camOffset;
-            Quaternion targetRot = Quaternion.LookRotation(focusPoint - camPos);
-
-            // Velocidad moderada: ~4.5 → viaje suave ~0.7s, sin TP
-            cam.SetStationView(camPos, targetRot, 4.5f);
+            float baseY = ForgeStationModelSetup.GetGroundHeightAt(transform.position.x, transform.position.z);
+            focusPoint = new Vector3(transform.position.x, baseY + 0.96f, transform.position.z);
+            camOffset = new Vector3(-0.56f, 0.54f, -1.48f);
         }
 
-        private PlayerCameraFollow GetInteractorCamera(GameObject interactor)
+        private void StartSmoothCameraToAnvil(GameObject interactor)
         {
-            if (interactor != null)
-            {
-                var pMove = interactor.GetComponentInParent<PlayerMovement>();
-                if (pMove != null && pMove.PlayerCamera != null)
-                {
-                    var cf = pMove.PlayerCamera.GetComponent<PlayerCameraFollow>();
-                    if (cf != null) return cf;
-                }
-            }
-            return PlayerCameraFollow.Instance;
+            StartStationCamera(interactor);
         }
 
         public override void ReleaseStation()
@@ -148,6 +155,7 @@ namespace ForjaGame.Forge
             GameObject previousInteractor = _currentInteractor;
             _currentInteractor = null;
             _isOccupied = false;
+            GetComponent<ForjaGame.Multiplayer.NetworkForgeStationBridge>()?.ReleaseStation();
 
             if (stationUI != null && stationUI != gameObject && !stationUI.transform.IsChildOf(transform))
             {

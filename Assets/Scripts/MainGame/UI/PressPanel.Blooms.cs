@@ -15,9 +15,14 @@ namespace ForjaGame.UI
         private void RefreshBloomsList()
         {
             if (bloomsContainer == null) return;
+            Transform targetContainer = ForgeScrollViewStyler.ResolveContentContainer(bloomsContainer);
             ForgeScrollViewStyler.ConfigureFixedScrollView(bloomsContainer);
 
-            foreach (Transform child in bloomsContainer) Destroy(child.gameObject);
+            for (int i = targetContainer.childCount - 1; i >= 0; i--)
+            {
+                Transform ch = targetContainer.GetChild(i);
+                if (ch != null) ForjaGame.Core.UnitySafeUtility.DestroyGameObjectSafe(ch.gameObject);
+            }
 
             InventoryController inventory = GetCurrentPlayerInventory();
             IReadOnlyList<BloomData> blooms = inventory != null ? inventory.Blooms : null;
@@ -26,20 +31,19 @@ namespace ForjaGame.UI
             if (emptyBloomsNotice != null) emptyBloomsNotice.SetActive(!hasBlooms);
             if (!hasBlooms) return;
 
-            for (int i = 0; i < blooms.Count; i++) CreateBloomEntry(blooms[i]);
+            for (int i = 0; i < blooms.Count; i++) CreateBloomEntry(targetContainer, blooms[i]);
         }
 
-        private void CreateBloomEntry(BloomData bloom)
+        private void CreateBloomEntry(Transform container, BloomData bloom)
         {
-            string title = $"{bloom.DisplayName} (Diff: {bloom.DifficultyLevel})";
-            Color metalColor = bloom.composition != null
-                ? MetalProperties.GetMetalColor(bloom.composition.CalculateWeightedProperties().metalType)
-                : Color.gray;
+            string title = $"{bloom.DisplayName} (Dif: {bloom.DifficultyLevel})";
+            Color metalColor = BloomVisualBuilder.ResolveBloomDisplayColor(bloom);
 
-            Sprite icon = ForgeSpriteDatabase.Instance?.defaultBloomSprite;
+            var spriteDb = ForgeSpriteDatabase.Instance;
+            Sprite icon = (spriteDb != null ? spriteDb.defaultBloomSprite : null) ?? ProceduralItemIconProvider.GetItemIcon(bloom.DisplayName, "Bloom");
             bool isSelected = pressController != null && pressController.CurrentBloom != null && pressController.CurrentBloom.Id == bloom.Id;
 
-            ForgeScrollViewStyler.CreateRowEntry(bloomsContainer, title, icon, metalColor, isSelected, () => SelectAndInsertBloom(bloom));
+            ForgeScrollViewStyler.CreateRowEntry(container, title, icon, metalColor, isSelected, () => SelectAndInsertBloom(bloom));
         }
 
         private void SelectAndInsertBloom(BloomData bloom)
@@ -59,7 +63,7 @@ namespace ForjaGame.UI
             }
 
             pressController.InsertBloom(toInsert);
-            SetStatus($"{toInsert.DisplayName} placed on piston! Mash [SPACE].");
+            SetStatus($"¡{toInsert.DisplayName} colocada en la base inferior de la prensa! Pulsa [ESPACIO].");
             UpdateDisplay();
         }
     }

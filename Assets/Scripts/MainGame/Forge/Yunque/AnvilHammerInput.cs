@@ -26,7 +26,7 @@ namespace ForjaGame.Forge
         [SerializeField] private AudioClip quenchSound;
 
         [Header("Camera Settings")]
-        [SerializeField] private Vector3 cameraOffset = new Vector3(0f, 0.95f, -0.15f);
+        [SerializeField] private Vector3 cameraOffset = new Vector3(0f, 0.98f, -0.34f);
 
         [Header("Striking Configuration")]
         [SerializeField] private float strikeCooldown = 0.50f;
@@ -50,7 +50,7 @@ namespace ForjaGame.Forge
 
         private void Update()
         {
-            if (!IsStationActive) return;
+            if (!IsStationActive) { UpdateInteractiveGuides(false, true); return; }
             if (Cursor.lockState != CursorLockMode.None) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
 
             var asm = anvilController.GetComponent<AnvilAssemblyController>();
@@ -58,11 +58,17 @@ namespace ForjaGame.Forge
 
             if (!isAsm && Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame && HandleSpacebarPress()) return;
             if (!isAsm && Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame)
-                if (anvilController?.ThermalController != null && !anvilController.IsCarvingHandle) anvilController.ThermalController.ToggleReheat();
+                if (anvilController?.ThermalController != null && !anvilController.IsCarvingHandle)
+                {
+                    anvilController.ThermalController.ToggleReheat();
+                    ForjaGame.Audio.ForgeAudioSystem.PlayFurnaceStoke(transform.position);
+                }
 
             if (!isAsm) HandleToolModeHotkeys();
             bool isBusy = (anvilController.QuenchDifferential != null && anvilController.QuenchDifferential.IsQuenching)
                        || (anvilController.ThermalController != null && anvilController.ThermalController.IsReheating) || isAsm;
+
+            UpdateInteractiveGuides(true, isBusy);
 
             if (!isBusy)
             {
@@ -97,10 +103,13 @@ namespace ForjaGame.Forge
         private void PerformHammerStrike()
         {
             if (!RaycastIngotHorizontalPlane(out _, out Vector3 hitPoint)) return;
-            if (anvilController.StrikeWithHammer(hitPoint))
+            float forceMult = EvaluateHammerTimingStrike(out float timingQuality);
+            if (anvilController.StrikeWithHammer(hitPoint, forceMult))
             {
                 if (sparkVFXPrefab != null) Instantiate(sparkVFXPrefab, hitPoint, Quaternion.identity);
+                float tempNorm = anvilController.ThermalController != null ? Mathf.Clamp01((anvilController.ThermalController.CurrentTemperature - 250f) / 950f) : 0.7f;
                 if (hammerAudioSource != null && strikeSound != null) hammerAudioSource.PlayOneShot(strikeSound);
+                else ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(hitPoint, timingQuality, tempNorm);
             }
         }
 
@@ -138,29 +147,28 @@ namespace ForjaGame.Forge
         private void LateUpdate()
         {
             if (interactionCamera == null) interactionCamera = Camera.main;
-            bool isOcc = stationController != null && stationController.IsOccupied;
             bool isForging = anvilController != null && (anvilController.IsForging || (anvilController.GetComponent<AnvilAssemblyController>()?.IsAssembling == true));
-            if (!isOcc && !isForging) { PlayerCameraFollow.Instance?.ClearStationView(); return; }
+            if (!isForging) return;
 
             var asm = anvilController != null ? anvilController.GetComponent<AnvilAssemblyController>() : null;
             Vector3 focusPoint = (asm != null && asm.IsAssembling)
-                ? (anvilController.transform.position + new Vector3(0f, anvilController.IngotBaseSize.y * 0.5f, 0f))
+                ? (anvilController.IngotTransform.position + new Vector3(0f, 0.04f, 0f))
                 : (anvilController != null && anvilController.HasIngotOnAnvil ? anvilController.IngotTransform.position
-                   : (anvilController != null ? anvilController.transform.position + new Vector3(0f, 0.45f, 0f) : transform.position));
+                   : (anvilController != null ? anvilController.transform.position + new Vector3(0f, 0.12f, 0f) : transform.position));
 
             float baseLen = (anvilController != null && anvilController.IngotBaseSize.x > 0.05f) ? anvilController.IngotBaseSize.x : 0.52f;
-            float sizeRatio = Mathf.Clamp(baseLen / 0.85f, 0.40f, 1.25f);
-            Vector3 effOffset = new Vector3(cameraOffset.x, cameraOffset.y * sizeRatio, cameraOffset.z * sizeRatio);
+            float sizeRatio = Mathf.Clamp(baseLen / 0.82f, 0.58f, 1.25f);
+            Vector3 effOffset = new Vector3(0f, Mathf.Max(0.76f, cameraOffset.y * sizeRatio), Mathf.Min(-0.28f, cameraOffset.z * sizeRatio));
             bool isQ = anvilController != null && anvilController.QuenchDifferential != null && anvilController.QuenchDifferential.IsQuenching;
-            if (isQ) effOffset = new Vector3(0.55f, 2.10f, -1.65f);
+            if (isQ) effOffset = new Vector3(0.55f, 1.85f, -1.55f);
             else if (anvilController != null && (anvilController.IsCarvingHandle || (asm != null && asm.IsAssembling)))
-                effOffset = new Vector3(0f, Mathf.Max(1.65f, anvilController.IngotBaseSize.x * 0.65f), -0.20f);
+                effOffset = new Vector3(0f, Mathf.Max(1.45f, anvilController.IngotBaseSize.x * 0.65f), -0.34f);
 
             Vector3 camPos = focusPoint + (anvilController != null ? anvilController.transform.TransformDirection(effOffset) : transform.TransformDirection(effOffset));
             Quaternion targetRot = Quaternion.LookRotation(focusPoint - camPos);
-            float t = isQ ? 2.8f : 8.5f;
+            float t = isQ ? 3.2f : 8.5f;
 
-            if (PlayerCameraFollow.Instance != null) PlayerCameraFollow.Instance.SetStationView(camPos, targetRot, t);
+            if (PlayerCameraFollow.Instance != null) PlayerCameraFollow.Instance.SetStationView(camPos, targetRot, t, allowParallax: false, focusPoint: focusPoint);
             else if (interactionCamera != null)
             {
                 interactionCamera.transform.position = Vector3.Lerp(interactionCamera.transform.position, camPos, Time.deltaTime * t);
@@ -168,7 +176,7 @@ namespace ForjaGame.Forge
             }
         }
 
-        private void RestoreCamera() => PlayerCameraFollow.Instance?.ClearStationView();
+        private void RestoreCamera() { SetGuidesVisible(false, false); PlayerCameraFollow.Instance?.ClearStationView(); }
 
         private InventoryController GetStationInteractorInventory() =>
             stationController?.CurrentInteractor?.GetComponentInParent<InventoryController>() ?? FindFirstObjectByType<InventoryController>();
@@ -202,10 +210,10 @@ namespace ForjaGame.Forge
 
             if (anvilController.CanRetrieveIngot)
             {
-                Rect r = new Rect(30f, 30f, 180f, 40f);
+                Rect r = new Rect(25f, 20f, 170f, 38f);
                 Vector2 mp = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
                 bool over = r.Contains(new Vector2(mp.x, Screen.height - mp.y));
-                if (GUI.Button(r, "← Cambiar Mineral") || (over && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
+                if (GUI.Button(r, "← Cambiar Lingote", _btnInactiveStyle) || (over && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
                 {
                     ReturnIngotAndReopenSelection();
                     return;

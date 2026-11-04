@@ -4,8 +4,7 @@ using UnityEngine.Events;
 namespace ForjaGame.Core
 {
     /// <summary>
-    /// SRP: Solo avisa cuando un objeto con cierto Tag entra en su zona.
-    /// DIP: No sabe qué pasa después, solo dispara un evento abstracto.
+    /// Dispara un evento cuando un jugador activo entra en la zona (p.ej. Altar de Victoria al final de la cueva).
     /// </summary>
     public class AreaTrigger : MonoBehaviour
     {
@@ -14,10 +13,23 @@ namespace ForjaGame.Core
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.CompareTag(targetTag))
+            if (other == null || !other.gameObject.activeInHierarchy) return;
+
+            bool isTagMatch = !string.IsNullOrEmpty(targetTag) && SafeCompareTag(other, targetTag);
+            bool isPlayer = isTagMatch
+                            || other.GetComponentInParent<PlayerMovement>() != null
+                            || other.GetComponentInParent<Combat.PlayerHealthController>() != null;
+
+            if (isPlayer && !GameLoopController.IsEndScreenOpen)
             {
                 onTriggerEntered?.Invoke();
             }
+        }
+
+        private static bool SafeCompareTag(Collider col, string tag)
+        {
+            try { return col.CompareTag(tag); }
+            catch { return false; }
         }
     }
 }

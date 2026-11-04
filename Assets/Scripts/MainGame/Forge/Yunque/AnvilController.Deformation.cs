@@ -19,47 +19,41 @@ namespace ForjaGame.Forge
             }
         }
 
-        public bool StrikeWithHammer(RaycastHit hit) => StrikeWithHammer(hit.point);
-        public bool StrikeWithHammer(Vector3 worldPoint)
+        public bool StrikeWithHammer(RaycastHit hit, float forceMultiplier = 1f) => StrikeWithHammer(hit.point, forceMultiplier);
+        public bool StrikeWithHammer(Vector3 worldPoint, float forceMultiplier = 1f)
         {
             if (!isForging || isQuenched) return false;
             currentHits++;
-            DeformMeshAndFlattenLayer(worldPoint);
+            DeformMeshAndFlattenLayer(worldPoint, Mathf.Clamp(forceMultiplier, 0.45f, 1.45f));
             EvaluateEdgeCompletion();
             return true;
         }
 
-        private void DeformMeshAndFlattenLayer(Vector3 worldPoint)
+        private void DeformMeshAndFlattenLayer(Vector3 worldPoint, float forceMultiplier = 1f)
         {
             if (activeIngotMeshFilter == null || _deformableMesh == null || _columns == null) return;
             Vector3 localPoint = activeIngotMeshFilter.transform.InverseTransformPoint(worldPoint);
 
-            // Parámetros reescalados proporcionalmente a las dimensiones del lingote (espada usa radio más amplio para cubrir el ancho de hoja)
             bool isSword = _selectedWeaponType == WeaponType.Sword;
             float scale = isSword ? 0.65f : ((_currentBaseSize.x > 0.05f ? _currentBaseSize.x : 0.85f) / 0.85f);
-            float effSpreadForce = hitSpreadForce * (isSword ? 0.55f : scale);
+            float effSpreadForce = hitSpreadForce * (isSword ? 0.55f : scale) * forceMultiplier;
             float effInnerRadius = hitInnerRadius * scale;
             float effOuterRadius = hitOuterRadius * scale;
             float minMono = 0.012f * scale;
 
-            // Verificar si el núcleo del golpe ya alcanzó la capa mínima
             bool isOverstruck = false;
-            float overstrikeRadius = 0.07f * scale;
-            float overstrikeRadiusSqr = overstrikeRadius * overstrikeRadius;
+            float overstrikeRadiusSqr = (0.07f * scale) * (0.07f * scale);
             float minSharpThreshold = minLayerY + 0.0025f;
             for (int k = 0; k < _columns.Length; k++)
             {
                 float dx = _columns[k].x - localPoint.x, dz = _columns[k].z - localPoint.z;
-                if (dx * dx + dz * dz <= overstrikeRadiusSqr && _columns[k].y <= minSharpThreshold)
-                {
-                    isOverstruck = true;
-                    break;
-                }
+                if (dx * dx + dz * dz <= overstrikeRadiusSqr && _columns[k].y <= minSharpThreshold) { isOverstruck = true; break; }
             }
             WasLastHitDulling = isOverstruck;
 
-            // Aplanado y expansión de las columnas modulado por la temperatura del lingote
-            float thermalMalleability = ThermalController != null ? ThermalController.GetMalleabilityMultiplier() : 1.0f;
+            float thermalMalleability = (ThermalController != null ? ThermalController.GetMalleabilityMultiplier() : 1.0f) * forceMultiplier;
+            if (!isOverstruck && forceMultiplier > 1.15f && thermalMalleability >= 0.7f)
+                forgingQuality = Mathf.Min(1.0f, forgingQuality + 0.012f);
 
             float hitOuterRadiusSqr = effOuterRadius * effOuterRadius;
             float radiusDiffInv = 1.0f / (effOuterRadius - effInnerRadius);

@@ -228,5 +228,166 @@ Fase 5: Cofre de Almacenamiento, Boss de Cueva y Retorno
     * Compilación con **0 errores** en `Assembly-CSharp.csproj` y `Assembly-CSharp-Editor.csproj`.
     * Cumplimiento riguroso de [`DEVELOPMENT_CONSTRAINTS.md`](file:///c:/Users/mauro/forge-game/DEVELOPMENT_CONSTRAINTS.md): todos los archivos `<= 250` líneas.
 
+---
+
+### Sesión 4 (Checkpoint General y Preparación Integral de Multijugador LAN)
+* **Checkpoint en Git**:
+  * Formalizado commit de respaldo con el estado íntegro de forja, modelo Paladín grounded y combate previo a la integración de red.
+* **Integración del Stack de Red LAN (Unity 6)**:
+  * Agregado `com.unity.netcode.gameobjects` (v2.13.0), `com.unity.transport` (v2.7.4) y `com.unity.multiplayer.playmode` (v2.0.2) en [`Packages/manifest.json`](file:///c:/Users/mauro/forge-game/Packages/manifest.json).
+* **Componentes de Red Desarrollados**:
+  1. [`LANNetworkManagerUI.cs`](file:///c:/Users/mauro/forge-game/Assets/Scripts/MainGame/Multiplayer/LANNetworkManagerUI.cs):
+     - Detección automática de IP local IPv4 del Host para conexión rápida.
+     - Interfaz visual inmediata para Hostear partida (Server + P1) o unirse por IP como Cliente (P2).
+     - HUD de partida activa con contador de clientes conectados y botón de desconexión.
+  2. [`PlayerNetworkBridge.cs`](file:///c:/Users/mauro/forge-game/Assets/Scripts/MainGame/Multiplayer/PlayerNetworkBridge.cs):
+     - Conmutación de autoridad local vs remota: activa cámara orbital e input solo en `IsOwner`.
+     - Desactiva inputs y listeners en proxies remotos para evitar interferencia entre jugadores.
+     - Sincronización de ataques vía `ServerRpc` y `ClientRpc` con eventos desacoplados en Mecanim.
+  3. [`NetworkForgeStationBridge.cs`](file:///c:/Users/mauro/forge-game/Assets/Scripts/MainGame/Multiplayer/NetworkForgeStationBridge.cs):
+     - Bloqueo autoritativo de estaciones de forja en el Servidor (`_currentOccupantClientId`).
+     - Rechazo automático si un segundo jugador intenta abrir una estación que está siendo utilizada.
+  4. [`MultiplayerSetupTool.cs`](file:///c:/Users/mauro/forge-game/Assets/Scripts/Editor/MultiplayerSetupTool.cs):
+     - Automatización a un clic (`Tools > Forja > Configurar Escena Multijugador LAN`) que configura `NetworkManager`, `UnityTransport`, el HUD y los puentes en la escena activa.
+  5. [`AttackController.cs`](file:///c:/Users/mauro/forge-game/Assets/Scripts/MainGame/Combat/AttackController.cs):
+     - Exposición de evento desacoplado `OnAttackTriggered` cumpliendo estrictamente `<= 250` líneas.
 
 
+
+
+---
+
+### SesiÃ³n 5 (EstabilizaciÃ³n Integral del Multijugador LAN, Spawning en Suelo, Movimiento WASD, Enemigo y Control de Cursor)
+* **DiagnÃ³stico de los Problemas Reportados**:
+  1. *Jugador 1 (Host) aparecÃ­a bajo el piso y no podÃ­a moverse*: Al iniciar el Host en MainMenu, NGO autospawneaba el prefab NetworkPlayer con fÃ­sica activa (useGravity = true, isKinematic = false) en una escena sin piso 3D, cayendo al vacÃ­o antes de que la escena Furnace cargara. AdemÃ¡s, 	ransform.position se modificaba sin NetworkTransform.Teleport(), causando interpolaciÃ³n rota desde el vacÃ­o.
+  2. *Jugador 2 (Cliente) no podÃ­a moverse en absoluto*:
+     - NetworkTransform.AuthorityMode estaba en   (Server Authority), por lo que el servidor sobreescribÃ­a la posiciÃ³n del cliente en cada fotograma.
+     - PlayerMovement.Update() sÃ³lo leÃ­a _moveInputFromEvents si _playerInput != null, ignorando el teclado si los eventos no se disparaban.
+     - PlayerCameraFollow condicionaba el control de mouse a playerIndex == 0, bloqueando la cÃ¡mara para el Cliente (playerIndex == 1).
+  3. *Jugador 2 no veÃ­a al enemigo cÃ¡scara/cÃ¡psula*: CombatDummyEnemy.cs tenÃ­a una comprobaciÃ³n if (net != null && !net.IsServer) return;, evitando que el Cliente instanciara el enemigo en Furnace.
+  4. *Cursor bloqueado e invisible al salir o desconectar*: No se liberaba el cursor (Cursor.lockState = CursorLockMode.None; Cursor.visible = true;) al desconectarse, destruir el jugador, salir de la cÃ¡mara orbital o regresar a MainMenu.
+* **Soluciones Implementadas**:
+  * **Autoridad y Teletransporte de Jugadores en Red**:
+    - NetworkPlayer.prefab configurado con AuthorityMode: 1 (Owner Authority) para que cada cliente mande su propia posiciÃ³n.
+    - [PlayerNetworkBridge.cs](Assets/Scripts/MainGame/Multiplayer/PlayerNetworkBridge.cs): en MainMenu congela la fÃ­sica (isKinematic = true, useGravity = false). Al cargar Furnace, posiciona al jugador en (OwnerClientId * 3.0f, 1.2f, 0f) y llama a NetworkTransform.Teleport(...) con fÃ­sicas estables.
+  * **Movimiento y CÃ¡mara Independiente y Robusta**:
+    - [PlayerMovement.cs](Assets/Scripts/MainGame/Movement/PlayerMovement.cs): lectura directa garantizada de Keyboard.current para WASD, sprint y salto. Failsafe automÃ¡tico que rescata al jugador al suelo si y < -3.5f.
+    - [PlayerMovement.Physics.cs](Assets/Scripts/MainGame/Movement/PlayerMovement.Physics.cs): proyecciÃ³n segura de cÃ¡mara para evitar vectores directores nulos.
+    - [PlayerCameraFollow.cs](Assets/Scripts/MainGame/Movement/PlayerCameraFollow.cs): isPrimaryCam ahora incluye a PlayerMovement.LocalInstance, garantizando Ã³rbita con ratÃ³n y control visual pleno tanto para Host como para Cliente en sus respectivas pantallas.
+  * **Visibilidad del Enemigo CÃ¡psula en Ambos Lados**:
+    - [CombatDummyEnemy.cs](Assets/Scripts/MainGame/Combat/CombatDummyEnemy.cs): eliminado el bloqueo de cliente; tanto Host como Cliente instancian el enemigo de prueba en Furnace en (18.0f, 0.05f, 18.0f) para combate simultÃ¡neo.
+  * **GestiÃ³n Universal del Cursor**:
+    - Cursor desbloqueado y visible en PlayMainGame.cs (Start, OnEnable, OnNetworkDisconnect, CancelConnection), PlayMainGame.UI.cs (OnGUI), LANNetworkManagerUI.cs (HandleClientDisconnected, botÃ³n Desconectar), PauseMenuPanel.cs (GoToMainMenu), PlayerCameraFollow.cs (OnDisable, OnDestroy) y PlayerNetworkBridge.cs (OnNetworkDespawn, OnDestroy).
+  * **ValidaciÃ³n de CompilaciÃ³n y Restricciones**:
+    - Assembly-CSharp.csproj y Assembly-CSharp-Editor.csproj compilaron exitosamente con **0 errores**.
+    - Todos los archivos .cs del proyecto cumplen estrictamente la restricción de <= 250 líneas.
+
+### Sesión 6 (Aislamiento de Animaciones y Camera Shake, Visualización y Ataque de Armas en Standalone, Interacción [F] en Mesas y Sincronización Visual del Yunque en Red)
+* **Diagnóstico de los Problemas Reportados**:
+  1. *Animaciones contaminadas entre jugadores*: Al moverse un jugador, todos los personajes conectados ejecutaban su misma animación en pantalla porque `PlayerMovement.Update()` leía el teclado local en los proxies remotos una vez habilitado el movimiento.
+  2. *Camera Shake afectaba a todos los jugadores*: En `PlayerHealthController.cs`, la llamada a `CinemachineImpulseSource.GenerateImpulse()` se ejecutaba para cualquier entidad con vida dañada sin discriminar si pertenecía al cliente local o a un proxy remoto.
+  3. *Jugador 2 equipaba armas pero no se veían en su mano ni podía atacar*:
+     - `PlayerEquipmentController.Calibration.cs` y `Sockets.cs` cargaban los prefabs y Animation Override Controllers exclusivamente con `AssetDatabase.LoadAssetAtPath` dentro de `#if UNITY_EDITOR`. Al compilar a build standalone ejecutable, `AssetDatabase` no existe, dejando las armas y animadores en `null`.
+     - `AttackController.Attack()` exigía `Cursor.lockState == CursorLockMode.Locked`, lo cual bloqueaba los ataques en el Cliente antes de que la cámara orbital capturara el mouse.
+     - No existía sincronización RPC de eventos de equipamiento entre el Host y los Clientes.
+  4. *Jugador 2 no podía interactuar con mesas y mostraba prompt `[L / X]`*:
+     - `InteractionController.cs` mostraba `[L / X]` y solo llamaba a `Interact()` si `_playerInput` procesaba la acción.
+  5. *Jugador 2 no veía el lingote ni el proceso de armado del Jugador 1 en el yunque*:
+     - `AnvilController.PlaceIngot()` y `AnvilAssemblyController.BeginAssembly()` modificaban únicamente el objeto local `DeformableIngot` e instanciaban `AssemblingBladeHead` en el cliente activo. En el cliente remoto, el lingote permanecía inactivo y el modelo de la hoja no se instanciaba ni sincronizaba.
+* **Soluciones Implementadas**:
+  * **Aislamiento de Animaciones y Camera Shake**:
+    - [PlayerMovement.cs](Assets/Scripts/MainGame/Movement/PlayerMovement.cs): Los proxies remotos (`!netObj.IsOwner`) calculan su velocidad a partir del delta de posición de red `(transform.position - _prevRemotePos) / Time.deltaTime` para alimentar `animator.SetFloat("Speed", ...)`. Ignoran el teclado local.
+    - [PlayerMovement.Physics.cs](Assets/Scripts/MainGame/Movement/PlayerMovement.Physics.cs): `FixedUpdate` retorna tempranamente para proxies remotos evitando sobreescribir la posición sincronizada por `NetworkTransform`.
+    - [PlayerHealthController.cs](Assets/Scripts/MainGame/Combat/PlayerHealthController.cs): El impulso de cámara Cinemachine solo se dispara si `LocalInstance == this || (netObj?.IsOwner ?? true)`.
+  * **Soporte de Armas en Builds Standalone y Red**:
+    - Prefabs de armas migrados a `Assets/Resources/Weapons/` y animadores a `Assets/Resources/Animations/`.
+    - [PlayerEquipmentController.Calibration.cs](Assets/Scripts/MainGame/Combat/PlayerEquipmentController.Calibration.cs) y [PlayerEquipmentController.Sockets.cs](Assets/Scripts/MainGame/Combat/PlayerEquipmentController.Sockets.cs): Usan `Resources.Load` en runtime como fallback robusto para standalone builds.
+    - [PlayerNetworkBridge.Sync.cs](Assets/Scripts/MainGame/Multiplayer/PlayerNetworkBridge.Sync.cs): Nuevos ServerRpc y ClientRpc (`BroadcastEquipServerRpc`/`ClientRpc`, `BroadcastUnequipServerRpc`/`ClientRpc`) para replicar armas equipadas a través de la red.
+    - [AttackController.cs](Assets/Scripts/MainGame/Combat/AttackController.cs): Detección directa de click izquierdo vía `Mouse.current.leftButton.wasPressedThisFrame` para el dueño local y eliminación del bloqueo por estado del cursor.
+  * **Interacción Universal `[F / X]` y Bloqueo de Estaciones en Red**:
+    - [InteractionController.cs](Assets/Scripts/MainGame/Interaction/InteractionController.cs): Prompt universal `[F / X]` y sondeo directo de `Keyboard.current.fKey.wasPressedThisFrame` para el jugador local.
+    - [BaseForgeStationController.cs](Assets/Scripts/MainGame/Forge/Estaciones/BaseForgeStationController.cs) y [AnvilStationController.cs](Assets/Scripts/MainGame/Forge/Yunque/AnvilStationController.cs): `CanInteract()` y `Interact()` comprueban `NetworkForgeStationBridge.IsOccupiedInNetwork` para impedir colisiones o desincronizaciones entre jugadores simultáneos.
+  * **Sincronización del Lingote y Armado en el Yunque**:
+    - [NetworkForgeStationBridge.cs](Assets/Scripts/MainGame/Multiplayer/NetworkForgeStationBridge.cs) y [NetworkForgeStationBridge.AnvilVisual.cs](Assets/Scripts/MainGame/Multiplayer/NetworkForgeStationBridge.AnvilVisual.cs): Variables de red sincronizadas (`_isIngotVisible`, `_isAssemblyActive`, `_anvilMetalColor`, `_anvilBaseSize`, `_anvilWeaponType`, `_bladeLocalPos`, `_bladeLocalRot`, `_handleLocalPos`) y renderizado proxy para clientes remotos.
+    - [AnvilController.NetworkSync.cs](Assets/Scripts/MainGame/Forge/Yunque/AnvilController.NetworkSync.cs): Notificación automática al puente de red al colocar lingote o limpiar la mesa.
+    - [AnvilAssemblyController.cs](Assets/Scripts/MainGame/Forge/Yunque/AnvilAssemblyController.cs): Notificación de inicio de armado, actualización periódica de transformaciones de la hoja durante deslizamiento e inspección, y limpieza al finalizar.
+  * **Validación de Compilación y Restricciones**:
+    - `Assembly-CSharp.csproj` y `Assembly-CSharp-Editor.csproj` compilaron exitosamente con **0 errores**.
+    - Todos los archivos `.cs` del proyecto cumplen estrictamente con `<= 250` líneas (verificado con `check_lines.ps1`).
+
+---
+
+### Sesión 6 (Sistema Integral de Minas, Spawning de Minerales y Botín de Enemigos)
+* **Objetivos Cumplidos**:
+  1. *Spawning y Distribución de Minerales en el Mundo*:
+     - Se implementó [MineSpawnerController.cs](Assets/Scripts/MainGame/Resources/MineSpawnerController.cs) con inicialización automática tras la carga de escenas de gameplay (`Furnace`, `MainGame`).
+     - Distribución de yacimientos organizados:
+       - **Cantera de Cobre (Copper)**: Clúster de 3 vetas ricas.
+       - **Mina de Hierro (Iron)**: Clúster de 4 vetas de dureza media/alta.
+       - **Foso de Carbón (Coal)**: Clúster de 4 vetas de combustible para el horno.
+       - **Filón de Oro (Gold)**: Clúster de 2 vetas nobles de alta durabilidad y daño.
+       - **Arboleda de Madera (Wood)**: Clúster de 4 nodos madereros para mangos y leña.
+       - **Vetas de Prueba Inmediata**: 1 Veta de Cobre, 1 de Hierro y 1 de Carbón a pocos pasos de la Forja para testeo ágil con el pico recién forjado.
+  2. *Visuales Procedurales 3D y Shaders URP*:
+     - Creado [ResourceVisualBuilder.cs](Assets/Scripts/MainGame/Resources/ResourceVisualBuilder.cs) para generar rocas de cantera, incrustaciones cristalinas metálicas y materiales URP Lit con valores calibrados de metálico, suavidad y emisión suave para cada mineral.
+  3. *Vetas Minables y Regeneración de Recursos*:
+     - Actualizado [ResourceNodeController.cs](Assets/Scripts/MainGame/Resources/ResourceNodeController.cs) con respuesta de impacto físico (*shake* reactivo), extracción exclusiva con pico para minerales, dispersión radial de 2 a 4 ítems por veta y corrutina de autorrespawn (45s).
+  4. *Drops Físicos y Atracción Magnética*:
+     - Renovado [DroppedItemController.cs](Assets/Scripts/MainGame/Resources/DroppedItemController.cs) con factoría estática `Spawn()`, impulso balístico inicial (*pop*), oscilación flotante continua y magnetismo cinético hacia el jugador local dentro de 2.8m.
+  5. *Sistema de Botín (Loot Tables) para Enemigos*:
+     - Creado [EnemyLootDropper.cs](Assets/Scripts/MainGame/Combat/EnemyLootDropper.cs) con tabla de botín configurable (`LootDropEntry`) con probabilidades y cantidades (`Iron`: 75%, `Coal`: 65%, `Copper`: 50%, `Gold`: 15%, `MonsterBones`: 80%).
+     - Integrado en [CombatDummyEnemy.cs](Assets/Scripts/MainGame/Combat/CombatDummyEnemy.cs) para soltar botín automáticamente en el mundo al ser derrotado.
+  6. *Catálogo de Materiales*:
+     - Añadidos `Wood` y `MonsterBones` a `RawMaterialCatalog` en [ForgeDataModels.cs](Assets/Scripts/MainGame/Forge/Minerales/ForgeDataModels.cs).
+* **Validación de Compilación y Restricciones**:
+  - `dotnet build Assembly-CSharp.csproj` completó con **0 errores**.
+  - Verificación `check_lines.ps1`: **0 archivos que superen las 250 líneas** en todo el repositorio.
+
+---
+
+### Sesión 7 (Rotura Exclusiva con Pico de Base, Corrección de Sprint y Pausa, Arquitectura Modular de Mapa y Spawners)
+* **Objetivos Cumplidos**:
+  1. *Rotura Exclusiva con Pico y Equipamiento de Base*:
+     - En [AttackController.cs](Assets/Scripts/MainGame/Combat/AttackController.cs), `HasPickaxeEquipped` se restringió estrictamente a `_equippedWeapon.weaponType == WeaponType.Pickaxe` (eliminando martillos y hachas).
+     - En [PlayerEquipmentController.cs](Assets/Scripts/MainGame/Combat/PlayerEquipmentController.cs), en `Start()`, si el jugador no tiene arma equipada, se equipa automáticamente el pico de hierro forjado de base en mano (`PickaxeModelGenerator.CreateDefaultIronPickaxe()`).
+     - Al golpear cualquier veta con espadas, dagas, hachas o martillos, el yacimiento rechaza el impacto y avisa al jugador.
+  2. *Corrección de Sprint Continuo con Shift*:
+     - En [PlayerMovement.cs](Assets/Scripts/MainGame/Movement/PlayerMovement.cs), se sustituyó la asignación unidireccional por sondeo continuo de `kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed` y botones de gamepad. Mantener corre; soltar pasa inmediatamente a caminar.
+  3. *Corrección del Cursor en Pausa y Reanudación*:
+     - En [PauseMenuPanel.cs](Assets/Scripts/MainGame/UI/PauseMenuPanel.cs), [PlayerMenuInput.cs](Assets/Scripts/MainGame/Input/PlayerMenuInput.cs) y [PlayerCameraFollow.cs](Assets/Scripts/MainGame/Movement/PlayerCameraFollow.cs), se garantiza que al salir de pausa se restaura `GameState.Exploration`, se re-bloquea el cursor (`CursorLockMode.Locked; Cursor.visible = false;`) y se recaptura al hacer clic.
+  4. *Arquitectura de Spawners y Estructura del Mapa Exterior*:
+     - Creado [OreVeinSpawner.cs](Assets/Scripts/MainGame/Resources/OreVeinSpawner.cs) para colocar yacimientos directamente en la escena con Gizmos de colores representativos por mineral en el Editor.
+     - Creado [EnemySpawner.cs](Assets/Scripts/MainGame/Combat/EnemySpawner.cs) con radio de spawn, perímetro de patrulla y soporte para cualquier Prefab externo.
+     - Creado [GenericEnemyAI.cs](Assets/Scripts/MainGame/Combat/GenericEnemyAI.cs) que permite usar cualquier modelo 3D con Animator (Speed, Attack, Die), aggro, patrulla y tabla de botín.
+     - Creado [CampMapSetupTool.cs](Assets/Scripts/Editor/CampMapSetupTool.cs) con menú en `Tools > Forja > 🗺️ Construir Estructura del Mapa Exterior (Campamento)` para generar la jerarquía completa en la escena activa con un solo clic.
+* **Validación de Compilación y Restricciones**:
+  - `dotnet build Assembly-CSharp.csproj` y `dotnet build Assembly-CSharp-Editor.csproj` compilaron exitosamente con **0 errores**.
+  - 100% de archivos `<= 250` líneas.
+
+---
+
+### Sesión 8 (Acuerdos Maestros de Rediseño: Horno Realista, Yunque con Fuerza Oscilante, Cueva Skyrim/The Forest y Superficie Acogedora)
+* **Objetivos y Directrices Acordadas con el Usuario**:
+  1. *Horno (Tiro Térmico y Fuelle de Inercia)*:
+     - Reemplazar las 40 microcasillas abstractas por una escala continua de radiación térmica del fuego (Rojo Cereza $\rightarrow$ Naranja $\rightarrow$ Blanco Incandescente).
+     - Marcador de carga de aleación posicionado automáticamente según el mineral más exigente (física de disolución y punto de licuefacción).
+     - Fuelle interactivo con inercia térmica: el jugador insufla aire para empujar y sostener la aguja dentro de la zona de fusión.
+  2. *Yunque (Fuerza Oscilante, Herramientas 3D y Silueta Tutorial)*:
+     - Slider de fuerza oscilante (*bouncing bar*) que sube y rebota hasta soltar el clic.
+     - Retícula de impacto bajo el ratón con área visualizada.
+     - Modelos 3D visibles en mano para **Martillo** (estirar/añadir volumen), **Cincel** (desprender sobrante) y **Lija** (pulir/afilar), con selector de cambio orgánico y evidente para el jugador.
+     - **Silueta Guía**: Modo tutorial que se muestra la primera vez que se forja cada tipo de arma (espada, hacha, martillo), con opción de activarla/desactivarla en el Menú de Pausa.
+     - **Templado**: Eliminación de minijuegos innecesarios. Se añade el balde de agua junto al yunque con su animación de vapor/siseo y el brasero/fuego auxiliar para el hierro caliente.
+     - El lingote no se enfría frustrantemente mientras el jugador se mantenga martillando activamente.
+  3. *Cueva Abierta y PvE Fluido (Estilo Skyrim / The Forest)*:
+     - Cueva con boca de entrada libre y sin muros artificiales ("matar a todos para abrir la puerta"). Bucle *Delve & Retreat*: entrar, minar y salir a la superficie a la forja cuando se desee.
+     - Rediseño de la cueva de túnel recto a **sistema de cavernas conectadas** (Gruta de Entrada $\rightarrow$ Galería de Menas / Sala del Golem $\rightarrow$ Santuario Profundo).
+     - **Combate con movilidad**: El jugador conserva el 70%-75% de velocidad de movimiento (strafe, retroceso, avance) mientras ataca, eliminando el congelamiento en el suelo.
+     - **Cadencia de enemigos**: Telegrafiado claro antes de atacar y ventana de recuperación (cooldown y rodeo) para permitir esquivas y contraataques. Radio territorial de persecución (*leash*).
+  4. *Diseño Antirunner y Valor del Arma en el Altar*:
+     - Bloqueos físicos de terreno (derrumbes o estalagmitas que exigen herramientas reforzadas).
+     - El Altar exige consagrar un **arma de alto valor de maestría** que aproveche minerales de las profundidades.
+     - **Variedad horizontal y situacional de materiales**: Cobre (ligero/alta cadencia), Hierro (pesado/impacto contundente), Oro (crítico/noble pero frágil), Huesos (orgánico/efectos). Cero *power-creep* lineal aburrido; cada material tiene pros y contras reales.
+  5. *Mapa de Superficie Visualmente Atractivo*:
+     - Un taller de forja rústico, simple y acogedor con suelo trabajado, maderas y brasero (eliminando la sensación de estaciones flotantes en la nada).
+     - Arboleda y vegetación natural que enmarquen el campamento y guíen la vista orgánicamente hacia la ladera montañosa donde se abre la cueva.

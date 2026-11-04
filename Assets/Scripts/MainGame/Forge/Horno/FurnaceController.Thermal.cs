@@ -1,53 +1,122 @@
+using System;
 using UnityEngine;
 
 namespace ForjaGame.Forge
 {
+    public enum BellowsPumpQuality
+    {
+        Weak,
+        Good,
+        Perfect
+    }
+
     /// <summary>
-    /// Métodos de control térmico activo: combustible (carbón), fuelle y ventilación (SRP).
+    /// Métodos de control térmico activo: combustión natural de carbón (~700°C),
+    /// fuelle rítmico de oxígeno e inyección de aire para forja (~1200°C) y ventilación (SRP).
     /// </summary>
     public partial class FurnaceController
     {
+        public const float CoalPassiveLimit = 700f;
+        public const float BellowsFullChargeTime = 1.15f;
+
+        [System.NonSerialized] private float _bellowsCharge = 1.0f;
+
+        public float BellowsCharge => Mathf.Clamp01(_bellowsCharge);
+        public bool IsBellowsReady => _bellowsCharge >= 0.85f;
+        public bool IsAtCoalLimit => currentTemperature >= (CoalPassiveLimit - 20f);
+
+        public event Action<BellowsPumpQuality, float> BellowsPumped;
+
+        public void UpdateBellowsCharge(float deltaTime)
+        {
+            if (_bellowsCharge < 1.0f)
+            {
+                _bellowsCharge = Mathf.MoveTowards(_bellowsCharge, 1.0f, deltaTime / BellowsFullChargeTime);
+            }
+        }
+
         /// <summary>
-        /// Bombea el fuelle para dar un impulso táctil de aire caliente (+28°C objetivo, +16°C inmediato).
+        /// Insufla aire con el fuelle rítmico. Si el fuelle está lleno (>=85%), produce una inyección masiva de oxígeno (+125°C).
         /// </summary>
+        public BellowsPumpQuality PumpRhythmicBellows(out float heatGained)
+        {
+            float charge = _bellowsCharge;
+            _bellowsCharge = 0.05f; // Reinicia el ciclo de llenado del fuelle
+
+            BellowsPumpQuality quality;
+            if (charge >= 0.85f)
+            {
+                quality = BellowsPumpQuality.Perfect;
+                heatGained = 125f;
+                currentTemperature = Mathf.Min(maxTemperature, currentTemperature + 45f);
+            }
+            else if (charge >= 0.50f)
+            {
+                quality = BellowsPumpQuality.Good;
+                heatGained = 65f;
+                currentTemperature = Mathf.Min(maxTemperature, currentTemperature + 20f);
+            }
+            else
+            {
+                quality = BellowsPumpQuality.Weak;
+                heatGained = 20f;
+                currentTemperature = Mathf.Min(maxTemperature, currentTemperature + 5f);
+            }
+
+            targetTemperature = Mathf.Min(maxTemperature, targetTemperature + heatGained);
+            ForjaGame.Audio.ForgeAudioSystem.PlayFurnaceStoke(transform.position);
+            BellowsPumped?.Invoke(quality, heatGained);
+            return quality;
+        }
+
         public bool PumpBellows()
         {
-            if (_bellowsCooldown > 0f) return false;
-            _bellowsCooldown = 0.3f;
-
-            targetTemperature = Mathf.Min(maxTemperature, targetTemperature + 28f);
-            currentTemperature = Mathf.Min(maxTemperature, currentTemperature + 16f);
+            PumpRhythmicBellows(out _);
             return true;
         }
 
         /// <summary>
-        /// Abre la compuerta de ventilación para enfriar el horno. El enfriamiento es mayor que el aumento por carbón.
+        /// Acciona el fuelle de enfriamiento rápido: baja la temperatura a velocidad constante (440°C/s).
         /// </summary>
-        public void VentFurnace(float intensity = 1f)
+        public void ApplyBellowsCooling(float deltaTime, float intensity = 1f)
         {
-            float coolingForce = 180f * intensity;
-            targetTemperature = Mathf.Max(ambientTemperature, targetTemperature - (coolingForce * 1.25f * Time.deltaTime));
-            currentTemperature = Mathf.Max(ambientTemperature, currentTemperature - (coolingForce * Time.deltaTime));
+            float coolingForce = 440f * intensity;
+            targetTemperature = Mathf.Max(ambientTemperature, targetTemperature - (coolingForce * deltaTime));
+            currentTemperature = Mathf.MoveTowards(currentTemperature, ambientTemperature, coolingForce * deltaTime);
+            TemperatureChanged?.Invoke(currentTemperature);
         }
 
         /// <summary>
-        /// Agrega carbón como combustible principal (desligado de si hay o no minerales).
+        /// Pulso suave del fuelle al pulsar [Espacio] o hacer clic: frenada controlada y predecible.
         /// </summary>
-        public void AddCoal(int count = 1)
+        public void PulseBellows(float burst = 45f)
         {
-            if (count <= 0) return;
-            AddFuelDirect(coalHeatBonus * count);
+            targetTemperature = Mathf.Max(ambientTemperature, targetTemperature - burst);
+            currentTemperature = Mathf.MoveTowards(currentTemperature, ambientTemperature, burst * 0.7f);
+            TemperatureChanged?.Invoke(currentTemperature);
+        }
+
+        public void VentFurnace(float intensity = 1f)
+        {
+            ApplyBellowsCooling(Time.deltaTime, intensity);
+        }
+
+        /// <summary>
+        /// Añade carbón al fogón de forma constante y predecible (+140°C al objetivo). La aguja sube a velocidad constante (260°C/s).
+        /// </summary>
+        public bool AddCoal(int count = 1)
+        {
+            if (count <= 0) return false;
+            float addedHeat = coalHeatBonus * count;
+            targetTemperature = Mathf.Min(maxTemperature, Mathf.Max(currentTemperature, targetTemperature) + addedHeat);
+            ForjaGame.Audio.ForgeAudioSystem.PlayFurnaceStoke(transform.position);
+            return true;
         }
 
         public void AddFuel(IFuelSource fuel)
         {
             if (fuel == null || fuel.HeatPower <= 0f) return;
-            AddFuelDirect(fuel.HeatPower);
-        }
-
-        private void AddFuelDirect(float heatAmount)
-        {
-            targetTemperature = Mathf.Min(maxTemperature, Mathf.Max(currentTemperature, targetTemperature) + heatAmount);
+            targetTemperature = Mathf.Min(maxTemperature, Mathf.Max(currentTemperature, targetTemperature) + fuel.HeatPower);
         }
     }
 }

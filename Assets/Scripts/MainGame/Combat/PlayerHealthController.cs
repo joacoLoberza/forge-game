@@ -10,7 +10,13 @@ namespace ForjaGame.Combat
     /// </summary>
     public class PlayerHealthController : MonoBehaviour, IDamageable
     {
-        public static PlayerHealthController Instance { get; private set; }
+        public static PlayerHealthController LocalInstance { get; set; }
+        private static PlayerHealthController _fallbackInstance;
+        public static PlayerHealthController Instance
+        {
+            get => LocalInstance != null ? LocalInstance : (_fallbackInstance != null ? _fallbackInstance : (AllPlayers.Count > 0 ? AllPlayers[0] : null));
+            set => _fallbackInstance = value;
+        }
         public static readonly List<PlayerHealthController> AllPlayers = new();
 
         [Header("Configuración de Salud")]
@@ -39,11 +45,15 @@ namespace ForjaGame.Combat
         private void OnDisable()
         {
             AllPlayers.Remove(this);
+            if (LocalInstance == this) LocalInstance = null;
         }
 
         private void Awake()
         {
-            if (Instance == null) Instance = this;
+            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
+            if (netObj == null || netObj.IsOwner) LocalInstance = this;
+            _fallbackInstance = this;
+
             _rb = GetComponent<Rigidbody>();
             _playerMovement = GetComponent<PlayerMovement>();
             currentHealth = maxHealth;
@@ -79,35 +89,26 @@ namespace ForjaGame.Combat
             }
         }
 
+        private GUIStyle _hudPlaqueStyle, _hudTitleStyle, _hudSubStyle;
+        private static Texture2D _hpFillCrimsonTex, _hpFillGoldTex;
+
         public void TakeDamage(int amount)
         {
             if (!IsAlive || _isDefeated) return;
-
             currentHealth = Mathf.Max(0, currentHealth - amount);
-            int pNum = (_playerMovement != null ? _playerMovement.PlayerIndex : 0) + 1;
-            Debug.Log($"[Jugador {pNum}] Recibió {amount} de daño. Salud restante: {currentHealth}/{maxHealth}");
+            ForjaGame.Audio.ForgeAudioSystem.PlayPlayerHurt(transform.position);
+            GetComponentInChildren<DynamicEdgeAligner>()?.NotifyCombatAlert();
 
-            // Teñir hurtbox de negro al recibir daño (contacto)
-            if (_bodyHurtbox != null)
-            {
-                _bodyHurtbox.IsConnecting = true;
-                _hurtboxBlackUntil = Time.time + 0.30f;
-            }
+            if (_bodyHurtbox != null) { _bodyHurtbox.IsConnecting = true; _hurtboxBlackUntil = Time.time + 0.30f; }
 
-            // Impulso en la cámara propia del jugador
-            if (_playerMovement != null && _playerMovement.PlayerCamera != null)
+            bool isLocal = (LocalInstance == this) || (GetComponent<Unity.Netcode.NetworkObject>()?.IsOwner ?? true);
+            if (isLocal)
             {
-                _playerMovement.PlayerCamera.GetComponent<PlayerCameraFollow>()?.TriggerImpulse(0.12f);
+                if (_playerMovement != null && _playerMovement.PlayerCamera != null)
+                    _playerMovement.PlayerCamera.GetComponent<PlayerCameraFollow>()?.TriggerImpulse(0.12f);
+                else PlayerCameraFollow.Instance?.TriggerImpulse(0.12f);
             }
-            else
-            {
-                PlayerCameraFollow.Instance?.TriggerImpulse(0.12f);
-            }
-
-            if (currentHealth <= 0)
-            {
-                TriggerPlayerDefeat();
-            }
+            if (currentHealth <= 0) TriggerPlayerDefeat();
         }
 
         private void TriggerPlayerDefeat()
@@ -122,13 +123,14 @@ namespace ForjaGame.Combat
                 _rb.linearVelocity = Vector3.zero;
                 _rb.angularVelocity = Vector3.zero;
             }
+            _playerMovement?.SetMovementEnabled(false);
 
             // En cooperativo local, comprobar si todos los jugadores fueron derrotados
             bool anyOtherAlive = false;
             for (int i = 0; i < AllPlayers.Count; i++)
             {
                 var p = AllPlayers[i];
-                if (p != null && p != this && p.IsAlive)
+                if (p != null && p != this && p.gameObject.activeInHierarchy && p.IsAlive)
                 {
                     anyOtherAlive = true;
                     break;
@@ -141,7 +143,7 @@ namespace ForjaGame.Combat
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
 
-                GameLoopController gameLoop = FindFirstObjectByType<GameLoopController>();
+                GameLoopController gameLoop = FindFirstObjectByType<GameLoopController>(FindObjectsInactive.Include);
                 if (gameLoop != null)
                 {
                     gameLoop.TriggerDefeat();
@@ -154,8 +156,9 @@ namespace ForjaGame.Combat
             currentHealth = maxHealth;
             _isDefeated = false;
             Time.timeScale = 1f;
+            _playerMovement?.SetMovementEnabled(true);
 
-            if (!ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen)
+            if (!ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen && !GameLoopController.IsEndScreenOpen)
             {
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
@@ -177,34 +180,56 @@ namespace ForjaGame.Combat
             RestoreHealthFull();
         }
 
+        private void EnsureHudStyles()
+        {
+            if (_hudPlaqueStyle != null) return;
+            _hudPlaqueStyle = new GUIStyle
+            {
+                normal = { background = ForjaGame.UI.BookTextureBuilder.GetParchmentSprite().texture },
+                border = new RectOffset(16, 16, 16, 16), padding = new RectOffset(12, 12, 8, 8)
+            };
+            _hudTitleStyle = new GUIStyle { fontSize = 14, fontStyle = FontStyle.Bold, richText = true, normal = { textColor = new Color(0.17f, 0.11f, 0.06f) } };
+            _hudSubStyle = new GUIStyle { fontSize = 12, fontStyle = FontStyle.Italic, richText = true, normal = { textColor = new Color(0.32f, 0.20f, 0.10f) } };
+            ForjaGame.UI.MedievalTypographyProvider.ApplyToGUIStyle(_hudTitleStyle);
+            ForjaGame.UI.MedievalTypographyProvider.ApplyToGUIStyle(_hudSubStyle);
+
+            _hpFillCrimsonTex = new Texture2D(1, 8, TextureFormat.RGBA32, false);
+            _hpFillGoldTex = new Texture2D(1, 8, TextureFormat.RGBA32, false);
+            for (int y = 0; y < 8; y++)
+            {
+                float hl = y >= 5 ? 1.22f : (y <= 1 ? 0.72f : 1f);
+                _hpFillCrimsonTex.SetPixel(0, y, new Color(Mathf.Clamp01(0.76f * hl), Mathf.Clamp01(0.16f * hl), Mathf.Clamp01(0.14f * hl), 1f));
+                _hpFillGoldTex.SetPixel(0, y, new Color(Mathf.Clamp01(0.86f * hl), Mathf.Clamp01(0.58f * hl), Mathf.Clamp01(0.16f * hl), 1f));
+            }
+            _hpFillCrimsonTex.Apply(); _hpFillGoldTex.Apply();
+        }
+
         private void OnGUI()
         {
-            GUI.skin.box.fontSize = 13;
-            GUI.skin.label.fontSize = 13;
+            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
+            if (netObj != null && !netObj.IsOwner) return;
+            if (ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen || GameLoopController.IsEndScreenOpen) return;
 
+            EnsureHudStyles();
             int pIdx = _playerMovement != null ? _playerMovement.PlayerIndex : 0;
-            float boxWidth = 260f;
-            float padX = (pIdx == 0) ? 15f : (Screen.width - boxWidth - 15f);
-            float topY = 15f;
+            float w = 290f, h = 84f, x = 18f, y = 18f;
 
-            string playerColorTag = (pIdx == 0) ? "#55AAFF" : "#FFAA33";
-            string playerName = $"<color={playerColorTag}><b>JUGADOR {pIdx + 1} HP:</b></color> {currentHealth} / {maxHealth}";
+            GUI.DrawTexture(new Rect(x - 4f, y - 4f, w + 8f, h + 8f), ForjaGame.UI.BookTextureBuilder.GetLeatherCoverSprite().texture);
+            GUI.Box(new Rect(x, y, w, h), GUIContent.none, _hudPlaqueStyle);
 
-            GUI.Box(new Rect(padX, topY, boxWidth, 75f), "");
-            GUI.Label(new Rect(padX + 10f, topY + 6f, boxWidth - 20f, 22f), playerName);
+            GUI.Label(new Rect(x + 14f, y + 8f, w - 28f, 22f), $"<b>VITALIDAD DE HERRERO (J{pIdx + 1}): {currentHealth}/{maxHealth}</b>", _hudTitleStyle);
 
-            // Barra de vida del jugador
-            float barWidth = boxWidth - 20f;
-            float healthRatio = Mathf.Clamp01((float)currentHealth / maxHealth);
-            GUI.DrawTexture(new Rect(padX + 10f, topY + 30f, barWidth, 14f), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, new Color(0.2f, 0.2f, 0.2f, 0.9f), 0f, 0f);
-            Color barColor = (pIdx == 0)
-                ? (healthRatio > 0.5f ? Color.Lerp(Color.yellow, new Color(0.2f, 0.7f, 1f), (healthRatio - 0.5f) * 2f) : Color.Lerp(Color.red, Color.yellow, healthRatio * 2f))
-                : (healthRatio > 0.5f ? Color.Lerp(Color.yellow, new Color(1.0f, 0.6f, 0.1f), (healthRatio - 0.5f) * 2f) : Color.Lerp(Color.red, Color.yellow, healthRatio * 2f));
-            GUI.DrawTexture(new Rect(padX + 10f, topY + 30f, barWidth * healthRatio, 14f), Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, barColor, 0f, 0f);
+            float barW = w - 28f, ratio = Mathf.Clamp01((float)currentHealth / Mathf.Max(1, maxHealth));
+            GUI.DrawTexture(new Rect(x + 14f, y + 32f, barW, 18f), ForjaGame.UI.BookTextureBuilder.GetSliderTrackSprite().texture);
+            if (ratio > 0.005f)
+                GUI.DrawTexture(new Rect(x + 16f, y + 35f, (barW - 4f) * ratio, 12f), ratio < 0.32f ? _hpFillGoldTex : _hpFillCrimsonTex);
 
-            // Recordatorio de debug o estado
-            string subText = _isDefeated ? "<color=red><b>CAÍDO EN COMBATE</b></color>" : (HitboxDebugManager.ShowHitboxes ? "<color=#00FF66>[F3] Hitboxes</color>" : "<color=#888888>En exploración</color>");
-            GUI.Label(new Rect(padX + 10f, topY + 48f, boxWidth - 20f, 22f), subText);
+            var inv = GetComponent<ForjaGame.Inventory.InventoryController>() ?? ForjaGame.Inventory.InventoryController.Instance;
+            int unbanked = inv != null ? inv.UnbankedDelveItemCount : 0;
+            string sub = _isDefeated ? "<color=#8B1A1A><b>Caido en la caverna</b></color>"
+                : (unbanked > 0 ? $"<color=#8C2D12><b>[!] Botin en riesgo: {unbanked} recursos</b></color>"
+                : (transform.position.z >= 25f ? "<color=#5A3818><b>[Explorando la caverna]</b></color>" : "<color=#285A32><b>[Taller de superficie - Seguro]</b></color>"));
+            GUI.Label(new Rect(x + 14f, y + 55f, w - 28f, 22f), sub, _hudSubStyle);
         }
     }
 }

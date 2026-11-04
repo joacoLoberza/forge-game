@@ -40,87 +40,109 @@ namespace ForjaGame.Forge
                 {
                     if (sparkVFXPrefab != null && Random.value < 0.20f)
                         Instantiate(sparkVFXPrefab, worldHitPoint + Vector3.up * 0.015f, Quaternion.identity);
+                    if (Time.time >= _nextPolishScrapeTime)
+                    {
+                        _nextPolishScrapeTime = Time.time + 0.22f;
+                        ForjaGame.Audio.ForgeAudioSystem.PlayPolishScrape(worldHitPoint);
+                    }
                 }
             }
         }
 
         private void DrawToolToolbar()
         {
+            EnsureUIStyles();
+            float bw = 150f, bh = 40f, topY = 16f, gap = 8f;
+            int count = (anvilController != null && anvilController.IsCarvingHandle) ? 2 : 3;
+            float totalW = bw * count + gap * (count - 1);
+            float startX = (Screen.width - totalW) * 0.5f;
+
+            // Placa decorativa de fondo de la barra de herramientas
+            GUI.Box(new Rect(startX - 10f, topY - 4f, totalW + 20f, bh + 8f), GUIContent.none, _parchmentCardStyle);
+
             if (anvilController != null && anvilController.IsCarvingHandle)
             {
-                float w = 150f, h = 34f, y = 25f, g = 12f, sx = (Screen.width - (w * 2 + g)) * 0.5f;
-                if (GUI.Button(new Rect(sx, y, w, h), "✂️ [2] Corte", _toolMode == AnvilToolMode.Cut ? _btnActiveStyle : _btnInactiveStyle)) _toolMode = AnvilToolMode.Cut;
-                if (GUI.Button(new Rect(sx + w + g, y, w, h), "✨ [3] Pulir / Lijar", _toolMode == AnvilToolMode.Polish ? _btnActiveStyle : _btnInactiveStyle)) _toolMode = AnvilToolMode.Polish;
+                if (GUI.Button(new Rect(startX, topY, bw, bh), "[2] Corte", _toolMode == AnvilToolMode.Cut ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Cut;
+                if (GUI.Button(new Rect(startX + bw + gap, topY, bw, bh), "[3] Pulir / Lijar", _toolMode == AnvilToolMode.Polish ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Polish;
                 return;
             }
-            float bw = 135f, bh = 34f, topY = 25f, gap = 8f;
-            float totalW = bw * 3 + gap * 2, startX = (Screen.width - totalW) * 0.5f;
-            if (GUI.Button(new Rect(startX, topY, bw, bh), "🔨 [1] Martillo", _toolMode == AnvilToolMode.Hammer ? _btnActiveStyle : _btnInactiveStyle)) _toolMode = AnvilToolMode.Hammer;
-            if (GUI.Button(new Rect(startX + (bw + gap), topY, bw, bh), "✂️ [2] Corte", _toolMode == AnvilToolMode.Cut ? _btnActiveStyle : _btnInactiveStyle)) _toolMode = AnvilToolMode.Cut;
-            if (GUI.Button(new Rect(startX + (bw + gap) * 2, topY, bw, bh), "✨ [3] Pulir", _toolMode == AnvilToolMode.Polish ? _btnActiveStyle : _btnInactiveStyle)) _toolMode = AnvilToolMode.Polish;
+
+            if (GUI.Button(new Rect(startX, topY, bw, bh), "[1] Martillo", _toolMode == AnvilToolMode.Hammer ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Hammer;
+            if (GUI.Button(new Rect(startX + bw + gap, topY, bw, bh), "[2] Corte", _toolMode == AnvilToolMode.Cut ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Cut;
+            if (GUI.Button(new Rect(startX + (bw + gap) * 2, topY, bw, bh), "[3] Pulir", _toolMode == AnvilToolMode.Polish ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Polish;
         }
 
         private void DrawPolishGUI()
         {
-            float w = 680f, h = 85f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 25f;
-            string targetName = anvilController.IsCarvingHandle ? "el mango de madera" : "la cabeza de metal";
-            string toolHint = anvilController.IsCarvingHandle ? "[2] Corte  •  <b>[3] Pulido/Lijado Activo</b>" : "[1] Martillo  •  [2] Corte  •  <b>[3] Pulido Activo</b>";
-            string msg = $"<b>MODO PULIDO Y LIJADO FINO</b>\n" +
-                         $"<color=#33FFAA>Mantén [Click Izquierdo] y repasa con el cursor para redondear aristas y bordes de {targetName}.</color>\n" +
-                         $"{toolHint}";
-            GUI.Box(new Rect(x, y, w, h), msg, _hudStyle);
+            EnsureUIStyles();
+            float w = 680f, h = 58f, x = (Screen.width - w) * 0.5f, y = 68f;
+            string msg = "<b>MODO PULIDO Y LIJADO FINO</b>\n" +
+                         "<color=#3B2314>Mantén [Click Izquierdo] y frota el cursor por las aristas para redondearlas  •  <b>[1]</b> Martillo</color>";
+            GUI.Box(new Rect(x, y, w, h), msg, _goldBannerStyle);
         }
 
         private void DrawHammerBottomHUD()
         {
-            float w = 680f, h = 90f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 25f;
-            string exitAction = anvilController.CanRetrieveIngot ? "[F] Cancelar y Recuperar" : "[F] Pausar y Salir";
+            EnsureUIStyles();
+            float w = 840f, h = 98f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 16f;
+            bool isReheatingNow = anvilController.ThermalController != null && anvilController.ThermalController.IsReheating;
+            bool isQuenchingNow = anvilController.QuenchDifferential != null && anvilController.QuenchDifferential.IsQuenching;
+            if (!isReheatingNow && !isQuenchingNow) DrawForceTimingBarHUD(x, y, w);
 
-            string thermalHint = "  •  <b>[H]</b> Recalentar en Fuego";
-            if (anvilController.ThermalController != null)
-            {
-                if (anvilController.ThermalController.IsReheating)
-                {
-                    thermalHint = anvilController.ThermalController.CurrentTemperature > 1220f
-                        ? "\n<color=#FF2222><b>¡PELIGRO! METAL AL LÍMITE (BLANCO INCANDESCENTE)</b> (Presiona [H] para retirarlo antes de quemar calidad)</color>"
-                        : "\n<color=#FF7722><b>[H] CALENTANDO EN EL FUEGO...</b> Observa el color para retirarlo al rojo vivo / amarillo óptimo [H].</color>";
-                }
-                else if (anvilController.ThermalController.CurrentTemperature < 500f)
-                {
-                    thermalHint = "\n<color=#88CCFF>Metal frío (baja maleabilidad). Presiona <b>[H]</b> para recalentarlo al rojo vivo.</color>";
-                }
-            }
+            // Tarjeta de pergamino de 3 columnas
+            GUI.Box(new Rect(x, y, w, h), GUIContent.none, _parchmentCardStyle);
 
+            // Columna 1: Estado de la pieza y calidad
             bool isHammer = anvilController.SelectedWeaponType == WeaponType.Hammer;
-            string targetPart = isHammer ? "Cabeza de Martillo" : "Filo Requerido";
-            string info = $"{targetPart}: {(anvilController.IsEdgeComplete ? "<color=#33FFAA>LISTO</color>" : "<color=#FFAA33>PENDIENTE</color>")} | Calidad: {anvilController.ForgingQuality * 100f:F0}%\n" +
-                          $"[Click Izq / Mantener] Martillar  •  [2] Modo Corte  •  {exitAction}{thermalHint}";
-            GUI.Box(new Rect(x, y, w, h), info, _hudStyle);
+            string partTitle = isHammer ? "CABEZA DE MARTILLO" : (anvilController.SelectedWeaponType == WeaponType.Axe ? "HOJA DE HACHA" : "HOJA DE ESPADA");
+            bool isEdgeReady = anvilController.IsEdgeComplete;
+            string edgeBadge = isEdgeReady
+                ? "<color=#168A48><b>[ ✓ FILO LISTO ]</b></color>"
+                : "<color=#C87514><b>[ FORJANDO FILO ]</b></color>";
+            string col1 = $"<b>{partTitle}</b>\n" +
+                          $"{edgeBadge}\n" +
+                          $"Calidad Metal: <b>{anvilController.ForgingQuality * 100f:F0}%</b>";
+            GUI.Label(new Rect(x + 18f, y + 14f, 240f, 74f), col1, _parchmentCardStyle);
 
-            if (anvilController.QuenchDifferential != null && anvilController.QuenchDifferential.IsQuenching)
+            // Columna 2: Monitor Térmico con barra de calor e indicación de Fragua [H]
+            float currentTemp = anvilController.ThermalController != null ? anvilController.ThermalController.CurrentTemperature : 750f;
+            bool isReheating = anvilController.ThermalController != null && anvilController.ThermalController.IsReheating;
+            string tempTitle = $"<b>CALOR: {currentTemp:F0}°C</b>";
+            string tempHint = isReheating
+                ? (currentTemp > 1220f ? "<color=#D82010><b>¡LÍMITE! [H] Retirar</b></color>" : "<color=#D86210><b>[En Fragua] [H] Sacar</b></color>")
+                : (currentTemp < 500f ? "<color=#2B68A0><b>Frío • Presiona [H]</b></color>" : "<color=#966814><b>Maleabilidad Ideal</b></color>");
+            GUI.Label(new Rect(x + 275f, y + 12f, 260f, 22f), tempTitle, _parchmentCardStyle);
+            DrawThermalGradientBar(new Rect(x + 275f, y + 36f, 240f, 16f), currentTemp);
+            GUI.Label(new Rect(x + 275f, y + 58f, 260f, 24f), tempHint, _parchmentCardStyle);
+
+            // Columna 3: Acción contextual y templado
+            bool isQuenching = anvilController.QuenchDifferential != null && anvilController.QuenchDifferential.IsQuenching;
+            if (isQuenching)
             {
-                float pw = 540f, ph = 44f;
-                GUI.Box(new Rect((Screen.width - pw) * 0.5f, y - 52f, pw, ph), "★ TEMPLANDO EN AGUA... ★", _promptStyle);
+                GUI.Box(new Rect(x + 545f, y + 24f, 275f, 48f), "<b>TEMPLANDO EN AGUA...</b>", _goldBannerStyle);
             }
-            else if (anvilController.IsEdgeComplete)
+            else if (isEdgeReady)
             {
-                float pw = 540f, ph = 44f;
-                string readyPrompt = isHammer ? "★ CABEZA DE MARTILLO LISTA! Presiona [ESPACIO] para Templar ★" : "★ FILO COMPLETADO! Presiona [ESPACIO] para Templar ★";
-                GUI.Box(new Rect((Screen.width - pw) * 0.5f, y - 52f, pw, ph), readyPrompt, _promptStyle);
+                if (GUI.Button(new Rect(x + 545f, y + 18f, 275f, 60f), "<b>★ [ESPACIO] TEMPLAR ★</b>\n<size=11>Sumergir en agua para endurecer</size>", _goldBannerStyle))
+                {
+                    HandleSpacebarPress();
+                }
+            }
+            else
+            {
+                string actionHint = "<b>[Click Izq]</b> Martillar metal\n" +
+                                    "<b>[2]</b> Modo Corte  •  <b>[F]</b> Pausar";
+                GUI.Label(new Rect(x + 555f, y + 18f, 260f, 60f), actionHint, _parchmentCardStyle);
             }
         }
 
         private void InitStylesIfNeeded()
         {
-            if (_hudStyle != null) return;
-            _hudStyle = new GUIStyle(GUI.skin.box) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            _hudStyle.normal.textColor = Color.white;
-            _promptStyle = new GUIStyle(GUI.skin.box) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            _promptStyle.normal.textColor = new Color(0.3f, 1f, 0.4f);
-            _btnActiveStyle = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            _btnActiveStyle.normal.textColor = new Color(0.2f, 1f, 0.4f);
-            _btnInactiveStyle = new GUIStyle(GUI.skin.button) { fontSize = 13, fontStyle = FontStyle.Normal, alignment = TextAnchor.MiddleCenter };
-            _btnInactiveStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
+            EnsureUIStyles();
+            _hudStyle = _parchmentCardStyle;
+            _promptStyle = _goldBannerStyle;
+            _btnActiveStyle = _tabActiveStyle;
+            _btnInactiveStyle = _tabInactiveStyle;
         }
 
         private void DrawScreenLine(Vector3 worldA, Vector3 worldB, Color color, float width)

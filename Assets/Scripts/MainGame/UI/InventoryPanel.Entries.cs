@@ -9,15 +9,16 @@ namespace ForjaGame.UI
     {
         private void CreateItemEntry(string title, object itemData, System.Action onClick, Sprite icon = null, Color? iconColor = null)
         {
+            Transform targetContent = ForgeScrollViewStyler.ResolveContentContainer(leftItemsContainer);
             GameObject entryObj = null;
             if (itemEntryPrefab != null)
             {
-                entryObj = Instantiate(itemEntryPrefab, leftItemsContainer);
+                entryObj = Instantiate(itemEntryPrefab, targetContent);
             }
             else
             {
                 entryObj = new GameObject("Entry_" + title, typeof(RectTransform), typeof(Button), typeof(Image), typeof(LayoutElement));
-                entryObj.transform.SetParent(leftItemsContainer, false);
+                entryObj.transform.SetParent(targetContent, false);
 
                 var layout = entryObj.GetComponent<LayoutElement>();
                 layout.minHeight = 44f;
@@ -25,9 +26,11 @@ namespace ForjaGame.UI
                 layout.flexibleWidth = 1f;
 
                 var bg = entryObj.GetComponent<Image>();
-                bg.color = new Color(0.18f, 0.19f, 0.22f, 0.85f);
+                bg.sprite = BookTextureBuilder.GetParchmentBannerSprite();
+                bg.type = Image.Type.Sliced;
+                bg.color = new Color(0.92f, 0.86f, 0.75f, 0.98f);
 
-                // Slot contenedor oscuro para el icono (34x34)
+                // Slot contenedor de cuero repujado para el icono (34x34)
                 GameObject slotObj = new GameObject("IconSlot", typeof(RectTransform), typeof(Image));
                 slotObj.transform.SetParent(entryObj.transform, false);
                 var slotRt = slotObj.GetComponent<RectTransform>();
@@ -38,7 +41,9 @@ namespace ForjaGame.UI
                 slotRt.sizeDelta = new Vector2(34, 34);
 
                 var slotImg = slotObj.GetComponent<Image>();
-                slotImg.color = new Color(0.10f, 0.11f, 0.14f, 0.95f);
+                slotImg.sprite = BookTextureBuilder.GetLeatherCoverSprite();
+                slotImg.type = Image.Type.Sliced;
+                slotImg.color = new Color(0.22f, 0.15f, 0.10f, 0.95f);
                 slotImg.raycastTarget = false;
 
                 // Icono visible
@@ -54,13 +59,13 @@ namespace ForjaGame.UI
                 iconImg.preserveAspect = true;
                 iconImg.raycastTarget = false;
 
-                // Texto del item
+                // Texto del item (desplazado a x=62 para despejar el slot de icono)
                 GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
                 textObj.transform.SetParent(entryObj.transform, false);
                 var textRt = textObj.GetComponent<RectTransform>();
                 textRt.anchorMin = Vector2.zero;
                 textRt.anchorMax = Vector2.one;
-                textRt.offsetMin = new Vector2(48, 0);
+                textRt.offsetMin = new Vector2(62, 0);
                 textRt.offsetMax = new Vector2(-8, 0);
 
                 var tmp = textObj.GetComponent<TextMeshProUGUI>();
@@ -69,10 +74,14 @@ namespace ForjaGame.UI
                 tmp.color = new Color(0.92f, 0.90f, 0.86f, 1f);
                 tmp.alignment = TextAlignmentOptions.MidlineLeft;
                 tmp.textWrappingMode = TextWrappingModes.NoWrap;
+                tmp.enableAutoSizing = true;
+                tmp.fontSizeMin = 10;
+                tmp.fontSizeMax = 15;
                 tmp.raycastTarget = false;
             }
 
-            var entryUI = entryObj.GetComponent<InventoryItemEntryUI>() ?? entryObj.AddComponent<InventoryItemEntryUI>();
+            var entryUI = entryObj.GetComponent<InventoryItemEntryUI>();
+            if (entryUI == null) entryUI = entryObj.AddComponent<InventoryItemEntryUI>();
             bool isSelected = _selectedItem == itemData;
             entryUI.Setup(title, onClick, isSelected, icon, iconColor);
             _activeEntries.Add((itemData, entryUI));

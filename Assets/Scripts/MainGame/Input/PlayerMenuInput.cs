@@ -70,16 +70,31 @@ namespace ForjaGame.Input
             RequestPause();
         }
 
+        public void OnPause(InputValue value)
+        {
+            if (value.isPressed) RequestPause();
+        }
+
         public void OnForge(InputAction.CallbackContext context)
         {
             if (!context.started) return;
             RequestForge();
         }
 
+        public void OnForge(InputValue value)
+        {
+            if (value.isPressed) RequestForge();
+        }
+
         public void OnInventory(InputAction.CallbackContext context)
         {
             if (!context.started) return;
             RequestInventory();
+        }
+
+        public void OnInventory(InputValue value)
+        {
+            if (value.isPressed) RequestInventory();
         }
 
         public void RequestPause()
@@ -94,6 +109,9 @@ namespace ForjaGame.Input
             {
                 PauseMenuPanel.Instance.Close();
                 UpdateMovementAvailability();
+                FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Exploration);
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
                 return;
             }
 
@@ -102,6 +120,9 @@ namespace ForjaGame.Input
             {
                 UI.Core.UIPanelBase.CloseAllPanels();
                 UpdateMovementAvailability();
+                FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Exploration);
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
                 return;
             }
 
@@ -163,7 +184,12 @@ namespace ForjaGame.Input
             UpdateMovementAvailability();
         }
 
-        private void UpdateMovementAvailability()
+        public void ResetMenuInputState()
+        {
+            UpdateMovementAvailability();
+        }
+
+        public void UpdateMovementAvailability()
         {
             bool uiBlocked = UI.Core.UIPanelBase.IsAnyPanelOpen || (_handler != null && _handler.IsMovementBlocked);
             if (playerMovement == null)

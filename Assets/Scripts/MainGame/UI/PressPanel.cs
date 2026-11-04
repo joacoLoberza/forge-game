@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -10,8 +9,8 @@ using ForjaGame.Inventory;
 namespace ForjaGame.UI
 {
     /// <summary>
-    /// UI Panel for the Mechanical Press with an inventory Bloom ScrollView.
-    /// Displays Pressing Difficulty (Level 1 to 10) and handles mashing, extraction, and retrieval.
+    /// Panel de interfaz de la Prensa Mecánica: permite elegir la Lupa (colocándola en la parte inferior
+    /// de la prensa en 3D), prensar repetidamente [ESPACIO] y recoger el Lingote 3D resultante.
     /// </summary>
     public partial class PressPanel : UIPanelBase
     {
@@ -35,16 +34,45 @@ namespace ForjaGame.UI
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private Button closeButton;
 
+        private PressMechanicalVisual _pressVisual;
         private IngotData _readyIngot;
+
+        public TMP_Text BloomInfoText => bloomInfoText;
+        public TMP_Text ProgressText => progressText;
+        public TMP_Text StatusText => statusText;
+        public Slider PressProgressSlider => pressProgressSlider;
+        public Button MashButton => mashButton;
+        public Button RetrieveBloomButton => retrieveBloomButton;
+        public Button ExtractIngotButton => extractIngotButton;
+        public Button CloseButton => closeButton;
 
         protected override void Awake()
         {
             base.Awake();
             EnsureReferences();
-            if (mashButton != null) BindPressDown(mashButton, OnMashClicked);
-            if (retrieveBloomButton != null) BindPressDown(retrieveBloomButton, OnRetrieveBloomClicked);
-            if (extractIngotButton != null) BindPressDown(extractIngotButton, OnExtractIngotClicked);
+            if (pressProgressSlider != null) pressProgressSlider.interactable = false;
+            if (mashButton != null)
+            {
+                BindPressDown(mashButton, OnMashClicked);
+                SetBtnText(mashButton, "PRENSAR [ESPACIO]");
+            }
+            if (retrieveBloomButton != null)
+            {
+                BindPressDown(retrieveBloomButton, OnRetrieveBloomClicked);
+                SetBtnText(retrieveBloomButton, "Retirar Lupa");
+            }
+            if (extractIngotButton != null)
+            {
+                BindPressDown(extractIngotButton, OnExtractIngotClicked);
+                SetBtnText(extractIngotButton, "Recoger Lingote");
+            }
             if (closeButton != null) BindPressDown(closeButton, Close);
+        }
+
+        private static void SetBtnText(Button b, string txt)
+        {
+            var t = b != null ? b.GetComponentInChildren<TMP_Text>(true) : null;
+            if (t != null) t.text = txt;
         }
 
         private void OnEnable()
@@ -56,6 +84,10 @@ namespace ForjaGame.UI
                 pressController.PressCompleted += OnPressCompleted;
                 pressController.PressReset += OnPressReset;
             }
+            if (_pressVisual != null)
+                _pressVisual.IngotClicked += OnExtractIngotClicked;
+
+            ForgeCanvasThemeStyler.StylePressPanel(this);
             UpdateDisplay();
         }
 
@@ -68,10 +100,23 @@ namespace ForjaGame.UI
                 pressController.PressCompleted -= OnPressCompleted;
                 pressController.PressReset -= OnPressReset;
             }
+            if (_pressVisual != null)
+                _pressVisual.IngotClicked -= OnExtractIngotClicked;
         }
 
-        protected override void OnOpened() { base.OnOpened(); EnsureReferences(); UpdateDisplay(); }
-        protected override void OnClosed() { base.OnClosed(); stationController?.ReleaseStation(); }
+        protected override void OnOpened()
+        {
+            base.OnOpened();
+            EnsureReferences();
+            ForgeCanvasThemeStyler.StylePressPanel(this);
+            UpdateDisplay();
+        }
+
+        protected override void OnClosed()
+        {
+            base.OnClosed();
+            stationController?.ReleaseStation();
+        }
 
         private void Update()
         {
@@ -92,7 +137,7 @@ namespace ForjaGame.UI
             if (retrieved != null)
             {
                 GetCurrentPlayerInventory()?.AddBloom(retrieved);
-                SetStatus($"Bloom '{retrieved.DisplayName}' returned to inventory.");
+                SetStatus($"Lupa '{retrieved.DisplayName}' devuelta al inventario.");
             }
             UpdateDisplay();
         }
@@ -100,7 +145,7 @@ namespace ForjaGame.UI
         private void OnPressCompleted(IngotData ingot)
         {
             _readyIngot = ingot;
-            SetStatus($"Pressing completed! Extract your {ingot.DisplayName}.");
+            SetStatus($"¡Prensado completado! El Lingote 3D está en la base: pulsa 'Recoger Lingote'.");
             UpdateDisplay();
         }
 
@@ -113,7 +158,7 @@ namespace ForjaGame.UI
             if (extracted != null)
             {
                 GetCurrentPlayerInventory()?.AddIngot(extracted);
-                SetStatus($"{extracted.DisplayName} stored in inventory!");
+                SetStatus($"¡{extracted.DisplayName} guardado en el inventario!");
                 _readyIngot = null;
             }
             UpdateDisplay();
@@ -142,7 +187,8 @@ namespace ForjaGame.UI
 
             if (!hasBloom)
             {
-                if (bloomInfoText != null) bloomInfoText.text = "No Bloom placed on piston.";
+                if (bloomInfoText != null)
+                    bloomInfoText.text = "<b>Ninguna Lupa cargada</b>  ·  Selecciona una Lupa en la lista izquierda para consultar su dificultad y detalles.";
                 if (mashButton != null) mashButton.gameObject.SetActive(false);
                 if (retrieveBloomButton != null) retrieveBloomButton.gameObject.SetActive(false);
                 if (extractIngotButton != null) extractIngotButton.gameObject.SetActive(false);
@@ -155,7 +201,11 @@ namespace ForjaGame.UI
                 if (bloomInfoText != null && pressController.CurrentBloom != null)
                 {
                     var bloom = pressController.CurrentBloom;
-                    bloomInfoText.text = $"<b>{bloom.DisplayName}</b> ({bloom.SizeLabel})\nPurity: {bloom.PurityPercentage}% | Pressing Difficulty: <b>Level {bloom.DifficultyLevel}</b>";
+                    string stateLabel = isCompleted
+                        ? "<color=#1B6E32><b>¡LINGOTE 3D FORJADO!</b></color>"
+                        : $"Dificultad: <color=#8B3A0E><b>Nivel {bloom.DifficultyLevel}/10</b></color>";
+                    string compDesc = bloom.composition != null ? bloom.composition.GetCompositionDescription() : "";
+                    bloomInfoText.text = $"<b>{bloom.DisplayName}</b> ({bloom.SizeLabel})  ·  {stateLabel}\nPureza: <b>{bloom.PurityPercentage}%</b>  |  Impurezas de Horno: <b>{bloom.ImpurityPercentage}%</b>  |  {compDesc}";
                 }
             }
         }
@@ -164,15 +214,20 @@ namespace ForjaGame.UI
         {
             if (pressController == null) pressController = FindFirstObjectByType<PressController>(FindObjectsInactive.Include);
             if (stationController == null) stationController = FindFirstObjectByType<PressStationController>(FindObjectsInactive.Include);
+            if (_pressVisual == null && stationController != null) _pressVisual = stationController.GetComponent<PressMechanicalVisual>();
+            if (_pressVisual == null) _pressVisual = FindFirstObjectByType<PressMechanicalVisual>(FindObjectsInactive.Include);
         }
 
         private InventoryController GetCurrentPlayerInventory()
         {
             if (stationController != null && stationController.CurrentInteractor != null)
-                return stationController.CurrentInteractor.GetComponentInParent<InventoryController>() ??
-                       stationController.CurrentInteractor.GetComponentInChildren<InventoryController>();
-
-            return GameObject.FindWithTag("Player")?.GetComponent<InventoryController>() ?? FindFirstObjectByType<InventoryController>();
+            {
+                var inv = stationController.CurrentInteractor.GetComponentInParent<InventoryController>();
+                if (inv == null) inv = stationController.CurrentInteractor.GetComponentInChildren<InventoryController>();
+                if (inv != null) return inv;
+            }
+            if (InventoryController.LocalInstance != null) return InventoryController.LocalInstance;
+            return FindFirstObjectByType<InventoryController>();
         }
 
         private void SetStatus(string message) { if (statusText != null) statusText.text = message; }

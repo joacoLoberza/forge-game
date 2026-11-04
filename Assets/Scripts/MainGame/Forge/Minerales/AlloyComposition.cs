@@ -83,7 +83,7 @@ namespace ForjaGame.Forge
                                 comp.ingredients[i] = ing;
                             }
                         }
-                        comp.impurityPercentage = totalDed;
+                        comp.impurityPercentage = Mathf.Max(totalDed, Mathf.Clamp(impurity, 0, 95));
                     }
                     else if (impurity > 0 && comp.ingredients.Count > 0)
                     {
@@ -169,6 +169,8 @@ namespace ForjaGame.Forge
 
             float highestMinTemp = float.MinValue;
             float lowestMaxTemp = float.MaxValue;
+            float weightedCenter = 0f;
+            int distinctMetals = 0;
 
             foreach (var ing in ingredients)
             {
@@ -185,17 +187,25 @@ namespace ForjaGame.Forge
 
                 highestMinTemp = Mathf.Max(highestMinTemp, props.minOptimumTemp);
                 lowestMaxTemp = Mathf.Min(lowestMaxTemp, props.maxOptimumTemp);
+                weightedCenter += ((props.minOptimumTemp + props.maxOptimumTemp) * 0.5f) * weight;
+                distinctMetals++;
             }
 
-            if (highestMinTemp == float.MinValue) highestMinTemp = 750f;
+            if (highestMinTemp == float.MinValue) highestMinTemp = 780f;
 
-            // Ensure shared thermal range is at least 200°C for gameplay balance
-            float currentSpread = lowestMaxTemp - highestMinTemp;
-            if (currentSpread < 200f)
+            float finalMin, finalMax;
+            if (distinctMetals <= 1)
             {
-                float deficit = 200f - currentSpread;
-                highestMinTemp -= deficit * 0.5f;
-                lowestMaxTemp += deficit * 0.5f;
+                // Metal puro: área generosa (~220°C) para forja accesible
+                finalMin = highestMinTemp;
+                finalMax = lowestMaxTemp;
+            }
+            else
+            {
+                // Aleación: se intersectan los rangos y se concentra en 80°C para mantener el reto de timing
+                float center = (highestMinTemp <= lowestMaxTemp) ? (highestMinTemp + lowestMaxTemp) * 0.5f : weightedCenter;
+                finalMin = center - 40f;
+                finalMax = center + 40f;
             }
 
             return new MetalProperties
@@ -205,8 +215,8 @@ namespace ForjaGame.Forge
                 baseAttackSpeed = totalSpeed,
                 baseSharpness = totalDurability,
                 baseResistance = totalResistance,
-                minOptimumTemp = highestMinTemp,
-                maxOptimumTemp = lowestMaxTemp,
+                minOptimumTemp = finalMin,
+                maxOptimumTemp = finalMax,
                 smeltDuration = smeltTime
             };
         }

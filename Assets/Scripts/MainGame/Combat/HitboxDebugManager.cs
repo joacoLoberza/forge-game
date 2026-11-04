@@ -119,6 +119,7 @@ namespace ForjaGame.Combat
                     normal = { textColor = Color.white },
                     padding = new RectOffset(10, 10, 8, 8)
                 };
+                ForjaGame.UI.MedievalTypographyProvider.ApplyToGUIStyle(_hudBoxStyle, 12);
             }
 
             var equip = PlayerEquipmentController.Instance;
@@ -174,7 +175,7 @@ namespace ForjaGame.Combat
                           $"• <b>Combo:</b> {comboInfo}\n" +
                           $"• <b>Dummy Enemigo:</b> {enemyInfo}";
 
-            GUI.Box(new Rect(16, 16, 480, 115), text, _hudBoxStyle);
+            GUI.Box(new Rect(16, 114, 480, 115), text, _hudBoxStyle);
         }
 
         private void OnDestroy()

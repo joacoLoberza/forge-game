@@ -9,10 +9,12 @@ namespace ForjaGame.Core
     [RequireComponent(typeof(InventoryController))]
     public partial class PlayerMovement : MonoBehaviour
     {
+        public static PlayerMovement LocalInstance { get; set; }
+
         [Header("Movement Speeds")]
         [SerializeField] private float walkSpeed = 4.5f;
         [SerializeField] private float runSpeed = 7.8f;
-        [SerializeField] private float jumpForce = 5f;
+        [SerializeField] private float jumpForce = 3.2f;
         [SerializeField] private float rotationSpeed = 12f;
         [SerializeField] private float groundCheckDistance = 1.15f;
         [SerializeField] private LayerMask groundLayer = ~0;
@@ -29,6 +31,8 @@ namespace ForjaGame.Core
         private Vector2 _moveInputFromEvents;
         private bool _movementEnabled = true;
         private bool _isSprintingInput = false;
+        private bool _sprintInputFromEvents = false;
+        private Vector3 _prevRemotePos;
 
         private PlayerInput _playerInput;
         private ForjaGame.Combat.PlayerEquipmentController _equipmentCtrl;
@@ -54,7 +58,9 @@ namespace ForjaGame.Core
 
         private void Awake()
         {
+            if (LocalInstance == null) LocalInstance = this;
             _rb = GetComponent<Rigidbody>();
+            if (jumpForce > 3.6f) jumpForce = 3.2f;
             if (_rb != null)
             {
                 _rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -82,6 +88,11 @@ namespace ForjaGame.Core
             _attackCtrl = GetComponent<ForjaGame.Combat.AttackController>();
         }
 
+        private void OnDestroy()
+        {
+            if (LocalInstance == this) LocalInstance = null;
+        }
+
         public void SetAnimator(Animator anim)
         {
             animator = anim;
@@ -92,26 +103,35 @@ namespace ForjaGame.Core
         public void OnMove(InputAction.CallbackContext context)
         {
             _moveInputFromEvents = context.ReadValue<Vector2>();
-            if (_movementEnabled)
-            {
-                _moveInput = _moveInputFromEvents;
-            }
+            if (_movementEnabled) _moveInput = _moveInputFromEvents;
+        }
+
+        public void OnMove(InputValue value)
+        {
+            _moveInputFromEvents = value.Get<Vector2>();
+            if (_movementEnabled) _moveInput = _moveInputFromEvents;
         }
 
         public void OnJump(InputAction.CallbackContext context)
         {
-            if (!context.started || !_movementEnabled)
-                return;
+            if (!context.started || !_movementEnabled) return;
+            if (IsGrounded()) _rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        }
 
-            if (IsGrounded())
-            {
+        public void OnJump(InputValue value)
+        {
+            if (value.isPressed && _movementEnabled && IsGrounded())
                 _rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-            }
         }
 
         public void OnSprint(InputAction.CallbackContext context)
         {
-            _isSprintingInput = context.ReadValueAsButton();
+            _sprintInputFromEvents = context.ReadValueAsButton();
+        }
+
+        public void OnSprint(InputValue value)
+        {
+            _sprintInputFromEvents = value.isPressed;
         }
 
         private bool IsGrounded()
@@ -128,6 +148,7 @@ namespace ForjaGame.Core
                 _moveInput = Vector2.zero;
                 _moveInputFromEvents = Vector2.zero;
                 _isSprintingInput = false;
+                _sprintInputFromEvents = false;
                 if (_rb != null)
                 {
                     _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
@@ -138,6 +159,24 @@ namespace ForjaGame.Core
 
         private void Update()
         {
+            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
+            if (netObj != null && !netObj.IsOwner)
+            {
+                Vector3 disp = transform.position - _prevRemotePos;
+                disp.y = 0f;
+                float netSpeed = disp.magnitude / Mathf.Max(Time.deltaTime, 0.001f);
+                _prevRemotePos = transform.position;
+
+                if (animator == null) animator = GetComponentInChildren<Animator>();
+                if (animator != null)
+                {
+                    float remoteSpeed = netSpeed > 0.15f ? (netSpeed > 5.5f ? 2.0f : 1.0f) : 0f;
+                    animator.SetFloat("Speed", remoteSpeed, 0.1f, Time.deltaTime);
+                }
+                return;
+            }
+            _prevRemotePos = transform.position;
+
             if (_healthCtrl == null) _healthCtrl = GetComponent<ForjaGame.Combat.PlayerHealthController>();
             if (_healthCtrl != null && !_healthCtrl.IsAlive)
             {
@@ -148,46 +187,41 @@ namespace ForjaGame.Core
 
             if (_movementEnabled)
             {
-                if (_playerInput != null)
+                Vector2 input = _moveInputFromEvents;
+                var kb = Keyboard.current;
+                bool kbShift = false;
+                if (kb != null)
                 {
-                    // En modo PlayerInput (incluyendo local multiplayer), el input proviene de eventos aislados por dispositivo
-                    _moveInput = _moveInputFromEvents;
+                    float x = 0f, y = 0f;
+                    if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y += 1f;
+                    if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y -= 1f;
+                    if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x -= 1f;
+                    if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x += 1f;
+
+                    Vector2 direct = new Vector2(x, y);
+                    if (direct.sqrMagnitude > 0.01f) input = direct.normalized;
+
+                    kbShift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+                    if (kb.spaceKey.wasPressedThisFrame && IsGrounded() && _rb != null)
+                        _rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
                 }
-                else
-                {
-                    // Fallback directo a teclado si no hay PlayerInput configurado
-                    var kb = Keyboard.current;
-                    if (kb != null)
-                    {
-                        float x = 0f;
-                        float y = 0f;
-                        if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y += 1f;
-                        if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y -= 1f;
-                        if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x -= 1f;
-                        if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x += 1f;
 
-                        Vector2 directInput = new Vector2(x, y);
-                        if (directInput.sqrMagnitude > 0.01f)
-                            _moveInput = directInput.normalized;
-                        else
-                            _moveInput = Vector2.zero;
+                var gp = Gamepad.current;
+                bool gpSprint = gp != null && (gp.leftStickButton.isPressed || gp.rightTrigger.isPressed);
 
-                        _isSprintingInput = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
-
-                        if (kb.spaceKey.wasPressedThisFrame && IsGrounded())
-                        {
-                            _rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-                        }
-                    }
-                    else
-                    {
-                        _moveInput = _moveInputFromEvents;
-                    }
-                }
+                _isSprintingInput = kbShift || gpSprint || _sprintInputFromEvents;
+                _moveInput = input;
             }
             else
             {
                 _moveInput = Vector2.zero;
+                _isSprintingInput = false;
+            }
+
+            if (transform.position.y < -14.0f && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "MainMenu")
+            {
+                transform.position = new Vector3(playerIndex * 3.0f, 1.2f, 0f);
+                if (_rb != null) { _rb.linearVelocity = Vector3.zero; _rb.angularVelocity = Vector3.zero; }
             }
 
             if (animator == null)

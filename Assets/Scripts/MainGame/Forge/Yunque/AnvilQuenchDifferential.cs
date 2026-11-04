@@ -15,7 +15,7 @@ namespace ForjaGame.Forge
     public class AnvilQuenchDifferential : MonoBehaviour
     {
         [Header("Quench Basin Configuration")]
-        [SerializeField] private Vector3 waterBasinOffset = new Vector3(1.85f, -0.25f, 0.15f);
+        [SerializeField] private Vector3 waterBasinOffset = new Vector3(1.85f, -0.12f, 0.15f);
         [SerializeField] private ParticleSystem steamVFXPrefab;
         [SerializeField] private AudioClip sizzleAudioClip;
 
@@ -23,7 +23,9 @@ namespace ForjaGame.Forge
         private bool _isQuenching;
 
         public bool IsQuenching => _isQuenching;
+        public Vector3 WaterBasinOffset => waterBasinOffset;
         public Vector3 CurrentWaterTargetWorldPos => transform.TransformPoint(waterBasinOffset);
+        public void SetWaterBasinOffset(Vector3 offset) => waterBasinOffset = offset;
 
         public void Initialize(AnvilController anvil) => _anvil = anvil;
 
@@ -54,11 +56,11 @@ namespace ForjaGame.Forge
             {
                 Vector3 edgeDir = edgeVectors[i];
                 Quaternion dipRot = Quaternion.FromToRotation(edgeDir, Vector3.down) * originLocalRot;
-                Vector3 aboveWater = waterLocalPos + Vector3.up * 0.15f;
+                Vector3 aboveWater = waterLocalPos + Vector3.up * 0.10f;
 
-                yield return LerpTransform(ingotT, aboveWater, dipRot, 0.50f);
+                yield return LerpTransform(ingotT, aboveWater, dipRot, 0.45f);
 
-                Vector3 inWater = waterLocalPos + Vector3.down * 0.08f;
+                Vector3 inWater = waterLocalPos + Vector3.down * 0.04f;
                 yield return LerpTransform(ingotT, inWater, dipRot, 0.25f);
 
                 Vector3 worldWaterPoint = transform.TransformPoint(inWater);
@@ -69,6 +71,8 @@ namespace ForjaGame.Forge
                 }
                 if (audioSource != null && sound != null)
                     audioSource.PlayOneShot(sound);
+                else
+                    ForjaGame.Audio.ForgeAudioSystem.PlayQuenchSizzle(worldWaterPoint, 1.0f);
 
                 // Enfriamiento dinámico inmerso en agua: mínimo 4.5 segundos garantizados con vapor y siseo
                 float minImmersionTime = 4.5f;

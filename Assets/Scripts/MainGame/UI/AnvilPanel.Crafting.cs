@@ -44,6 +44,11 @@ namespace ForjaGame.UI
         [SerializeField] private Transform handlesContainer;
         [SerializeField] private GameObject emptyHandlesNotice;
 
+        public GameObject Step1WeaponSelection => step1WeaponSelection;
+        public GameObject Step2IngotSelection => step2IngotSelection;
+        public GameObject StepIngotConformation => stepIngotConformation;
+        public GameObject Step3HandleSelection => step3HandleSelection;
+
         private IngotData _selectedInventoryIngot;
         private HandleData _selectedInventoryHandle;
         private AnvilCraftingStep _currentStep = AnvilCraftingStep.WeaponSelection;
@@ -86,7 +91,7 @@ namespace ForjaGame.UI
             }
         }
 
-        private void EnsureStepContainers()
+        public void EnsureStepContainers()
         {
             if (step1WeaponSelection == null) step1WeaponSelection = FindChild("WeaponSelection") ?? FindChild("Step1");
             if (step2IngotSelection == null) step2IngotSelection = FindChild("IngotSelection") ?? FindChild("Step2");
@@ -98,28 +103,27 @@ namespace ForjaGame.UI
         private void EnsureConformationButtons()
         {
             if (stepIngotConformation == null) return;
+            var buttons = stepIngotConformation.GetComponentsInChildren<Button>(true);
             if (backFromConformationButton == null)
             {
-                foreach (var b in stepIngotConformation.GetComponentsInChildren<Button>(true))
+                foreach (var b in buttons)
                 {
                     string n = b.name.ToLower();
                     if (n.Contains("back") || n.Contains("atras") || n.Contains("regresar")) { backFromConformationButton = b; break; }
                 }
             }
             if (startForgingButton == null)
-            {
-                foreach (var b in stepIngotConformation.GetComponentsInChildren<Button>(true))
+                foreach (var b in buttons)
                     if (b != backFromConformationButton) { startForgingButton = b; break; }
-            }
+
             if (backFromConformationButton != null) BindPressDown(backFromConformationButton, OnBackFromConformationClicked);
             if (startForgingButton != null) BindPressDown(startForgingButton, Close);
         }
 
         private GameObject FindChild(string tag)
         {
-            var all = GetComponentsInChildren<Transform>(true);
-            for (int i = 0; i < all.Length; i++)
-                if (all[i] != transform && all[i].name.ToLower().Contains(tag.ToLower())) return all[i].gameObject;
+            foreach (var t in GetComponentsInChildren<Transform>(true))
+                if (t != transform && t.name.ToLower().Contains(tag.ToLower())) return t.gameObject;
             return null;
         }
 
@@ -143,11 +147,8 @@ namespace ForjaGame.UI
             _selectedInventoryIngot = ingot;
             _selectedIngotSize = ingot.size;
 
-            InventoryController inventory = GetCurrentPlayerInventory();
-            inventory?.RemoveIngot(ingot);
-
-            if (anvilController != null)
-                anvilController.PlaceIngot(ingot, _selectedWeapon);
+            GetCurrentPlayerInventory()?.RemoveIngot(ingot);
+            anvilController?.PlaceIngot(ingot, _selectedWeapon);
 
             SetStatus($"{ingot.DisplayName} posicionado en el yunque. ¡Listo para martillar!");
             Close();
@@ -164,10 +165,7 @@ namespace ForjaGame.UI
                 }
                 IngotData retrieved = anvilController.CancelAndRetrieveIngot();
                 if (retrieved != null)
-                {
-                    InventoryController inventory = GetCurrentPlayerInventory();
-                    inventory?.AddIngot(retrieved);
-                }
+                    GetCurrentPlayerInventory()?.AddIngot(retrieved);
             }
             _selectedInventoryIngot = null;
             SetStep(AnvilCraftingStep.IngotSelection);
@@ -212,25 +210,23 @@ namespace ForjaGame.UI
             SetStep(AnvilCraftingStep.WeaponSelection);
             Close();
             stationController?.ReleaseStation();
-            var gs = FindFirstObjectByType<ForjaGame.Core.GameStateController>();
-            gs?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Exploration);
         }
 
         private void RefreshIngotsList()
         {
             if (ingotsContainer == null) return;
-            ForgeScrollViewStyler.ConfigureFixedScrollView(ingotsContainer);
-            foreach (Transform child in ingotsContainer) Destroy(child.gameObject);
+            Transform targetContent = ForgeScrollViewStyler.ResolveContentContainer(ingotsContainer);
+            ForgeScrollViewStyler.ConfigureFixedScrollView(targetContent);
+            foreach (Transform child in targetContent) Destroy(child.gameObject);
 
-            InventoryController inventory = GetCurrentPlayerInventory();
-            IReadOnlyList<IngotData> ingots = inventory != null ? inventory.Ingots : null;
-
+            IReadOnlyList<IngotData> ingots = GetCurrentPlayerInventory()?.Ingots;
             bool hasIngots = ingots != null && ingots.Count > 0;
             if (emptyIngotsNotice != null) emptyIngotsNotice.SetActive(!hasIngots);
             if (!hasIngots)
             {
                 if (emptyIngotsNotice == null)
-                    ForgeScrollViewStyler.CreateNoticeEntry(ingotsContainer, "No hay lingotes en el inventario.\n¡Comprime un bloom en la prensa!");
+                    ForgeScrollViewStyler.CreateNoticeEntry(targetContent, "No hay lingotes en el inventario.\n¡Comprime un bloom en la prensa!");
                 return;
             }
 
@@ -239,8 +235,8 @@ namespace ForjaGame.UI
                 IngotData ingot = ingots[i];
                 string label = $"{ingot.DisplayName} ({ingot.SizeLabel}) • Pureza: {ingot.PurityPercentage}%";
                 Color metalColor = ingot.composition != null ? MetalProperties.GetMetalColor(ingot.composition.CalculateWeightedProperties().metalType) : Color.gray;
-                Sprite icon = defaultIngotSprite ?? ForgeSpriteDatabase.Instance?.defaultIngotSprite;
-                ForgeScrollViewStyler.CreateRowEntry(ingotsContainer, label, icon, metalColor, false, () => SelectIngot(ingot));
+                Sprite icon = defaultIngotSprite ?? ForgeSpriteDatabase.Instance?.defaultIngotSprite ?? ProceduralItemIconProvider.GetItemIcon(ingot.DisplayName, "Ingot");
+                ForgeScrollViewStyler.CreateRowEntry(targetContent, label, icon, metalColor, false, () => SelectIngot(ingot));
             }
         }
     }

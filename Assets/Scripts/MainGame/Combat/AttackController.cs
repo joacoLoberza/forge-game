@@ -11,9 +11,8 @@ namespace ForjaGame.Combat
     {
         [Header("Configuración de Ataque")]
         [SerializeField] private int damage = 1;
-        [SerializeField] private float attackRange = 2.0f;
+        [SerializeField] private float attackRange = 1.4f;
         [SerializeField] private float attackCooldown = 0.5f;
-        [SerializeField] private float attackAngleCos = 0.35f;
         [SerializeField] private LayerMask targetLayers = ~0;
         [SerializeField] private GameStateController gameStateController;
 
@@ -46,13 +45,14 @@ namespace ForjaGame.Combat
         private PlayerInput _playerInput;
         private PlayerEquipmentController _equipmentCtrl;
         private PlayerMovement _movementCtrl;
-
+        private bool _attackInputRequested;
         public bool IsAttacking => _isAttacking;
         public int CurrentComboIndex => _currentComboIndex;
         public int MaxComboSteps => _maxComboSteps;
         public AttackMove ActiveMove => _activeMove;
         public bool IsHitStopped => Time.time < _hitStopUntil;
-        public bool HasPickaxeEquipped => _equippedWeapon != null && (_equippedWeapon.weaponType == WeaponType.Hammer || _equippedWeapon.weaponType == WeaponType.Axe);
+        public bool HasPickaxeEquipped => _equippedWeapon != null && _equippedWeapon.weaponType == WeaponType.Pickaxe;
+        public event System.Action<int> OnAttackTriggered;
 
         private void Awake()
         {
@@ -69,15 +69,16 @@ namespace ForjaGame.Combat
 
         private void Update()
         {
-            if (_playerInput == null)
+            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
+            bool isLocal = netObj == null || netObj.IsOwner;
+            bool mouseTriggered = isLocal && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+            if (mouseTriggered || _attackInputRequested)
             {
-                if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+                _attackInputRequested = false;
+                if (UnityEngine.EventSystems.EventSystem.current == null ||
+                    !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
                 {
-                    if (UnityEngine.EventSystems.EventSystem.current == null ||
-                        !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
-                    {
-                        HandleAttackInput();
-                    }
+                    HandleAttackInput();
                 }
             }
 
@@ -122,11 +123,12 @@ namespace ForjaGame.Combat
 
         public void OnAttack(InputAction.CallbackContext context)
         {
-            if (context.started && (UnityEngine.EventSystems.EventSystem.current == null ||
-                !UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject()))
-            {
-                HandleAttackInput();
-            }
+            if (context.started) _attackInputRequested = true;
+        }
+
+        public void OnAttack(InputValue value)
+        {
+            if (value.isPressed) _attackInputRequested = true;
         }
 
         private void HandleAttackInput()
@@ -138,7 +140,7 @@ namespace ForjaGame.Combat
 
         public void Attack()
         {
-            if (UI.Core.UIPanelBase.IsAnyPanelOpen || Cursor.lockState != CursorLockMode.Locked) return;
+            if (UI.Core.UIPanelBase.IsAnyPanelOpen) return;
             if (AnvilController.Instance != null && (AnvilController.Instance.IsForging || AnvilController.Instance.HasIngotOnAnvil || AnvilController.Instance.IsCarvingHandle)) return;
             if (gameStateController != null && !gameStateController.IsInState(GameState.Exploration)) return;
 
@@ -148,7 +150,7 @@ namespace ForjaGame.Combat
             if (_isAttacking)
             {
                 float elapsed = Time.time - _currentAttackStartTime;
-                if (elapsed >= attackDuration * 0.25f && _currentComboIndex + 1 < _maxComboSteps)
+                if (elapsed >= attackDuration * 0.15f && _currentComboIndex + 1 < _maxComboSteps)
                 {
                     _hasBufferedNextStrike = true;
                 }
@@ -176,10 +178,10 @@ namespace ForjaGame.Combat
 
             _activeMove = WeaponAnalyzer.ResolveMove(desired, _currentAnalysis);
 
-            float baseDur = _activeMove != null ? _activeMove.baseDuration : (_equippedWeapon != null ? _equippedWeapon.GetBaseAttackDuration() : 0.55f);
+            float baseDur = _activeMove != null ? _activeMove.baseDuration : (_equippedWeapon != null ? _equippedWeapon.GetBaseAttackDuration() : 1.05f);
             float speedMult = _equippedWeapon != null ? Mathf.Max(0.5f, _equippedWeapon.attackSpeed) : 1.0f;
             attackDuration = baseDur / speedMult;
-            float linkRatio = _activeMove != null ? Mathf.Max(0.62f, _activeMove.hitWindowEnd + 0.05f) : (_equippedWeapon != null ? _equippedWeapon.GetComboLinkRatio() : 0.68f);
+            float linkRatio = _activeMove != null ? Mathf.Clamp(_activeMove.hitWindowEnd + 0.20f, 0.82f, 0.88f) : (_equippedWeapon != null ? _equippedWeapon.GetComboLinkRatio() : 0.85f);
             comboTransitionTime = attackDuration * linkRatio;
 
             // Reorientar al iniciar el golpe hacia la dirección de ataque/cámara
@@ -207,43 +209,21 @@ namespace ForjaGame.Combat
                 paladinAnim.SetFloat("AttackSpeed", speedMult);
                 paladinAnim.SetInteger("ComboIndex", comboIndex);
                 paladinAnim.SetBool("IsAttacking", true);
-                paladinAnim.CrossFadeInFixedTime($"Attack{comboIndex + 1}", 0.09f, 0);
+                if (_equippedWeapon != null && _equippedWeapon.weaponType == WeaponType.Pickaxe)
+                {
+                    paladinAnim.CrossFadeInFixedTime("Attack1", 0.10f, 0);
+                }
+                else
+                {
+                    int combatLayer = (paladinAnim.layerCount > 1) ? 1 : 0;
+                    if (combatLayer == 1) paladinAnim.SetLayerWeight(1, 1f);
+                    paladinAnim.CrossFadeInFixedTime($"Attack{comboIndex + 1}", 0.12f, combatLayer);
+                }
             }
-        }
-
-        private void EnsureComboMoves()
-        {
-            if (_currentComboMoves == null || _currentComboMoves.Length != 5)
-            {
-                _currentAnalysis = WeaponAnalyzer.Analyze(_equippedWeapon);
-                _currentComboMoves = ComboCatalog.GetCombo(_currentAnalysis.archetype);
-                _maxComboSteps = 5;
-            }
-        }
-
-        private void EndAttack()
-        {
-            _isAttacking = false;
-            _hasBufferedNextStrike = false;
-            _currentComboIndex = 0;
-            _activeMove = null;
-            _hitTargetsThisSwing.Clear();
-            _comboAvailableTime = Time.time + postComboCooldown;
-
-            var equip = GetEquipment();
-            var paladinAnim = equip?.PaladinAnimator;
-            if (paladinAnim != null)
-            {
-                paladinAnim.SetBool("IsAttacking", false);
-                paladinAnim.ResetTrigger("Attack");
-                paladinAnim.CrossFadeInFixedTime("Locomotion", 0.12f, 0);
-            }
-
-            if (_attackHitboxVisualizer != null)
-            {
-                _attackHitboxVisualizer.IsVolumeActive = false;
-                _attackHitboxVisualizer.IsConnecting = false;
-            }
+            if (equip?.EdgeAligner != null) { equip.EdgeAligner.isAttacking = true; equip.EdgeAligner.NotifyCombatAlert(5.0f); }
+            bool isHeavy2H = _equippedWeapon != null && _equippedWeapon.GetCombatStance() != WeaponCombatStance.OneHanded;
+            ForjaGame.Audio.ForgeAudioSystem.PlayWeaponSwing(transform.position, isHeavy2H);
+            OnAttackTriggered?.Invoke(comboIndex);
         }
     }
 }

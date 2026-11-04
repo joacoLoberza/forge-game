@@ -6,8 +6,8 @@ using TMPro;
 namespace ForjaGame.UI
 {
     /// <summary>
-    /// Individual item entry in the inventory journal list.
-    /// Displays item title and representative sketch icon in journal style.
+    /// Entrada individual de objeto en el diario de inventario y selectores de forja.
+    /// Muestra icono representativo nítido (procedural si no hay sprite) y etiqueta auto-escalable sin solapes.
     /// </summary>
     public class InventoryItemEntryUI : MonoBehaviour
     {
@@ -16,10 +16,6 @@ namespace ForjaGame.UI
         [SerializeField] private Image iconImage;
         [SerializeField] private Image selectionHighlight;
         [SerializeField] private Image backgroundImage;
-
-        [Header("Journal Colors")]
-        [SerializeField] private Color normalColor = new Color(0.92f, 0.90f, 0.86f, 1f);
-        [SerializeField] private Color selectedColor = new Color(1f, 0.85f, 0.25f, 1f);
 
         private Action _onClickAction;
         private bool _isSelected;
@@ -43,7 +39,23 @@ namespace ForjaGame.UI
                 var images = GetComponentsInChildren<Image>(true);
                 for (int i = 0; i < images.Length; i++)
                 {
-                    if (images[i].gameObject.name.Contains("Icon")) { iconImage = images[i]; break; }
+                    if (images[i].gameObject.name.Equals("Icon", StringComparison.OrdinalIgnoreCase))
+                    {
+                        iconImage = images[i];
+                        break;
+                    }
+                }
+                if (iconImage == null)
+                {
+                    for (int i = 0; i < images.Length; i++)
+                    {
+                        string n = images[i].gameObject.name;
+                        if (n.Contains("Icon") && !n.Contains("Slot") && images[i].gameObject != gameObject)
+                        {
+                            iconImage = images[i];
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -55,22 +67,26 @@ namespace ForjaGame.UI
                 rt.anchorMin = new Vector2(0, 0.5f);
                 rt.anchorMax = new Vector2(0, 0.5f);
                 rt.pivot = new Vector2(0, 0.5f);
-                rt.anchoredPosition = new Vector2(8, 0);
-                rt.sizeDelta = new Vector2(34, 34);
+                rt.anchoredPosition = new Vector2(10, 0);
+                rt.sizeDelta = new Vector2(36, 36);
 
                 iconImage = iconObj.GetComponent<Image>();
                 iconImage.preserveAspect = true;
                 iconImage.raycastTarget = false;
             }
+            else iconImage.preserveAspect = true;
 
-            // Always ensure the label is cleanly positioned to the right of the icon
             if (labelText != null)
             {
                 var lrt = labelText.rectTransform;
                 lrt.anchorMin = Vector2.zero;
                 lrt.anchorMax = Vector2.one;
-                lrt.offsetMin = new Vector2(48, 0);
-                lrt.offsetMax = new Vector2(-8, 0);
+                lrt.offsetMin = new Vector2(58, 2);
+                lrt.offsetMax = new Vector2(-10, -2);
+                labelText.enableAutoSizing = true;
+                labelText.fontSizeMin = 10f;
+                labelText.fontSizeMax = 14.5f;
+                labelText.overflowMode = TextOverflowModes.Ellipsis;
             }
         }
 
@@ -83,8 +99,10 @@ namespace ForjaGame.UI
 
             if (iconImage != null)
             {
-                iconImage.sprite = icon;
-                iconImage.color = icon != null ? Color.white : (iconColor ?? Color.gray);
+                Sprite resolvedSprite = icon != null ? icon : ProceduralItemIconProvider.GetItemIcon(title);
+                iconImage.sprite = resolvedSprite;
+                iconImage.color = iconColor ?? Color.white;
+                iconImage.gameObject.SetActive(true);
             }
 
             SetSelected(isSelected);
@@ -97,9 +115,9 @@ namespace ForjaGame.UI
 
             if (backgroundImage != null)
             {
-                backgroundImage.color = isSelected
-                    ? new Color(0.35f, 0.28f, 0.12f, 0.9f)
-                    : new Color(0.18f, 0.19f, 0.22f, 0.85f);
+                backgroundImage.sprite = isSelected ? BookTextureBuilder.GetTitlePlaqueSprite() : BookTextureBuilder.GetParchmentBannerSprite();
+                backgroundImage.type = Image.Type.Sliced;
+                backgroundImage.color = isSelected ? Color.white : new Color(0.92f, 0.86f, 0.75f, 0.98f);
             }
 
             if (selectionHighlight != null)
@@ -107,8 +125,9 @@ namespace ForjaGame.UI
 
             if (labelText != null)
             {
-                labelText.color = isSelected ? selectedColor : normalColor;
-                labelText.fontStyle = isSelected ? FontStyles.Bold : FontStyles.Normal;
+                MedievalTypographyProvider.ApplyToTMP(labelText);
+                labelText.color = isSelected ? ForgeCanvasThemeStyler.GoldTitleInk : ForgeCanvasThemeStyler.DarkInk;
+                labelText.fontStyle = FontStyles.Bold;
             }
         }
     }

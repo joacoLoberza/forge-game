@@ -21,7 +21,8 @@ namespace ForjaGame.Forge
                 if (anvilController.CompleteHandleCarving(out Mesh handleMesh, out HandleIntegrityResult validation))
                 {
                     if (hammerAudioSource != null && strikeSound != null) hammerAudioSource.PlayOneShot(strikeSound);
-                    var asm = anvilController.GetComponent<AnvilAssemblyController>() ?? anvilController.gameObject.AddComponent<AnvilAssemblyController>();
+                    if (!anvilController.TryGetComponent<AnvilAssemblyController>(out var asm))
+                        asm = anvilController.gameObject.AddComponent<AnvilAssemblyController>();
                     asm.BeginAssembly(anvilController, validation, handleMesh, hammerAudioSource, strikeSound, sparkVFXPrefab, () => AssembleAndDeliverWeapon(validation, handleMesh));
                     return true;
                 }
@@ -115,8 +116,11 @@ namespace ForjaGame.Forge
             }
 
             float totalLen = Mathf.Max(0.35f, maxMetalX - lowestHandleX);
-            float totalCm = Mathf.Round(totalLen * 100f);
-            HandleLength hLen = totalLen < 0.90f ? HandleLength.Short : (totalLen <= 1.40f ? HandleLength.Medium : HandleLength.Long);
+            float shaftLen = Mathf.Max(0.25f, val.tangX1 - lowestHandleX);
+            bool isShaftWeapon = anvilController != null && (anvilController.SelectedWeaponType == WeaponType.Axe || anvilController.SelectedWeaponType == WeaponType.Hammer);
+            HandleLength hLen = isShaftWeapon
+                ? (shaftLen < 0.56f ? HandleLength.Short : (shaftLen <= 0.88f ? HandleLength.Medium : HandleLength.Long))
+                : (totalLen < 0.88f ? HandleLength.Short : (totalLen <= 1.38f ? HandleLength.Medium : HandleLength.Long));
             float baseRng = anvilController != null ? (anvilController.SelectedWeaponType switch { WeaponType.Sword => 1.25f, WeaponType.Axe => 1.10f, WeaponType.Hammer => 1.35f, _ => 1.10f }) : 1.10f;
             float rangeMod = Mathf.Max(0.40f, totalLen / baseRng), speedMod = Mathf.Clamp((1.10f - totalLen) * 0.35f, -0.30f, +0.30f);
 
@@ -182,7 +186,7 @@ namespace ForjaGame.Forge
         {
             if (anvilController == null || !anvilController.IsCarvingHandle) return;
 
-            float bw = 720f, bh = _isDiscardingHandle ? 52f : 86f;
+            float bw = 740f, bh = _isDiscardingHandle ? 56f : 108f;
             float bx = (Screen.width - bw) * 0.5f;
             float by = 68f;
 

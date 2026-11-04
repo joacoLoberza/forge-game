@@ -29,6 +29,12 @@ namespace ForjaGame.UI
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private Button closeButton;
 
+                public Button SwordButton => swordButton;
+        public Button AxeButton => axeButton;
+        public Button HammerButton => hammerButton;
+        public Button CloseButton => closeButton;
+        public TMP_Text StatusText => statusText;
+
         private WeaponType _selectedWeapon = WeaponType.Sword;
         private HandleLength _selectedHandle = HandleLength.Medium;
         private ItemSize _selectedIngotSize = ItemSize.Medium;
@@ -99,6 +105,7 @@ namespace ForjaGame.UI
         {
             base.OnOpened();
             EnsurePanelStyling();
+            ForgeCanvasThemeStyler.StyleAnvilPanel(this);
             if (anvilController != null && anvilController.HasIngotOnAnvil && anvilController.IsQuenched)
                 SetStep(AnvilCraftingStep.HandleSelection);
             else if (anvilController != null && anvilController.HasIngotOnAnvil && !anvilController.IsQuenched && anvilController.CurrentHits == 0)
@@ -178,8 +185,9 @@ namespace ForjaGame.UI
         private void RefreshHandlesList()
         {
             if (handlesContainer == null) return;
-            ForgeScrollViewStyler.ConfigureFixedScrollView(handlesContainer);
-            foreach (Transform child in handlesContainer) Destroy(child.gameObject);
+            Transform targetContent = ForgeScrollViewStyler.ResolveContentContainer(handlesContainer);
+            ForgeScrollViewStyler.ConfigureFixedScrollView(targetContent);
+            foreach (Transform child in targetContent) Destroy(child.gameObject);
 
             InventoryController inventory = GetCurrentPlayerInventory();
             IReadOnlyList<HandleData> handles = inventory != null ? inventory.Handles : null;
@@ -189,7 +197,7 @@ namespace ForjaGame.UI
             if (!hasHandles)
             {
                 if (emptyHandlesNotice == null)
-                    ForgeScrollViewStyler.CreateNoticeEntry(handlesContainer, "No hay mangos en el inventario.");
+                    ForgeScrollViewStyler.CreateNoticeEntry(targetContent, "No hay mangos en el inventario.");
                 return;
             }
 
@@ -217,7 +225,7 @@ namespace ForjaGame.UI
                 string label = $"{handle.DisplayName}{countSuffix} (Alcance x{handle.rangeModifier:F2}, Vel {spd})";
 
                 Sprite icon = GetHandleSprite(handle.length);
-                ForgeScrollViewStyler.CreateRowEntry(handlesContainer, label, icon, new Color(0.6f, 0.45f, 0.3f, 1f), false, () => OnHandleChosen(handle));
+                ForgeScrollViewStyler.CreateRowEntry(targetContent, label, icon, new Color(0.6f, 0.45f, 0.3f, 1f), false, () => OnHandleChosen(handle));
             }
         }
 

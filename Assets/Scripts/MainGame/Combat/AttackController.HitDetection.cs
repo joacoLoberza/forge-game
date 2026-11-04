@@ -73,24 +73,34 @@ namespace ForjaGame.Combat
 
         public void GetAttackHitboxParams(out Vector3 localCenter, out Vector3 boxSize)
         {
+            if (HasPickaxeEquipped)
+            {
+                // Rango de golpe del pico intuitivo y realista cuerpo a cuerpo
+                float pickaxeReach = 1.45f;
+                boxSize = new Vector3(1.15f, 1.70f, pickaxeReach);
+                localCenter = new Vector3(0f, 0.10f, pickaxeReach * 0.5f);
+                return;
+            }
+
             AttackMotionType motion = _activeMove != null ? _activeMove.motionType : AttackMotionType.HorizontalSlash;
-            float range = Mathf.Max(1.6f, attackRange);
+            float range = Mathf.Max(1.2f, attackRange);
+            float forwardDepth = Mathf.Max(1.4f, range * 1.15f);
+            float lateralWidth = Mathf.Max(1.2f, range * 0.95f);
+            float verticalHeight = 2.0f;
 
             switch (motion)
             {
                 case AttackMotionType.Thrust:
-                    boxSize = new Vector3(0.75f, 0.80f, range);
-                    localCenter = new Vector3(0f, 0.90f, range * 0.5f);
+                    boxSize = new Vector3(Mathf.Max(0.9f, lateralWidth * 0.6f), verticalHeight, forwardDepth + 0.3f);
+                    localCenter = new Vector3(0f, 0f, (forwardDepth + 0.3f) * 0.5f);
                     break;
                 case AttackMotionType.OverheadSlam:
-                    boxSize = new Vector3(0.95f, 1.50f, range * 0.85f);
-                    localCenter = new Vector3(0f, 0.75f, (range * 0.85f) * 0.5f);
+                    boxSize = new Vector3(Mathf.Max(1.1f, lateralWidth * 0.7f), verticalHeight + 0.3f, forwardDepth);
+                    localCenter = new Vector3(0f, 0f, forwardDepth * 0.5f);
                     break;
                 default:
-                    float lateralWidth = range * 1.40f;
-                    float forwardDepth = range * 0.65f;
-                    boxSize = new Vector3(lateralWidth, 0.90f, forwardDepth);
-                    localCenter = new Vector3(0f, 0.95f, forwardDepth * 0.5f);
+                    boxSize = new Vector3(lateralWidth, verticalHeight, forwardDepth);
+                    localCenter = new Vector3(0f, 0f, forwardDepth * 0.5f);
                     break;
             }
         }
@@ -102,7 +112,7 @@ namespace ForjaGame.Combat
             Vector3 halfExtents = boxSize * 0.5f;
             Quaternion orientation = transform.rotation;
 
-            Collider[] targets = Physics.OverlapBox(worldCenter, halfExtents, orientation, targetLayers, QueryTriggerInteraction.Ignore);
+            Collider[] targets = Physics.OverlapBox(worldCenter, halfExtents, orientation, targetLayers, QueryTriggerInteraction.Collide);
             bool connected = false;
 
             foreach (Collider target in targets)
@@ -118,13 +128,24 @@ namespace ForjaGame.Combat
                 // Garantía: 1 solo impacto por objetivo por cada golpe
                 if (!_hitTargetsThisSwing.Add(d)) continue;
 
+                // El pico solamente afecta a menas de recursos, no a enemigos
+                if (_equippedWeapon != null && _equippedWeapon.weaponType == WeaponType.Pickaxe && d is not ResourceNodeController)
+                {
+                    continue;
+                }
+
                 connected = true;
                 bool isFinisher = _activeMove != null && _activeMove.IsFinisher;
                 float comboMult = _activeMove != null ? _activeMove.damageMultiplier : (isFinisher ? 1.65f : 1.0f);
                 int finalDamage = Mathf.Max(1, Mathf.RoundToInt(damage * comboMult));
 
                 if (d is ResourceNodeController node) node.TakeDamageFrom(finalDamage, gameObject);
-                else d.TakeDamage(finalDamage);
+                else
+                {
+                    d.TakeDamage(finalDamage);
+                    bool heavyHit = isFinisher || (_equippedWeapon != null && _equippedWeapon.GetCombatStance() != WeaponCombatStance.OneHanded);
+                    ForjaGame.Audio.ForgeAudioSystem.PlayHitImpact(target.transform.position, d is GolemEnemyController, heavyHit);
+                }
 
                 if (isFinisher) TriggerImpulseOnPlayerCamera(0.09f);
                 else TriggerImpulseOnPlayerCamera(0.04f);

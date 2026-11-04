@@ -70,16 +70,15 @@ namespace ForjaGame.Interaction
 
         private void Update()
         {
+            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
+            if (netObj != null && !netObj.IsOwner) return;
+
             _currentTarget = GetStationInsideInteractionSphere();
 
-            // Solo polling fallback manual de teclado si NO hay PlayerInput asignado a este jugador
-            if (_playerInput == null)
+            var kb = Keyboard.current;
+            if (kb != null && kb.fKey.wasPressedThisFrame)
             {
-                var kb = Keyboard.current;
-                if (kb != null && kb.fKey.wasPressedThisFrame)
-                {
-                    HandleInteractInput();
-                }
+                HandleInteractInput();
             }
         }
 
@@ -87,6 +86,11 @@ namespace ForjaGame.Interaction
         {
             if (!context.started) return;
             HandleInteractInput();
+        }
+
+        public void OnInteract(InputValue value)
+        {
+            if (value.isPressed) HandleInteractInput();
         }
 
         private void HandleInteractInput()
@@ -123,6 +127,7 @@ namespace ForjaGame.Interaction
             IInteractable target = _currentTarget ?? GetStationInsideInteractionSphere();
             if (target != null && target.CanInteract(gameObject))
             {
+                ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
                 target.Interact(gameObject);
             }
         }
@@ -179,24 +184,29 @@ namespace ForjaGame.Interaction
 
         private void OnGUI()
         {
+            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
+            if (netObj != null && !netObj.IsOwner) return;
+
             if (_currentTarget == null || Cursor.lockState == CursorLockMode.None) return;
 
             if (_promptStyle == null)
             {
-                _promptStyle = new GUIStyle(GUI.skin.box)
+                _promptStyle = new GUIStyle
                 {
+                    normal = { background = ForjaGame.UI.BookTextureBuilder.GetTitlePlaqueSprite().texture, textColor = new Color(0.99f, 0.91f, 0.68f) },
+                    border = new RectOffset(16, 16, 12, 12),
+                    padding = new RectOffset(16, 16, 6, 6),
                     alignment = TextAnchor.MiddleCenter,
-                    fontSize = 14,
-                    fontStyle = FontStyle.Bold
+                    fontSize = 15,
+                    fontStyle = FontStyle.Bold,
+                    richText = true
                 };
-                _promptStyle.normal.textColor = new Color(1.0f, 0.88f, 0.45f);
+                ForjaGame.UI.MedievalTypographyProvider.ApplyToGUIStyle(_promptStyle);
             }
 
-            int pIdx = _playerMovement != null ? _playerMovement.PlayerIndex : 0;
-            string keyPrompt = pIdx == 0 ? "[F / X]" : "[L / X]";
-            string text = $"{keyPrompt} {_currentTarget.InteractionPrompt}";
-            float w = 270f;
-            float h = 36f;
+            string text = $"<b>[F]</b>  {_currentTarget.InteractionPrompt}";
+            float w = Mathf.Clamp(text.Length * 8.2f + 46f, 290f, 560f);
+            float h = 42f;
 
             // En pantalla dividida posicionar en la mitad correspondiente de la pantalla
             float posX = (Screen.width - w) * 0.5f;

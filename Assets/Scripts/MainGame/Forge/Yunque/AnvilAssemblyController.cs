@@ -10,8 +10,10 @@ namespace ForjaGame.Forge
     /// <summary>
     /// Controlador interactivo de ensamblaje en el yunque:
     /// Posicionamiento estricto por silueta del lingote cortado, deslizamiento e inspección.
+    /// La lógica de interfaz inmediata reside en AnvilAssemblyController.GUI.cs.
+    /// Cumple con las restricciones de desarrollo (< 250 líneas).
     /// </summary>
-    public class AnvilAssemblyController : MonoBehaviour
+    public partial class AnvilAssemblyController : MonoBehaviour
     {
         private AssemblyStage _stage = AssemblyStage.Positioning; private GameObject _bladeObj;
         private Vector3 _bladeTargetLocalPos, _bladeStartLocalPos, _handleBaseLocalPos;
@@ -135,7 +137,9 @@ namespace ForjaGame.Forge
             if (_anvil.ForgedBladeMesh != null)
                 foreach (var v in _anvil.ForgedBladeMesh.vertices) { Vector3 p = CustomHeadRotation * v + _bladeTargetLocalPos; if (p.x > maxMetalX) maxMetalX = p.x; }
             float totalLen = Mathf.Max(0.35f, maxMetalX - lowestHandleX), totalCm = Mathf.Round(totalLen * 100f);
-            HandleLength hLen = totalLen < 0.90f ? HandleLength.Short : (totalLen <= 1.40f ? HandleLength.Medium : HandleLength.Long);
+            float shaftLen = Mathf.Max(0.25f, val.tangX1 - lowestHandleX);
+            bool isShaftW = _anvil.SelectedWeaponType == WeaponType.Axe || _anvil.SelectedWeaponType == WeaponType.Hammer;
+            HandleLength hLen = isShaftW ? (shaftLen < 0.56f ? HandleLength.Short : (shaftLen <= 0.88f ? HandleLength.Medium : HandleLength.Long)) : (totalLen < 0.88f ? HandleLength.Short : (totalLen <= 1.38f ? HandleLength.Medium : HandleLength.Long));
             float baseRng = _anvil.SelectedWeaponType switch { WeaponType.Sword => 1.25f, WeaponType.Axe => 1.10f, WeaponType.Hammer => 1.35f, _ => 1.10f };
             float rangeMod = Mathf.Max(0.40f, totalLen / baseRng), speedMod = Mathf.Clamp((1.10f - totalLen) * 0.35f, -0.30f, +0.30f);
             bool isRefined = val.gripDiameter >= 0.025f && val.gripDiameter <= 0.065f;
@@ -193,6 +197,7 @@ namespace ForjaGame.Forge
                 if (t >= 1f) {
                     _stage = AssemblyStage.Inspection; _bladeObj.transform.localPosition = _bladeTargetLocalPos;
                     if (_strikeSound != null && _audioSource != null) _audioSource.PlayOneShot(_strikeSound);
+                    else ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(_bladeObj.transform.position, 1.0f, 0.4f);
                     if (_vfxPrefab != null) { var fx = Instantiate(_vfxPrefab, _bladeObj.transform.position, Quaternion.identity); Destroy(fx.gameObject, 1.5f); }
                 }
             }
@@ -205,59 +210,6 @@ namespace ForjaGame.Forge
         }
 
         private void FinishAssembly() { if (_anvil?.IngotTransform != null) _anvil.IngotTransform.localPosition = _handleBaseLocalPos; if (_bladeObj != null) Destroy(_bladeObj); _bladeObj = null; _playerMovement?.SetMovementEnabled(true); _onFinishedCallback?.Invoke(); Destroy(this); }
-
-        private void OnGUI()
-        {
-            if (_bladeObj == null) return;
-            EnsureStyles();
-
-            if (_stage == AssemblyStage.Positioning)
-            {
-                float w = 720f, h = 90f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 25f;
-                string wTitle = _anvil?.SelectedWeaponType == WeaponType.Hammer ? "MARTILLO" : (_anvil?.SelectedWeaponType == WeaponType.Sword ? "ESPADA" : "HACHA");
-                string status = !IsContactingEye
-                    ? (_anvil?.SelectedWeaponType == WeaponType.Sword ? "<color=#FF5533><b>ESPIGA FUERA DE RANGO:</b> La espiga debe entrar en el mango sin sobresalir al aire.</color>" : "<color=#FF5533><b>ALINEACIÓN FUERA DE RANGO:</b> El mango debe estar contenido dentro del lingote en todos sus bordes.</color>")
-                    : "<color=#33FFAA><b>¡ENCASTRE ALINEADO!</b> Encastre correcto sin holguras. Haz [Click Izquierdo] para deslizar la pieza.</color>";
-                GUI.Box(new Rect(x, y, w, h), $"<b>ENSAMBLAJE DE {wTitle}:</b> [Q]/[E]/[R]: Rotar ({_rotationStep * 90}°) • [A]/[D]/[W]/[S]: Ajustar en Área del Lingote ({_tangLength * 100f:F0}cm)\n{status}", _hudStyle);
-            }
-            else if (_stage == AssemblyStage.Sliding)
-            {
-                string part = _anvil?.SelectedWeaponType == WeaponType.Sword ? "HOJA DE LA ESPADA" : $"CABEZA DEL {(_anvil?.SelectedWeaponType == WeaponType.Hammer ? "MARTILLO" : "HACHA")}";
-                GUI.Box(new Rect((Screen.width - 540f) * 0.5f, Screen.height - 78f, 540f, 48f), $"<b>DESLIZANDO {part} POR EL MANGO...</b>", _hudStyle);
-            }
-            else if (_stage == AssemblyStage.Inspection)
-            {
-                float w = 780f, h = 155f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 25f;
-                string def = _anvil?.SelectedWeaponType == WeaponType.Hammer ? "Martillo Artesanal" : (_anvil?.SelectedWeaponType == WeaponType.Sword ? "Espada Artesanal" : "Hacha Artesanal");
-                string nm = _previewStats?.weaponName ?? def, q = _previewStats?.qualityPrefix ?? "Standard";
-                float d = _previewStats?.baseDamage ?? 30f, s = _previewStats?.attackSpeed ?? 1.0f, sh = _previewStats?.maxSharpness ?? 80f, r = _previewStats?.attackRange ?? 1.2f;
-
-                var style = _previewStats != null ? _previewStats.GetAnimationStyle() : WeaponAnimationStyle.Axe1H;
-                string comboDesc = style switch
-                {
-                    WeaponAnimationStyle.Axe1H => "Hacha 1H (Combo 5 Golpes: Tajos Laterales + Hachazos Verticales)",
-                    WeaponAnimationStyle.Hammer1H => "Martillo 1H (Combo 5 Golpes: Aplastamientos + Impactos Horizontales)",
-                    WeaponAnimationStyle.Sword1H => "Espada 1H (Combo 5 Golpes: Tajos Cruzados + Estocadas)",
-                    WeaponAnimationStyle.Dagger1H => "Daga 1H (Combo 5 Golpes: Estocadas Rápidas y Cortes)",
-                    WeaponAnimationStyle.Heavy2H => "Arma Pesada 2 Manos (Combo 5 Golpes Pesados de Gran Inercia)",
-                    WeaponAnimationStyle.Polearm => "Arma de Asta (Combo 5 Golpes: Barridos Largos + Estocadas)",
-                    _ => "Combo 5 Golpes"
-                };
-
-                string card = $"<b>★ ARMA ARTESANAL ENSAMBLADA CON ÉXITO ★</b>\n<color=#FFD700><b>{nm}</b></color> [{q}]\n" +
-                              $"Daño: <b>{d:F1} DMG</b>  •  Velocidad: <b>{s:F2}x</b>  •  Filo: <b>{sh:F0}</b>  •  Alcance: <b>{r:F2}m</b>\n" +
-                              $"Estilo de Combate: <color=#FFAA33><b>{comboDesc}</b></color>\n" +
-                              $"<color=#33FFAA><b>Presiona [ESPACIO] para guardarla en tu inventario</b></color>";
-                GUI.Box(new Rect(x, y, w, h), card, _cardStyle);
-                if (GUI.Button(new Rect((Screen.width - 240f) * 0.5f, y + h - 30f, 240f, 26f), "Tomar Arma [Espacio]")) FinishAssembly();
-            }
-        }
-
-        private void EnsureStyles() {
-            if (_hudStyle != null) return;
-            _hudStyle = new GUIStyle(GUI.skin.box) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            _cardStyle = new GUIStyle(GUI.skin.box) { fontSize = 14, fontStyle = FontStyle.Normal, alignment = TextAnchor.UpperCenter, normal = { textColor = Color.white } };
-        }
         private void OnDestroy() { if (_anvil?.IngotTransform != null) _anvil.IngotTransform.localPosition = _handleBaseLocalPos; _playerMovement?.SetMovementEnabled(true); if (_bladeObj != null) Destroy(_bladeObj); }
     }
 }

@@ -21,7 +21,7 @@ namespace ForjaGame.Forge
     /// Centraliza el ciclo de vida de interacción, el control de ocupación (preparado para multiplayer),
     /// el congelamiento de movimiento del jugador y el registro global O(1) de estaciones activas.
     /// </summary>
-    public abstract class BaseForgeStationController : MonoBehaviour, IInteractable, IStationController
+    public abstract partial class BaseForgeStationController : MonoBehaviour, IInteractable, IStationController
     {
         [Header("Interfaz de Estación")]
         [SerializeField] protected GameObject stationUI;
@@ -183,6 +183,7 @@ namespace ForjaGame.Forge
             {
                 PlayerMovement movement = _currentInteractor.GetComponentInParent<PlayerMovement>();
                 movement?.SetMovementEnabled(true);
+                GetInteractorCamera(_currentInteractor)?.ClearStationView();
             }
 
             GameObject previousInteractor = _currentInteractor;

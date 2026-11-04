@@ -29,7 +29,8 @@ namespace ForjaGame.Combat
                 GameObject fallbackInst = Object.Instantiate(fallbackPrefab, parentSocket);
                 fallbackInst.name = $"Equipped_{weapon.weaponType}_{weapon.DisplayName}_Fallback";
                 fallbackInst.transform.localPosition = Vector3.zero;
-                fallbackInst.transform.localRotation = Quaternion.identity;
+                float fallbackYaw = weapon.isFrontFaceDominant ? -90f : 90f;
+                fallbackInst.transform.localRotation = Quaternion.Euler(0f, fallbackYaw, 0f);
                 fallbackInst.transform.localScale = Vector3.one;
                 return fallbackInst;
             }
@@ -61,7 +62,7 @@ namespace ForjaGame.Combat
             // - Para Hacha: filo cortante mira al frente (+Z), compensando los 90° del montaje en el mango
             // - Para Martillo: cara de impacto mira al frente (+Z)
             float yRot = 0f;
-            if (weapon.weaponType == WeaponType.Hammer)
+            if (weapon.weaponType == WeaponType.Hammer || weapon.weaponType == WeaponType.Pickaxe)
             {
                 yRot = 270f;
             }
@@ -71,7 +72,7 @@ namespace ForjaGame.Combat
             }
             else
             {
-                yRot = weapon.isFrontFaceDominant ? 180f : 0f;
+                yRot = weapon.isFrontFaceDominant ? 0f : 180f;
             }
 
             orientationContainer.transform.localRotation = Quaternion.Euler(0f, yRot, 90f);

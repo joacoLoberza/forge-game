@@ -28,7 +28,21 @@ namespace ForjaGame.UI
             _volumeController = volumeControllerSource as IVolumeController;
 
             if (volumeSlider != null)
+            {
                 volumeSlider.onValueChanged.AddListener(OnVolumeChanged);
+                if (_volumeController != null) _volumeController.Volume = volumeSlider.value;
+            }
+
+            var buttons = GetComponentsInChildren<Button>(true);
+            foreach (var btn in buttons)
+            {
+                string n = btn.gameObject.name.ToLowerInvariant();
+                if (n.Contains("resume") || n.Contains("reanudar") || n.Contains("continuar") || n.Contains("volver"))
+                {
+                    btn.onClick.RemoveListener(ResumeGame);
+                    btn.onClick.AddListener(ResumeGame);
+                }
+            }
         }
 
         protected override void OnDestroy()
@@ -40,21 +54,37 @@ namespace ForjaGame.UI
         protected override void OnOpened()
         {
             base.OnOpened();
-            Time.timeScale = 0f;
+            BookJournalStyler.StylePauseMenuPanel();
+            if (volumeSlider != null && _volumeController != null)
+                _volumeController.Volume = volumeSlider.value;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Pause);
         }
 
         protected override void OnClosed()
         {
             base.OnClosed();
-            Time.timeScale = 1f;
+            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+
+            if (UnityEngine.EventSystems.EventSystem.current != null)
+                UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(null);
+
+            var menuInputs = FindObjectsByType<ForjaGame.Input.PlayerMenuInput>(FindObjectsSortMode.None);
+            foreach (var mi in menuInputs) mi?.ResetMenuInputState();
+
+            ForjaGame.Core.PlayerMovement.LocalInstance?.SetMovementEnabled(true);
 
             if (!IsAnyPanelOpen)
             {
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
             }
+        }
+
+        public void ResumeGame()
+        {
+            Close();
         }
 
         private void OnVolumeChanged(float value)
@@ -66,6 +96,10 @@ namespace ForjaGame.UI
         public void GoToMainMenu()
         {
             Time.timeScale = 1f;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            if (Unity.Netcode.NetworkManager.Singleton != null)
+                Unity.Netcode.NetworkManager.Singleton.Shutdown();
             SceneManager.LoadScene(mainMenuSceneName);
         }
     }

@@ -32,6 +32,9 @@ namespace ForjaGame.Resources
         private Vector3 _originalScale;
         private Coroutine _hitFeedbackRoutine;
         private readonly List<GameObject> _clusters = new();
+        private Collider _cachedCollider;
+        private Renderer[] _cachedRenderers;
+        private Light[] _cachedLights;
 
         public bool IsAlive => !_isDestroyed && _currentHealth > 0;
         public string ItemId => itemId;
@@ -223,9 +226,14 @@ namespace ForjaGame.Resources
 
         private void SetVisualsActive(bool active)
         {
-            if (TryGetComponent<Collider>(out var col)) col.enabled = active;
-            foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = active;
-            foreach (var l in GetComponentsInChildren<Light>(true)) l.enabled = active;
+            if (_cachedCollider == null) _cachedCollider = GetComponent<Collider>();
+            if (_cachedCollider != null) _cachedCollider.enabled = active;
+            _cachedRenderers ??= GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < _cachedRenderers.Length; i++)
+                if (_cachedRenderers[i] != null) _cachedRenderers[i].enabled = active;
+            _cachedLights ??= GetComponentsInChildren<Light>(true);
+            for (int i = 0; i < _cachedLights.Length; i++)
+                if (_cachedLights[i] != null) _cachedLights[i].enabled = active;
         }
     }
 }

@@ -210,7 +210,7 @@ namespace ForjaGame.UI
             SetStep(AnvilCraftingStep.WeaponSelection);
             Close();
             stationController?.ReleaseStation();
-            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
         }
 
         private void RefreshIngotsList()

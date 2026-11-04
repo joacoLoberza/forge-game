@@ -110,7 +110,7 @@ namespace ForjaGame.Core
             ForgeAudioSystem.PlayAltarConsecrate();
 
             IsEndScreenOpen = true;
-            FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Victory);
+            GameStateController.ChangeState(GameState.Victory);
             ForjaGame.UI.ForgeCanvasThemeStyler.StyleEndScreensAndMainMenu();
             if (victoryPanel != null) victoryPanel.SetActive(true);
             onVictory?.Invoke();
@@ -130,7 +130,7 @@ namespace ForjaGame.Core
             LastOutcomeSummary = inv != null ? inv.ForfeitCurrentDelveLoot() : string.Empty;
 
             IsEndScreenOpen = true;
-            FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Defeat);
+            GameStateController.ChangeState(GameState.Defeat);
             ForjaGame.UI.ForgeCanvasThemeStyler.StyleEndScreensAndMainMenu();
             if (defeatPanel != null) defeatPanel.SetActive(true);
             onDefeat?.Invoke();
@@ -151,7 +151,7 @@ namespace ForjaGame.Core
             if (victoryPanel != null) victoryPanel.SetActive(false);
             if (defeatPanel != null) defeatPanel.SetActive(false);
 
-            FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Exploration);
+            GameStateController.ChangeState(GameState.Exploration);
             TeleportAllActivePlayersToMapOrigin();
             ForjaGame.Resources.MineSpawnerController.Instance?.ResetAndRespawnCaveEnemies();
 

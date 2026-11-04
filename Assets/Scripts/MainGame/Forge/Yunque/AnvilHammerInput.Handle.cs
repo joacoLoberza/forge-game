@@ -178,8 +178,7 @@ namespace ForjaGame.Forge
             RestoreCamera();
             anvilController.ClearAnvilSurface();
             if (stationController != null) stationController.ReleaseStation();
-            var gs = FindFirstObjectByType<ForjaGame.Core.GameStateController>();
-            gs?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
         }
 
         private void DrawHandleOverlayGUI()

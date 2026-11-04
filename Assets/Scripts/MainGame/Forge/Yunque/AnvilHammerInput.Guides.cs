@@ -32,9 +32,10 @@ namespace ForjaGame.Forge
             }
             if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame)
             {
-                _showBlueprint = !_showBlueprint;
+                ForjaGame.Core.TutorialSettings.Toggle();
                 ForgeAudioSystem.PlayUITab();
             }
+            _showBlueprint = ForjaGame.Core.TutorialSettings.IsTutorialEnabled;
             _forceCursor = Mathf.PingPong(Time.time * 1.55f, 1.0f);
             bool showReticle = !isBusy && (_toolMode == AnvilToolMode.Hammer || _toolMode == AnvilToolMode.Polish) && !IsMouseOverUI();
             UpdateImpactReticle3D(showReticle);
@@ -100,7 +101,7 @@ namespace ForjaGame.Forge
                 _blueprintRoot.transform.SetParent(ingotT, false);
                 _blueprintMeshFilter = _blueprintRoot.AddComponent<MeshFilter>();
                 _blueprintMeshRenderer = _blueprintRoot.AddComponent<MeshRenderer>();
-                _blueprintMeshRenderer.sharedMaterial = new Material(_guideOverlayMat) { color = new Color(0.32f, 0.86f, 0.98f, 0.20f) };
+                _blueprintMeshRenderer.sharedMaterial = new Material(_guideOverlayMat) { color = new Color(0.32f, 0.86f, 0.98f, 0.06f) };
                 _blueprintMeshRenderer.shadowCastingMode = ShadowCastingMode.Off;
                 _blueprintMeshRenderer.receiveShadows = false;
                 _blueprintOutlineLR = CreateRingRenderer(_blueprintRoot.transform, "BlueprintOutline", 0.0038f, 4);
@@ -186,7 +187,7 @@ namespace ForjaGame.Forge
                 Vector3 p = new Vector3(pts[i].x, 0f, pts[i].y);
                 verts[i + 1] = p; _blueprintOutlineLR.SetPosition(i, p);
             }
-            SetLineColor(_blueprintOutlineLR, isHandle ? new Color(0.98f, 0.82f, 0.36f, 0.82f) : new Color(0.42f, 0.92f, 1.0f, 0.82f));
+            SetLineColor(_blueprintOutlineLR, isHandle ? new Color(0.98f, 0.82f, 0.36f, 0.30f) : new Color(0.42f, 0.92f, 1.0f, 0.30f));
             int[] tris = new int[pts.Count * 3];
             for (int i = 0; i < pts.Count; i++) { tris[i * 3] = 0; tris[i * 3 + 1] = ((i + 1) % pts.Count) + 1; tris[i * 3 + 2] = i + 1; }
             Mesh m = new Mesh { name = "Mesh_AnvilBlueprint", vertices = verts, triangles = tris };

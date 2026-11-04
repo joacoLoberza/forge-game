@@ -14,23 +14,47 @@ namespace ForjaGame.Core
     }
 
     /// <summary>
+    /// Ajuste global persistente para guías y siluetas tutoriales en las estaciones de forja.
+    /// </summary>
+    public static class TutorialSettings
+    {
+        private const string PrefKey = "Forja_Tutorial_Guides";
+        public static bool IsTutorialEnabled
+        {
+            get => PlayerPrefs.GetInt(PrefKey, 1) == 1;
+            set { PlayerPrefs.SetInt(PrefKey, value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+        public static void Toggle() => IsTutorialEnabled = !IsTutorialEnabled;
+    }
+
+    /// <summary>
     /// Mantiene el estado global de la partida y notifica sus cambios.
-    /// No controla UI, audio ni gameplay concreto; esos sistemas reaccionan
-    /// al evento sin depender de esta implementación.
     /// </summary>
     public class GameStateController : MonoBehaviour
     {
+        public static GameStateController Instance { get; private set; }
+
         [SerializeField] private GameState initialState = GameState.Exploration;
         [SerializeField] private GameState currentState;
 
         public GameState CurrentState => currentState;
+        public static GameState State => Instance != null ? Instance.CurrentState : GameState.Exploration;
+        public static bool IsForging => State == GameState.Forge;
 
         public event Action<GameState, GameState> StateChanged;
 
         private void Awake()
         {
+            if (Instance == null) Instance = this;
             currentState = initialState;
         }
+
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+
+        public static bool ChangeState(GameState next) => (Instance ?? FindFirstObjectByType<GameStateController>())?.TryChangeState(next) ?? false;
 
         public bool TryChangeState(GameState nextState)
         {
@@ -43,10 +67,7 @@ namespace ForjaGame.Core
             return true;
         }
 
-        public bool IsInState(GameState state)
-        {
-            return CurrentState == state;
-        }
+        public bool IsInState(GameState state) => CurrentState == state;
 
         private bool CanChangeTo(GameState nextState)
         {

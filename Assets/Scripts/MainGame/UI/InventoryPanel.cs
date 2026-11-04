@@ -139,7 +139,7 @@ namespace ForjaGame.UI
             base.OnOpened();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Inventory);
+            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Inventory);
             EnsureController();
             SelectCategory(_currentCategory);
         }
@@ -147,7 +147,7 @@ namespace ForjaGame.UI
         protected override void OnClosed()
         {
             base.OnClosed();
-            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
 
             if (!IsAnyPanelOpen)
             {

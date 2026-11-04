@@ -155,19 +155,21 @@ namespace ForjaGame.Combat
                 }
             }
 
+            var golem = GolemEnemyController.Instance;
             string enemyInfo = "No encontrado";
-            if (dummy != null)
+            if (golem != null)
             {
-                if (dummy.IsAlive)
+                if (golem.IsAlive)
                 {
-                    float dist = pHealth != null ? Vector3.Distance(dummy.transform.position, pHealth.transform.position) : 0f;
-                    string aggro = dummy.IsPlayerDetected ? "<color=#FF5533><b>¡DETECTADO / COMBATE ACTIVO!</b></color>" : "<color=#AAAAAA>En Guardia (Fuera de Rango)</color>";
-                    enemyInfo = $"HP: {dummy.CurrentHealth}/{dummy.MaxHealth} | Distancia: {dist:F1}m\n  Estado: {aggro} (Radio Alerta: {dummy.DetectionRadius:F1}m)";
+                    float dist = pHealth != null ? Vector3.Distance(golem.transform.position, pHealth.transform.position) : 0f;
+                    string state = golem.IsAlive ? "<color=#33FFAA>Activo en Caverna</color>" : "<color=#FF5533>Derrotado</color>";
+                    enemyInfo = $"Golem HP: {golem.CurrentHealth}/{golem.MaxHealth} | Distancia: {dist:F1}m | Estado: {state}";
                 }
-                else
-                {
-                    enemyInfo = $"<color=#FF5533>Derrotado (Reaparece en {dummy.RespawnTimeRemaining:F0}s)</color>";
-                }
+                else enemyInfo = "<color=#FF5533>Golem Derrotado</color>";
+            }
+            else if (dummy != null)
+            {
+                enemyInfo = $"Dummy HP: {dummy.CurrentHealth}/{dummy.MaxHealth}";
             }
 
             string text = $"<b>[F3] DEBUG DE HITBOXES Y COMBATE</b>\n" +

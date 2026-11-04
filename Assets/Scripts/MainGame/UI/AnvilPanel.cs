@@ -132,8 +132,7 @@ namespace ForjaGame.UI
             if (anvilController == null || !anvilController.IsForging)
             {
                 stationController?.ReleaseStation();
-                var gs = FindFirstObjectByType<ForjaGame.Core.GameStateController>();
-                gs?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+                ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
             }
         }
 

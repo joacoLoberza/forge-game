@@ -38,15 +38,15 @@ namespace ForjaGame.UI
                 {
                     secRt.localRotation = Quaternion.identity; secRt.localScale = Vector3.one;
                     secRt.anchorMin = secRt.anchorMax = secRt.pivot = new Vector2(0.5f, 0.5f);
-                    secRt.anchoredPosition = new Vector2(0f, 150f);
-                    secRt.sizeDelta = new Vector2(400f, 320f);
+                    secRt.anchoredPosition = new Vector2(0f, 160f);
+                    secRt.sizeDelta = new Vector2(400f, 300f);
                 }
 
                 var sRt = oreScroll.GetComponent<RectTransform>();
                 sRt.localRotation = Quaternion.identity; sRt.localScale = Vector3.one;
                 sRt.anchorMin = sRt.anchorMax = sRt.pivot = new Vector2(0.5f, 0.5f);
                 sRt.anchoredPosition = Vector2.zero;
-                sRt.sizeDelta = new Vector2(400f, 320f);
+                sRt.sizeDelta = new Vector2(400f, 300f);
 
                 var sImg = oreScroll.GetComponent<Image>() ?? oreScroll.gameObject.AddComponent<Image>();
                 sImg.sprite = BookTextureBuilder.GetParchmentBannerSprite();
@@ -54,18 +54,28 @@ namespace ForjaGame.UI
                 sImg.color = new Color(0.91f, 0.86f, 0.77f, 0.95f);
             }
 
+            // Limpieza estricta de notas duplicadas heredadas en la jerarquía izquierda
+            foreach (var hint in leftBody.GetComponentsInChildren<Transform>(true))
+            {
+                if (hint != null && hint != leftBody && hint.name == "LeftControlsHint" && hint.parent != leftBody)
+                {
+                    if (Application.isPlaying) Object.Destroy(hint.gameObject);
+                    else Object.DestroyImmediate(hint.gameObject);
+                }
+            }
+
             if (panel.OreCountText != null)
-                PlaceBodyText(panel.OreCountText, leftBody, new Vector2(0f, -54f), new Vector2(400f, 116f), 13.5f, TextAlignmentOptions.TopLeft, DarkInk);
+                PlaceBodyText(panel.OreCountText, leftBody, new Vector2(0f, -14f), new Vector2(400f, 34f), 14f, TextAlignmentOptions.Center, DarkInk, bold: true);
 
             if (panel.InsertOresButton != null)
-                StyleForgeButton(panel.InsertOresButton, primary: true, leftBody, new Vector2(0f, -152f), new Vector2(400f, 48f));
+                StyleForgeButton(panel.InsertOresButton, primary: true, leftBody, new Vector2(0f, -62f), new Vector2(400f, 44f));
 
             if (panel.ExtractOreButton != null)
-                StyleForgeButton(panel.ExtractOreButton, primary: false, leftBody, new Vector2(0f, -212f), new Vector2(400f, 42f));
+                StyleForgeButton(panel.ExtractOreButton, primary: false, leftBody, new Vector2(0f, -114f), new Vector2(400f, 40f));
 
             EnsureHelperNote(leftBody, "LeftControlsHint",
-                "• Clic en mineral: previsualizar en 3D\n• Shift + Clic: elegir x3 minerales\n• Pulsa 'Ingresar minerales' para echarlos por arriba",
-                new Vector2(0f, -305f), new Vector2(400f, 68f));
+                "• Clic: seleccionar mineral  |  Shift+Clic: lote x3",
+                new Vector2(0f, -345f), new Vector2(400f, 34f));
 
             // Tarjeta Derecha: Temperatura + Rango objetivo perfectamente separados
             if (panel.TemperatureText != null)

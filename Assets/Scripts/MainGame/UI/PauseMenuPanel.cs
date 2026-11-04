@@ -59,13 +59,13 @@ namespace ForjaGame.UI
                 _volumeController.Volume = volumeSlider.value;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Pause);
+            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Pause);
         }
 
         protected override void OnClosed()
         {
             base.OnClosed();
-            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
 
             if (UnityEngine.EventSystems.EventSystem.current != null)
                 UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(null);

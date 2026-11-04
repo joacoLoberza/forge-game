@@ -47,13 +47,9 @@ public partial class PlayMainGame
             "<i>Extracción Subterránea  •  Herrería Artesanal  •  Cooperativo en Red Local</i>",
             new Vector2(0f, 218f), new Vector2(640f, 28f), 15.5f, ForgeCanvasThemeStyler.SubInk, FontStyles.Italic);
 
-        _soloButton = CreateMenuButton(cardBody, "BtnSolo", "JUGAR EN SOLITARIO",
-            new Vector2(0f, 152f), new Vector2(540f, 58f), primary: true, StartSoloGame);
-
+        _soloButton = CreateMenuButton(cardBody, "BtnSolo", "JUGAR EN SOLITARIO", new Vector2(0f, 152f), new Vector2(540f, 58f), true, StartSoloGame);
         CreateSectionDivider(cardBody, "DivLAN", "— COOPERATIVO EN RED LOCAL (LAN) —", new Vector2(0f, 92f));
-
-        _hostButton = CreateMenuButton(cardBody, "BtnHostLAN", "CREAR PARTIDA (HOST)",
-            new Vector2(0f, 40f), new Vector2(540f, 54f), primary: true, StartHostAndLoadGame);
+        _hostButton = CreateMenuButton(cardBody, "BtnHostLAN", "CREAR PARTIDA (HOST)", new Vector2(0f, 40f), new Vector2(540f, 54f), true, StartHostAndLoadGame);
 
         CreateMenuLabel(cardBody, "HostIpHint",
             $"Tu IP Local detectada para compartir:  <b>{_detectedLocalIp}</b>   (Puerto: <b>{port}</b>)",
@@ -205,26 +201,35 @@ public partial class PlayMainGame
         slGo.transform.SetParent(parent, false);
         var sRt = slGo.GetComponent<RectTransform>();
         sRt.anchorMin = sRt.anchorMax = sRt.pivot = new Vector2(0.5f, 0.5f);
-        sRt.anchoredPosition = pos + new Vector2(20f, 0f); sRt.sizeDelta = new Vector2(210f, 26f);
+        sRt.anchoredPosition = pos + new Vector2(20f, 0f); sRt.sizeDelta = new Vector2(240f, 30f);
 
-        new GameObject("Background", typeof(RectTransform), typeof(Image)).transform.SetParent(slGo.transform, false);
+        var bgGo = new GameObject("Background", typeof(RectTransform), typeof(Image));
+        bgGo.transform.SetParent(slGo.transform, false);
+        var bgRt = bgGo.GetComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one; bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
+
         var fillArea = new GameObject("Fill Area", typeof(RectTransform));
         fillArea.transform.SetParent(slGo.transform, false);
         var faRt = fillArea.GetComponent<RectTransform>();
-        faRt.anchorMin = Vector2.zero; faRt.anchorMax = Vector2.one; faRt.offsetMin = new Vector2(6f, 4f); faRt.offsetMax = new Vector2(-6f, -4f);
+        faRt.anchorMin = Vector2.zero; faRt.anchorMax = Vector2.one; faRt.offsetMin = new Vector2(6f, 0f); faRt.offsetMax = new Vector2(-6f, 0f);
+
         var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
         fillGo.transform.SetParent(fillArea.transform, false);
+        var fRt = fillGo.GetComponent<RectTransform>();
+        fRt.anchorMin = Vector2.zero; fRt.anchorMax = Vector2.one; fRt.offsetMin = fRt.offsetMax = Vector2.zero;
+
         var handleSlide = new GameObject("Handle Slide Area", typeof(RectTransform));
         handleSlide.transform.SetParent(slGo.transform, false);
         var hsRt = handleSlide.GetComponent<RectTransform>();
         hsRt.anchorMin = Vector2.zero; hsRt.anchorMax = Vector2.one; hsRt.offsetMin = new Vector2(10f, 0f); hsRt.offsetMax = new Vector2(-10f, 0f);
+
         var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
         handleGo.transform.SetParent(handleSlide.transform, false);
+        var hRt = handleGo.GetComponent<RectTransform>();
+        hRt.sizeDelta = new Vector2(28f, 28f);
 
         var sl = slGo.GetComponent<Slider>();
-        sl.fillRect = fillGo.GetComponent<RectTransform>();
-        sl.handleRect = handleGo.GetComponent<RectTransform>();
-        sl.targetGraphic = handleGo.GetComponent<Image>();
+        sl.fillRect = fRt; sl.handleRect = hRt; sl.targetGraphic = handleGo.GetComponent<Image>();
         sl.minValue = 0f; sl.maxValue = 1f; sl.SetValueWithoutNotify(vol);
         ForgeCanvasThemeStyler.StyleSliderControl(sl, interactive: true);
 

@@ -109,7 +109,7 @@ namespace ForjaGame.UI
                 }
                 else if (n.Contains("resume") || n.Contains("reanudar"))
                 {
-                    chRt.anchoredPosition = new Vector2(0f, -20f);
+                    chRt.anchoredPosition = new Vector2(0f, -10f);
                     chRt.sizeDelta = new Vector2(240f, 44f);
                     var bTxt = ch.GetComponentInChildren<TMP_Text>(true);
                     if (bTxt != null)
@@ -124,7 +124,7 @@ namespace ForjaGame.UI
                 }
                 else if (n.Contains("back") || n.Contains("menu") || n.Contains("salir"))
                 {
-                    chRt.anchoredPosition = new Vector2(0f, -85f);
+                    chRt.anchoredPosition = new Vector2(0f, -126f);
                     chRt.sizeDelta = new Vector2(240f, 44f);
                     var bTxt = ch.GetComponentInChildren<TMP_Text>(true);
                     if (bTxt != null)
@@ -139,6 +139,7 @@ namespace ForjaGame.UI
                 }
             }
 
+            EnsureTutorialToggleButton(root);
             var buttons = root.GetComponentsInChildren<Button>(true);
             foreach (var b in buttons)
             {
@@ -149,6 +150,39 @@ namespace ForjaGame.UI
             }
 
             StyleTexts(root);
+        }
+
+        private static void EnsureTutorialToggleButton(Transform root)
+        {
+            Transform tutTr = root.Find("BtnTutorial");
+            GameObject tutGo = tutTr != null ? tutTr.gameObject : null;
+            if (tutGo == null)
+            {
+                tutGo = new GameObject("BtnTutorial", typeof(RectTransform), typeof(Image), typeof(Button));
+                tutGo.transform.SetParent(root, false);
+                var lGo = new GameObject("Text (TMP)", typeof(RectTransform), typeof(TextMeshProUGUI));
+                lGo.transform.SetParent(tutGo.transform, false);
+                var lRt = lGo.GetComponent<RectTransform>();
+                lRt.anchorMin = Vector2.zero; lRt.anchorMax = Vector2.one; lRt.offsetMin = lRt.offsetMax = Vector2.zero;
+            }
+            var tutRt = tutGo.GetComponent<RectTransform>();
+            tutRt.anchorMin = tutRt.anchorMax = tutRt.pivot = new Vector2(0.5f, 0.5f);
+            tutRt.anchoredPosition = new Vector2(0f, -68f); tutRt.sizeDelta = new Vector2(240f, 44f);
+            var tutTxt = tutGo.GetComponentInChildren<TMP_Text>(true);
+            void RefreshLabel()
+            {
+                if (tutTxt != null)
+                {
+                    MedievalTypographyProvider.ApplyToTMP(tutTxt);
+                    tutTxt.text = ForjaGame.Core.TutorialSettings.IsTutorialEnabled ? "Guías Tutorial: <b>ON</b>" : "Guías Tutorial: <b>OFF</b>";
+                    tutTxt.fontSize = 15f; tutTxt.fontStyle = FontStyles.Bold;
+                    tutTxt.color = ForgeCanvasThemeStyler.DarkInk; tutTxt.alignment = TextAlignmentOptions.Center;
+                }
+            }
+            RefreshLabel();
+            var tutBtn = tutGo.GetComponent<Button>();
+            tutBtn.onClick.RemoveAllListeners();
+            tutBtn.onClick.AddListener(() => { ForjaGame.Core.TutorialSettings.Toggle(); RefreshLabel(); ForjaGame.Audio.ForgeAudioSystem.PlayUIClick(); });
         }
 
         private static void PlaceVolumePercentInsideSheet(RectTransform pctRt, Transform pauseRoot)

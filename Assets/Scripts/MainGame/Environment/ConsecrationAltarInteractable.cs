@@ -120,13 +120,13 @@ namespace ForjaGame.Environment
             Vector3 p = transform.position;
             float rSq = sanctumArenaRadius * sanctumArenaRadius;
 
-            var golems = FindObjectsByType<GolemEnemyController>(FindObjectsSortMode.None);
-            for (int i = 0; i < golems.Length; i++)
+            var golems = GolemEnemyController.ActiveGolems;
+            for (int i = 0; i < golems.Count; i++)
                 if (golems[i] != null && golems[i].IsAlive && (golems[i].transform.position - p).sqrMagnitude <= rSq)
                     count++;
 
-            var spiders = FindObjectsByType<SpiderEnemyController>(FindObjectsSortMode.None);
-            for (int i = 0; i < spiders.Length; i++)
+            var spiders = SpiderEnemyController.ActiveSpiders;
+            for (int i = 0; i < spiders.Count; i++)
                 if (spiders[i] != null && spiders[i].IsAlive && (spiders[i].transform.position - p).sqrMagnitude <= rSq)
                     count++;
 

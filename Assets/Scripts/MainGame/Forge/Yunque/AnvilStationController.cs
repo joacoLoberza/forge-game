@@ -92,7 +92,7 @@ namespace ForjaGame.Forge
                 _isOccupied = true;
                 _currentInteractor = interactor;
                 interactor.GetComponentInParent<PlayerMovement>()?.SetMovementEnabled(false);
-                FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Forge);
+                GameStateController.ChangeState(GameState.Forge);
 
                 if (stationUI != null) stationUI.SetActive(false);
                 anvilController.ResumeForging();
@@ -119,7 +119,7 @@ namespace ForjaGame.Forge
             _isOccupied = true;
             _currentInteractor = interactor;
             interactor.GetComponentInParent<PlayerMovement>()?.SetMovementEnabled(false);
-            FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Forge);
+            GameStateController.ChangeState(GameState.Forge);
             StartSmoothCameraToAnvil(interactor);
 
             OnStationEntered(interactor);
@@ -166,7 +166,7 @@ namespace ForjaGame.Forge
                     stationUI.SetActive(false);
             }
 
-            FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Exploration);
+            GameStateController.ChangeState(GameState.Exploration);
 
             OnStationExited(previousInteractor);
         }

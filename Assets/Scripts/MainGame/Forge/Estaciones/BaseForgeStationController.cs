@@ -190,7 +190,7 @@ namespace ForjaGame.Forge
             _currentInteractor = null;
             _isOccupied = false;
 
-            FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Exploration);
+            GameStateController.ChangeState(GameState.Exploration);
 
             OnStationExited(previousInteractor);
         }

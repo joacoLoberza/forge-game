@@ -19,15 +19,12 @@ namespace ForjaGame.UI
 
         public void EnsureBellowsButtonExists()
         {
-            if (bellowsButton != null) return;
-            Transform existing = transform.Find("RightStationCard/ParchmentBody/BellowsButton");
-            if (existing == null) existing = transform.Find("BellowsButton");
-            if (existing != null && existing.TryGetComponent<Button>(out var foundBtn))
+            if (bellowsButton == null)
             {
-                bellowsButton = foundBtn;
-                return;
+                Transform existing = transform.Find("RightStationCard/ParchmentBody/BellowsButton") ?? transform.Find("BellowsButton");
+                if (existing != null && existing.TryGetComponent<Button>(out var foundBtn)) bellowsButton = foundBtn;
+                else bellowsButton = CreateActionButton("BellowsButton", "Fuelle [Espacio]");
             }
-            bellowsButton = CreateActionButton("BellowsButton", "Fuelle [Espacio]");
             if (bellowsButton != null)
             {
                 BindPressDown(bellowsButton, OnBellowsClicked);
@@ -206,7 +203,10 @@ namespace ForjaGame.UI
 
         public void UpdateThermalButton()
         {
-            if (addCoalButton != null) SetButtonLabel(addCoalButton, "+ Carbón [Shift]");
+            int coal = 0;
+            var inv = GetCurrentPlayerInventory();
+            if (inv != null) coal = inv.GetCount("Coal");
+            if (addCoalButton != null) SetButtonLabel(addCoalButton, $"+ Carbón ({coal}) [Shift]");
             if (bellowsButton != null) SetButtonLabel(bellowsButton, "Fuelle [Espacio]");
         }
 

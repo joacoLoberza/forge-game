@@ -93,8 +93,8 @@ namespace ForjaGame.Audio
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             _hookedButtons.Clear();
-            _nextButtonScanTime = 0f;
             UpdateAmbienceForScene(scene.name);
+            HookSceneButtons();
         }
 
         private void SetupSources()
@@ -143,12 +143,6 @@ namespace ForjaGame.Audio
 
         private void Update()
         {
-            if (Time.unscaledTime >= _nextButtonScanTime)
-            {
-                _nextButtonScanTime = Time.unscaledTime + 1.25f;
-                HookSceneButtons();
-            }
-
             UpdateCaveSpatialBlend();
         }
 

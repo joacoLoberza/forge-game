@@ -22,6 +22,7 @@ namespace ForjaGame.Forge
         private static GUIStyle _badgeReadyStyle;
         private static GUIStyle _badgePendingStyle;
         private static GUIStyle _badgeFireStyle;
+        private static GUIStyle _centerTextStyle;
 
         private static void EnsureUIStyles()
         {
@@ -102,6 +103,12 @@ namespace ForjaGame.Forge
             MedievalTypographyProvider.ApplyToGUIStyle(_goldBannerStyle);
             MedievalTypographyProvider.ApplyToGUIStyle(_tabActiveStyle);
             MedievalTypographyProvider.ApplyToGUIStyle(_tabInactiveStyle);
+            _centerTextStyle = new GUIStyle
+            {
+                normal = { textColor = ForgeCanvasThemeStyler.DarkInk },
+                fontSize = 13, fontStyle = FontStyle.Normal, richText = true, alignment = TextAnchor.MiddleCenter
+            };
+            MedievalTypographyProvider.ApplyToGUIStyle(_centerTextStyle);
             MedievalTypographyProvider.ApplyToGUIStyle(_badgeReadyStyle);
             MedievalTypographyProvider.ApplyToGUIStyle(_badgePendingStyle);
             MedievalTypographyProvider.ApplyToGUIStyle(_badgeFireStyle);

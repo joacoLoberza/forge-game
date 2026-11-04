@@ -109,7 +109,7 @@ namespace ForjaGame.Input
             {
                 PauseMenuPanel.Instance.Close();
                 UpdateMovementAvailability();
-                FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Exploration);
+                GameStateController.ChangeState(GameState.Exploration);
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
                 return;
@@ -120,7 +120,7 @@ namespace ForjaGame.Input
             {
                 UI.Core.UIPanelBase.CloseAllPanels();
                 UpdateMovementAvailability();
-                FindFirstObjectByType<GameStateController>()?.TryChangeState(GameState.Exploration);
+                GameStateController.ChangeState(GameState.Exploration);
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
                 return;
@@ -189,13 +189,16 @@ namespace ForjaGame.Input
             UpdateMovementAvailability();
         }
 
+        private bool _lastUiBlocked = false;
+
         public void UpdateMovementAvailability()
         {
-            bool uiBlocked = UI.Core.UIPanelBase.IsAnyPanelOpen || (_handler != null && _handler.IsMovementBlocked);
+            bool isForging = ForjaGame.Core.GameStateController.IsForging;
+            bool uiBlocked = UI.Core.UIPanelBase.IsAnyPanelOpen || isForging || (_handler != null && _handler.IsMovementBlocked);
+            if (uiBlocked == _lastUiBlocked && playerMovement != null) return;
+            _lastUiBlocked = uiBlocked;
             if (playerMovement == null)
-            {
-                playerMovement = GetComponentInParent<PlayerMovement>() ?? GetComponentInChildren<PlayerMovement>() ?? FindFirstObjectByType<PlayerMovement>();
-            }
+                playerMovement = GetComponentInParent<PlayerMovement>() ?? GetComponentInChildren<PlayerMovement>() ?? PlayerMovement.LocalInstance;
             playerMovement?.SetMovementEnabled(!uiBlocked);
         }
     }

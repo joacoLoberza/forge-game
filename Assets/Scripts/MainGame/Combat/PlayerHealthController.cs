@@ -211,25 +211,23 @@ namespace ForjaGame.Combat
             if (ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen || GameLoopController.IsEndScreenOpen) return;
 
             EnsureHudStyles();
-            int pIdx = _playerMovement != null ? _playerMovement.PlayerIndex : 0;
-            float w = 290f, h = 84f, x = 18f, y = 18f;
+            float w = 236f, h = 42f, x = 18f, y = 18f;
 
-            GUI.DrawTexture(new Rect(x - 4f, y - 4f, w + 8f, h + 8f), ForjaGame.UI.BookTextureBuilder.GetLeatherCoverSprite().texture);
+            GUI.DrawTexture(new Rect(x - 3f, y - 3f, w + 6f, h + 6f), ForjaGame.UI.BookTextureBuilder.GetLeatherCoverSprite().texture);
             GUI.Box(new Rect(x, y, w, h), GUIContent.none, _hudPlaqueStyle);
 
-            GUI.Label(new Rect(x + 14f, y + 8f, w - 28f, 22f), $"<b>VITALIDAD DE HERRERO (J{pIdx + 1}): {currentHealth}/{maxHealth}</b>", _hudTitleStyle);
+            var heartStyle = new GUIStyle(_hudTitleStyle) { fontSize = 21, alignment = TextAnchor.MiddleCenter };
+            heartStyle.normal.textColor = currentHealth < 30 ? new Color(0.85f, 0.2f, 0.1f) : new Color(0.65f, 0.12f, 0.10f);
+            GUI.Label(new Rect(x + 8f, y + 8f, 24f, 26f), "♥", heartStyle);
 
-            float barW = w - 28f, ratio = Mathf.Clamp01((float)currentHealth / Mathf.Max(1, maxHealth));
-            GUI.DrawTexture(new Rect(x + 14f, y + 32f, barW, 18f), ForjaGame.UI.BookTextureBuilder.GetSliderTrackSprite().texture);
+            float barX = x + 36f, barY = y + 12f, barW = 130f, barH = 18f;
+            float ratio = Mathf.Clamp01((float)currentHealth / Mathf.Max(1, maxHealth));
+            GUI.DrawTexture(new Rect(barX, barY, barW, barH), ForjaGame.UI.BookTextureBuilder.GetSliderTrackSprite().texture);
             if (ratio > 0.005f)
-                GUI.DrawTexture(new Rect(x + 16f, y + 35f, (barW - 4f) * ratio, 12f), ratio < 0.32f ? _hpFillGoldTex : _hpFillCrimsonTex);
+                GUI.DrawTexture(new Rect(barX + 2f, barY + 3f, (barW - 4f) * ratio, 12f), ratio < 0.32f ? _hpFillGoldTex : _hpFillCrimsonTex);
 
-            var inv = GetComponent<ForjaGame.Inventory.InventoryController>() ?? ForjaGame.Inventory.InventoryController.Instance;
-            int unbanked = inv != null ? inv.UnbankedDelveItemCount : 0;
-            string sub = _isDefeated ? "<color=#8B1A1A><b>Caido en la caverna</b></color>"
-                : (unbanked > 0 ? $"<color=#8C2D12><b>[!] Botin en riesgo: {unbanked} recursos</b></color>"
-                : (transform.position.z >= 25f ? "<color=#5A3818><b>[Explorando la caverna]</b></color>" : "<color=#285A32><b>[Taller de superficie - Seguro]</b></color>"));
-            GUI.Label(new Rect(x + 14f, y + 55f, w - 28f, 22f), sub, _hudSubStyle);
+            var numStyle = new GUIStyle(_hudTitleStyle) { fontSize = 13, alignment = TextAnchor.MiddleRight };
+            GUI.Label(new Rect(barX + barW + 6f, y + 9f, 48f, 24f), $"<b>{currentHealth}</b>", numStyle);
         }
     }
 }

@@ -187,7 +187,7 @@ namespace ForjaGame.Forge
             if (anvilController != null)
                 anvilController.PauseForgingAndLeaveOnTable();
             if (stationController != null) stationController.ReleaseStation();
-            FindFirstObjectByType<ForjaGame.Core.GameStateController>()?.TryChangeState(ForjaGame.Core.GameState.Exploration);
+            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
         }
 
         private void ReturnIngotAndReopenSelection()

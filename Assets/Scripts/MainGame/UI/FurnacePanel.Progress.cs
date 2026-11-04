@@ -162,27 +162,21 @@ namespace ForjaGame.UI
         private void UpdateOreGuideAndSummaryText()
         {
             if (oreCountText == null) return;
-            int inFurnace = furnaceController.GetTotalOreCount();
+            int inFurnace = furnaceController != null ? furnaceController.GetTotalOreCount() : 0;
             int staged = _stagedOres.Count;
-            int impurity = furnaceController.CurrentImpurityPercentage;
-            int hash = (inFurnace * 397) ^ (staged * 31) ^ impurity ^ (_stagedOres.Count > 0 ? (int)_stagedOres[_stagedOres.Count - 1] * 7 : 0);
+            int hash = (inFurnace * 397) ^ (staged * 31);
             if (hash == _lastDisplayedOreHash) return;
             _lastDisplayedOreHash = hash;
 
             int combined = inFurnace + staged;
             string multBadge = combined == 0
-                ? "<color=#8B5A2B>Ingresa 3 (Peq.), 6 (Med.) o 9 (Gde.)</color>"
+                ? "<color=#8B5A2B>3, 6 o 9 minerales</color>"
                 : (combined % 3 == 0)
-                    ? $"<color=#1B6E32><b>[Receta válida: {combined}/9]</b></color>"
-                    : $"<color=#A84300><b>[Faltan {3 - (combined % 3)} para múltiplo de 3]</b></color>";
+                    ? $"<color=#1B6E32><b>[Lote válido: {combined}/9]</b></color>"
+                    : $"<color=#A84300><b>[Faltan {3 - (combined % 3)} para x3]</b></color>";
 
-            var sb = new StringBuilder();
-            sb.AppendLine($"<b>Carga Total: {combined}/9</b>  {multBadge}");
-            sb.AppendLine($"En bandeja 3D: <b>{FormatStagedSummary()}</b>");
-            sb.Append(inFurnace > 0
-                ? $"En crisol ({inFurnace}): {furnaceController.GetCurrentComposition().GetCompositionDescription()}"
-                : "Guía de Fusión: Cobre (560-780°C) · Oro (670-890°C) · Hierro (780-1000°C)");
-            oreCountText.text = sb.ToString();
+            string stagedSummary = staged > 0 ? $" • {FormatStagedSummary()}" : "";
+            oreCountText.text = $"<b>Carga: {combined}/9</b>  {multBadge}{stagedSummary}";
         }
 
         private string FormatStagedSummary()

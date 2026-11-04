@@ -11,7 +11,6 @@ namespace ForjaGame.UI
 
         public static void ApplyStyleToAll()
         {
-            ForgeCanvasThemeStyler.ApplyGlobalCanvasTheme();
             StyleInventoryJournal();
             StylePauseMenuPanel();
         }

@@ -83,9 +83,6 @@ namespace ForjaGame.Resources
             }
             _caveContainer = container.transform;
 
-            foreach (var oldGate in FindObjectsByType<CaveZoneGateController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                if (oldGate != null) UnitySafeUtility.DestroyGameObjectSafe(oldGate.gameObject);
-
             _spawnedNodes.RemoveAll(n => n == null);
             var existingNodes = container.GetComponentsInChildren<ResourceNodeController>(true);
             if (forceRebuild || isOutdated || existingNodes.Length != 24)

@@ -68,36 +68,18 @@ namespace ForjaGame.UI
         {
             base.Awake();
             ResolveControllers();
-
-            var bgImage = GetComponent<Image>();
-            if (bgImage != null) bgImage.enabled = false;
-
+            if (TryGetComponent<Image>(out var bgImage)) bgImage.enabled = false;
             if (extractOreButton != null && extractOreButton == extractBloomButton) extractOreButton = null;
 
             EnsureInsertOresButtonExists();
             EnsureExtractOreButtonExists();
             EnsureBellowsButtonExists();
 
-            if (addCoalButton != null)
-            {
-                BindPressDown(addCoalButton, OnAddCoalClicked);
-                SetButtonLabel(addCoalButton, "+ Carbón [Shift]");
-            }
-            if (extractOreButton != null)
-            {
-                BindPressDown(extractOreButton, OnExtractLastOreClicked);
-                SetButtonLabel(extractOreButton, "Quitar Mineral");
-            }
-            if (insertOresButton != null)
-            {
-                BindPressDown(insertOresButton, OnInsertStagedOresClicked);
-                SetButtonLabel(insertOresButton, "Ingresar minerales");
-            }
-            if (extractBloomButton != null)
-            {
-                BindPressDown(extractBloomButton, OnExtractBloomClicked);
-                SetButtonLabel(extractBloomButton, "Sacar Lupa (Inferior)");
-            }
+            if (addCoalButton != null) { BindPressDown(addCoalButton, OnAddCoalClicked); SetButtonLabel(addCoalButton, "+ Carbón [Shift]"); }
+            if (bellowsButton != null) { BindPressDown(bellowsButton, OnBellowsClicked); SetButtonLabel(bellowsButton, "Fuelle [Espacio]"); }
+            if (extractOreButton != null) { BindPressDown(extractOreButton, OnExtractLastOreClicked); SetButtonLabel(extractOreButton, "Quitar Mineral"); }
+            if (insertOresButton != null) { BindPressDown(insertOresButton, OnInsertStagedOresClicked); SetButtonLabel(insertOresButton, "Ingresar minerales"); }
+            if (extractBloomButton != null) { BindPressDown(extractBloomButton, OnExtractBloomClicked); SetButtonLabel(extractBloomButton, "Sacar Lupa"); }
             if (closeButton != null) BindPressDown(closeButton, Close);
 
             SetupSliders();

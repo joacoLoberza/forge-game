@@ -12,10 +12,7 @@ namespace ForjaGame.Resources
     {
         public void SpawnCaveEnemies(bool forceRebuild = false)
         {
-            foreach (var g in FindObjectsByType<GolemEnemyController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                if (g != null) UnitySafeUtility.DestroyGameObjectSafe(g.gameObject);
-            foreach (var sp in FindObjectsByType<SpiderEnemyController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                if (sp != null) UnitySafeUtility.DestroyGameObjectSafe(sp.gameObject);
+            ClearLivingCreatures();
 
             _broodNests.RemoveAll(n => n == null);
             var existingNests = _caveContainer != null ? _caveContainer.GetComponentsInChildren<SpiderBroodNest>(true) : System.Array.Empty<SpiderBroodNest>();
@@ -91,12 +88,26 @@ namespace ForjaGame.Resources
         public void ResetAndRespawnCaveEnemies()
         {
             FindFirstObjectByType<ConsecrationAltarInteractable>(FindObjectsInactive.Include)?.ResetAltarState();
-            foreach (var g in FindObjectsByType<GolemEnemyController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                if (g != null) UnitySafeUtility.DestroyGameObjectSafe(g.gameObject);
-            foreach (var s in FindObjectsByType<SpiderEnemyController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                if (s != null) UnitySafeUtility.DestroyGameObjectSafe(s.gameObject);
-            foreach (var gen in CaveCreatureGenerator.ActiveGenerators)
+            ClearLivingCreatures();
+            for (int i = 0; i < CaveCreatureGenerator.ActiveGenerators.Count; i++)
+            {
+                var gen = CaveCreatureGenerator.ActiveGenerators[i];
                 if (gen != null) gen.ResetGeneratorTimer();
+            }
+        }
+
+        private static void ClearLivingCreatures()
+        {
+            for (int i = GolemEnemyController.ActiveGolems.Count - 1; i >= 0; i--)
+            {
+                var g = GolemEnemyController.ActiveGolems[i];
+                if (g != null) UnitySafeUtility.DestroyGameObjectSafe(g.gameObject);
+            }
+            for (int i = SpiderEnemyController.ActiveSpiders.Count - 1; i >= 0; i--)
+            {
+                var s = SpiderEnemyController.ActiveSpiders[i];
+                if (s != null) UnitySafeUtility.DestroyGameObjectSafe(s.gameObject);
+            }
         }
     }
 }

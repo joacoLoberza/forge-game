@@ -45,6 +45,15 @@ namespace ForjaGame.Resources
         private float _nextSpawnTime;
         private bool _configured;
 
+        private void Awake()
+        {
+            if (_hostVein == null) _hostVein = GetComponent<ResourceNodeController>();
+            if (_hostNest == null) _hostNest = GetComponent<SpiderBroodNest>();
+            if (_spawnParent == null) _spawnParent = transform.parent;
+            _configured = true;
+            if (_nextSpawnTime <= 0f) _nextSpawnTime = Time.time + initialSpawnDelay;
+        }
+
         private void OnEnable()
         {
             if (!ActiveGenerators.Contains(this)) ActiveGenerators.Add(this);

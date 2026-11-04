@@ -8,7 +8,7 @@ namespace ForjaGame.Combat
     /// Combina la hoja metálica deformada y el mango de madera tallado del yunque,
     /// compensando el pivote exactamente en el centro de la empuñadura (Grip Center).
     /// </summary>
-    public static partial class WeaponVisualBuilder
+    public static class WeaponVisualBuilder
     {
         private static Material _defaultMetalMat;
         private static Material _defaultWoodMat;
@@ -43,21 +43,14 @@ namespace ForjaGame.Combat
             if (weapon == null) return;
             if (weapon.customHandleMesh == null)
             {
-                weapon.customHandleMesh = CreateHandleMesh(weapon.handleLength);
+                weapon.customHandleMesh = PickaxeModelGenerator.GenerateHandleMesh();
                 if (weapon.gripCenterOffset == Vector3.zero)
                     weapon.gripCenterOffset = new Vector3(0.12f, 0f, 0f);
             }
 
             if (weapon.customMesh == null)
             {
-                weapon.customMesh = weapon.weaponType switch
-                {
-                    WeaponType.Axe => CreateAxeHeadMesh(),
-                    WeaponType.Hammer => CreateHammerHeadMesh(),
-                    WeaponType.Pickaxe => PickaxeModelGenerator.GenerateHeadMesh(),
-                    _ => CreateSwordBladeMesh()
-                };
-
+                weapon.customMesh = PickaxeModelGenerator.GenerateHeadMesh();
                 if (weapon.bladeMountPosition == Vector3.zero && weapon.customHandleMesh != null)
                 {
                     float len = Mathf.Max(0.28f, weapon.customHandleMesh.bounds.size.x * 0.90f);
@@ -150,14 +143,7 @@ namespace ForjaGame.Combat
         private static Material GetDefaultMetalMaterial()
         {
             if (_defaultMetalMat != null) return _defaultMetalMat;
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null)
-            {
-                Material m = UnityEngine.Resources.Load<Material>("Paladin_Mat");
-                if (m != null) shader = m.shader;
-            }
-            if (shader == null) shader = Shader.Find("Standard");
-
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             _defaultMetalMat = new Material(shader) { name = "DefaultMetal_Mat" };
             Color col = new Color(0.68f, 0.70f, 0.74f);
             if (_defaultMetalMat.HasProperty("_BaseColor")) _defaultMetalMat.SetColor("_BaseColor", col);
@@ -170,14 +156,7 @@ namespace ForjaGame.Combat
         private static Material GetDefaultWoodMaterial()
         {
             if (_defaultWoodMat != null) return _defaultWoodMat;
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null)
-            {
-                Material m = UnityEngine.Resources.Load<Material>("Paladin_Mat");
-                if (m != null) shader = m.shader;
-            }
-            if (shader == null) shader = Shader.Find("Standard");
-
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             _defaultWoodMat = new Material(shader) { name = "DefaultWood_Mat" };
             Color col = new Color(0.48f, 0.32f, 0.18f);
             if (_defaultWoodMat.HasProperty("_BaseColor")) _defaultWoodMat.SetColor("_BaseColor", col);

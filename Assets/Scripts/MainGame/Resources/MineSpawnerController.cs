@@ -14,7 +14,7 @@ namespace ForjaGame.Resources
     /// </summary>
     public partial class MineSpawnerController : MonoBehaviour
     {
-        private const string ExpeditionVersionMarker = "OrganicExpedition_V4";
+        private const string ExpeditionVersionMarker = "OrganicExpedition_V5";
 
         public static MineSpawnerController Instance { get; private set; }
 

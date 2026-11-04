@@ -62,11 +62,7 @@ namespace ForjaGame.Environment
         public void EnsurePlateau()
         {
             var plane = GameObject.Find("Plane");
-            if (plane != null)
-            {
-                if (plane.TryGetComponent<MeshRenderer>(out var pr)) pr.enabled = false;
-                plane.transform.position = new Vector3(0f, -1.5f, 0f);
-            }
+            if (plane != null) UnitySafeUtility.DestroyGameObjectSafe(plane);
 
             if (_plateauObject == null) _plateauObject = GameObject.Find("NaturalGreenPlateau");
             if (_plateauObject == null)

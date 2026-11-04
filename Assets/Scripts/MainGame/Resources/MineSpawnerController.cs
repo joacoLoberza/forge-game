@@ -14,7 +14,7 @@ namespace ForjaGame.Resources
     /// </summary>
     public partial class MineSpawnerController : MonoBehaviour
     {
-        private const string ExpeditionVersionMarker = "OrganicExpedition_V3";
+        private const string ExpeditionVersionMarker = "OrganicExpedition_V4";
 
         public static MineSpawnerController Instance { get; private set; }
 
@@ -39,7 +39,7 @@ namespace ForjaGame.Resources
             public readonly string Id; public readonly float Z; public readonly float SideRatio;
             public readonly int Hp; public readonly int MinDrop; public readonly int MaxDrop;
             public readonly bool HasGolemGenerator; public readonly float GolemDelay;
-            public VeinSpec(string id, float z, float side, int hp, int minD, int maxD, bool golem, float delay = 14f)
+            public VeinSpec(string id, float z, float side, int hp, int minD, int maxD, bool golem, float delay = 1.5f)
             { Id = id; Z = z; SideRatio = side; Hp = hp; MinDrop = minD; MaxDrop = maxD; HasGolemGenerator = golem; GolemDelay = delay; }
         }
 
@@ -104,28 +104,28 @@ namespace ForjaGame.Resources
             VeinSpec[] specs =
             {
                 new("Coal",   35.0f, -0.58f, 3, 3, 5, false),
-                new("Coal",   40.8f,  0.56f, 3, 3, 5, true,  13f),
+                new("Coal",   40.8f,  0.56f, 3, 3, 5, true,  1.2f),
                 new("Coal",   49.2f, -0.64f, 3, 3, 5, false),
-                new("Coal",   55.0f,  0.62f, 3, 3, 5, true,  16f),
+                new("Coal",   55.0f,  0.62f, 3, 3, 5, true,  1.5f),
                 new("Coal",   61.0f, -0.55f, 3, 3, 5, false),
                 new("Coal",   66.5f,  0.58f, 3, 3, 5, false),
-                new("Copper", 74.8f, -0.56f, 3, 2, 4, true,  12f),
+                new("Copper", 74.8f, -0.56f, 3, 2, 4, true,  1.2f),
                 new("Copper", 81.8f,  0.56f, 3, 2, 4, false),
                 new("Copper", 92.5f, -0.66f, 3, 2, 4, false),
-                new("Copper", 99.8f,  0.64f, 3, 2, 4, true,  15f),
+                new("Copper", 99.8f,  0.64f, 3, 2, 4, true,  1.5f),
                 new("Copper", 108.0f,-0.60f, 3, 2, 4, false),
-                new("Copper", 115.2f, 0.58f, 3, 2, 4, true,  19f),
+                new("Copper", 115.2f, 0.58f, 3, 2, 4, true,  1.8f),
                 new("Gold",   127.5f,-0.55f, 4, 2, 3, false),
-                new("Gold",   137.8f, 0.56f, 4, 2, 3, true,  13f),
+                new("Gold",   137.8f, 0.56f, 4, 2, 3, true,  1.2f),
                 new("Gold",   147.2f,-0.56f, 4, 2, 3, false),
-                new("Gold",   159.5f, 0.65f, 4, 2, 3, true,  16f),
+                new("Gold",   159.5f, 0.65f, 4, 2, 3, true,  1.6f),
                 new("Gold",   168.8f,-0.64f, 4, 2, 3, false),
-                new("Gold",   177.5f, 0.60f, 4, 2, 3, true,  20f),
+                new("Gold",   177.5f, 0.60f, 4, 2, 3, true,  1.8f),
                 new("Iron",   187.2f,-0.55f, 5, 2, 4, false),
-                new("Iron",   192.8f, 0.56f, 5, 2, 4, true,  12f),
+                new("Iron",   192.8f, 0.56f, 5, 2, 4, true,  1.2f),
                 new("Iron",   197.8f,-0.55f, 5, 2, 4, false),
                 new("Iron",   203.5f,-0.62f, 5, 2, 4, false),
-                new("Iron",   208.5f, 0.62f, 5, 2, 4, true,  15f),
+                new("Iron",   208.5f, 0.62f, 5, 2, 4, true,  1.5f),
                 new("Iron",   211.2f,-0.52f, 5, 2, 4, false)
             };
 

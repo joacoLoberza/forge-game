@@ -7,7 +7,7 @@ namespace ForjaGame.Environment
     [ExecuteAlways]
     public partial class GreenPlateauTerrainController : MonoBehaviour
     {
-        private const string GroundMeshVersionName = "MountainPlateauGround_V3";
+        private const string GroundMeshVersionName = "MountainPlateauGround_V4";
 
         public static GreenPlateauTerrainController Instance { get; private set; }
 

@@ -16,7 +16,7 @@ namespace ForjaGame.Environment
         public const float CaveEntranceZ = 28.0f;
         public const float CaveEndZ = 226.0f;
         public const float VictoryAltarZ = 215.0f;
-        public const string CaveVersionMarker = "OrganicCavern_V3";
+        public const string CaveVersionMarker = "OrganicCavern_V4";
 
         private static Material _caveRockMat;
         private static Material _caveFloorMat;
@@ -158,7 +158,7 @@ namespace ForjaGame.Environment
                 {
                     float tx = ix / (float)xSteps;
                     float x = sx + Mathf.Lerp(-(lw + 1.6f), rw + 1.6f, tx);
-                    float y = iz == 0 ? -0.22f : GetFloorY(x, z);
+                    float y = GetFloorY(x, z);
                     verts.Add(new Vector3(x, y, z));
                     uvs.Add(new Vector2(x * 0.22f, z * 0.22f));
                 }

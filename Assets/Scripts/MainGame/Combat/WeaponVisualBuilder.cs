@@ -8,7 +8,7 @@ namespace ForjaGame.Combat
     /// Combina la hoja metálica deformada y el mango de madera tallado del yunque,
     /// compensando el pivote exactamente en el centro de la empuñadura (Grip Center).
     /// </summary>
-    public static class WeaponVisualBuilder
+    public static partial class WeaponVisualBuilder
     {
         private static Material _defaultMetalMat;
         private static Material _defaultWoodMat;
@@ -17,13 +17,13 @@ namespace ForjaGame.Combat
         {
             if (weapon == null) return null;
 
-            // Si tiene mallas personalizadas creadas en el yunque, construir el modelo procedural
+            EnsureWeaponMeshes(weapon);
+
             if (weapon.customMesh != null || weapon.customHandleMesh != null)
             {
                 return BuildProceduralWeapon(weapon, parentSocket);
             }
 
-            // Fallback para armas de prueba o sin mallas de forja
             if (fallbackPrefab != null && parentSocket != null)
             {
                 GameObject fallbackInst = Object.Instantiate(fallbackPrefab, parentSocket);
@@ -38,6 +38,35 @@ namespace ForjaGame.Combat
             return null;
         }
 
+        public static void EnsureWeaponMeshes(WeaponStats weapon)
+        {
+            if (weapon == null) return;
+            if (weapon.customHandleMesh == null)
+            {
+                weapon.customHandleMesh = CreateHandleMesh(weapon.handleLength);
+                if (weapon.gripCenterOffset == Vector3.zero)
+                    weapon.gripCenterOffset = new Vector3(0.12f, 0f, 0f);
+            }
+
+            if (weapon.customMesh == null)
+            {
+                weapon.customMesh = weapon.weaponType switch
+                {
+                    WeaponType.Axe => CreateAxeHeadMesh(),
+                    WeaponType.Hammer => CreateHammerHeadMesh(),
+                    WeaponType.Pickaxe => PickaxeModelGenerator.GenerateHeadMesh(),
+                    _ => CreateSwordBladeMesh()
+                };
+
+                if (weapon.bladeMountPosition == Vector3.zero && weapon.customHandleMesh != null)
+                {
+                    float len = Mathf.Max(0.28f, weapon.customHandleMesh.bounds.size.x * 0.90f);
+                    weapon.bladeMountPosition = new Vector3(len, 0f, 0f);
+                    weapon.bladeMountRotation = weapon.weaponType == WeaponType.Sword ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+                }
+            }
+        }
+
         private static GameObject BuildProceduralWeapon(WeaponStats weapon, Transform parentSocket)
         {
             GameObject rootGo = new GameObject($"EquippedWeapon_{weapon.weaponType}_{weapon.DisplayName}");
@@ -49,18 +78,11 @@ namespace ForjaGame.Combat
                 rootGo.transform.localScale = Vector3.one;
             }
 
-            // Contenedor de orientación:
-            // En el yunque, el arma se forja longitudinalmente a lo largo del eje +X.
-            // Para estándares de empuñadura en mano humanoide, rotamos +X hacia +Y (hacia arriba del puño).
             GameObject orientationContainer = new GameObject("GripOrientationContainer");
             orientationContainer.transform.SetParent(rootGo.transform, false);
             orientationContainer.transform.localPosition = Vector3.zero;
             orientationContainer.transform.localScale = Vector3.one;
 
-            // Orientación de la cara frontal de ataque:
-            // - Para Espada: filo afilado mira al frente (+Z)
-            // - Para Hacha: filo cortante mira al frente (+Z), compensando los 90° del montaje en el mango
-            // - Para Martillo: cara de impacto mira al frente (+Z)
             float yRot = 0f;
             if (weapon.weaponType == WeaponType.Hammer || weapon.weaponType == WeaponType.Pickaxe)
             {
@@ -80,11 +102,9 @@ namespace ForjaGame.Combat
             Vector3 gripPivot = weapon.gripCenterOffset;
             if (gripPivot == Vector3.zero && weapon.customHandleMesh != null)
             {
-                // Empuñadura por defecto a 5 cm del pomo (base del mango)
-                gripPivot = new Vector3(0.05f, 0f, 0f);
+                gripPivot = new Vector3(0.08f, 0f, 0f);
             }
 
-            // 1. Instanciar y posicionar el mango de madera
             if (weapon.customHandleMesh != null)
             {
                 GameObject handleGo = new GameObject("CarvedWoodHandle");
@@ -100,22 +120,18 @@ namespace ForjaGame.Combat
                 mr.sharedMaterial = weapon.customHandleMaterial != null ? weapon.customHandleMaterial : GetDefaultWoodMaterial();
             }
 
-            // 2. Instanciar y posicionar la hoja / cabeza metálica
             if (weapon.customMesh != null)
             {
                 GameObject bladeGo = new GameObject("ForgedMetalBlade");
                 bladeGo.transform.SetParent(orientationContainer.transform, false);
 
                 Vector3 mountPos = weapon.bladeMountPosition;
-                // Si la posición de montaje no fue asignada (Vector3.zero) y tenemos un mango,
-                // montar automáticamente al final del mango (en el extremo opuesto al pomo).
                 if (mountPos == Vector3.zero && weapon.customHandleMesh != null)
                 {
                     float handleLength = Mathf.Max(0.20f, weapon.customHandleMesh.bounds.size.x);
                     mountPos = new Vector3(handleLength, 0f, 0f);
                 }
 
-                // La posición de la hoja respecto al mango compensa el punto de agarre (gripPivot)
                 Vector3 bladeOffsetFromGrip = mountPos - gripPivot;
                 bladeGo.transform.localPosition = bladeOffsetFromGrip;
                 bladeGo.transform.localRotation = weapon.bladeMountRotation;
@@ -134,9 +150,16 @@ namespace ForjaGame.Combat
         private static Material GetDefaultMetalMaterial()
         {
             if (_defaultMetalMat != null) return _defaultMetalMat;
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null)
+            {
+                Material m = UnityEngine.Resources.Load<Material>("Paladin_Mat");
+                if (m != null) shader = m.shader;
+            }
+            if (shader == null) shader = Shader.Find("Standard");
+
             _defaultMetalMat = new Material(shader) { name = "DefaultMetal_Mat" };
-            Color col = new Color(0.65f, 0.68f, 0.72f);
+            Color col = new Color(0.68f, 0.70f, 0.74f);
             if (_defaultMetalMat.HasProperty("_BaseColor")) _defaultMetalMat.SetColor("_BaseColor", col);
             _defaultMetalMat.color = col;
             if (_defaultMetalMat.HasProperty("_Metallic")) _defaultMetalMat.SetFloat("_Metallic", 0.90f);
@@ -147,7 +170,14 @@ namespace ForjaGame.Combat
         private static Material GetDefaultWoodMaterial()
         {
             if (_defaultWoodMat != null) return _defaultWoodMat;
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null)
+            {
+                Material m = UnityEngine.Resources.Load<Material>("Paladin_Mat");
+                if (m != null) shader = m.shader;
+            }
+            if (shader == null) shader = Shader.Find("Standard");
+
             _defaultWoodMat = new Material(shader) { name = "DefaultWood_Mat" };
             Color col = new Color(0.48f, 0.32f, 0.18f);
             if (_defaultWoodMat.HasProperty("_BaseColor")) _defaultWoodMat.SetColor("_BaseColor", col);

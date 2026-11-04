@@ -12,7 +12,6 @@ namespace ForjaGame.Resources
     /// Veta o yacimiento mineral en el mundo. Notifica perturbaciones territoriales a la fauna
     /// subterránea al ser picada y permite alimentación ecológica sin soltar pepitas al suelo.
     /// </summary>
-    [ExecuteAlways]
     [RequireComponent(typeof(BoxCollider))]
     public class ResourceNodeController : MonoBehaviour, IDamageable
     {
@@ -224,8 +223,7 @@ namespace ForjaGame.Resources
 
         private void SetVisualsActive(bool active)
         {
-            var col = GetComponent<Collider>();
-            if (col != null) col.enabled = active;
+            if (TryGetComponent<Collider>(out var col)) col.enabled = active;
             foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = active;
             foreach (var l in GetComponentsInChildren<Light>(true)) l.enabled = active;
         }

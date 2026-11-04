@@ -62,15 +62,14 @@ namespace ForjaGame.UI
         private static string CleanSymbols(string text)
         {
             if (string.IsNullOrEmpty(text)) return string.Empty;
-            return text
-                .Replace("\u25C6", "")
-                .Replace("\u2756", "")
-                .Replace("❖", "")
-                .Replace("◆", "")
-                .Replace("▲", "")
-                .Replace("■", "")
-                .Replace("⚔", "")
-                .Trim();
+            var sb = new System.Text.StringBuilder(text.Length);
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (char.IsSurrogate(c) || c == '\u25C6' || c == '\u2756' || c == '❖' || c == '◆' || c == '▲' || c == '■' || c == '⚔') continue;
+                sb.Append(c);
+            }
+            return sb.ToString().Trim();
         }
 
         public void SetIndicatorActive(bool active)

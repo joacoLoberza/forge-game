@@ -29,8 +29,8 @@ namespace ForjaGame.Resources
 
         [Header("Configuración del Generador")]
         [SerializeField] private GeneratorCreatureKind kind = GeneratorCreatureKind.VeinGolem;
-        [SerializeField] private float initialSpawnDelay = 14f;
-        [SerializeField] private float respawnCooldown = 36f;
+        [SerializeField] private float initialSpawnDelay = 1.5f;
+        [SerializeField] private float respawnCooldown = 32f;
         [SerializeField] private int maxConcurrent = 1;
         [SerializeField] private int creatureHp = 280;
         [SerializeField] private int creatureDamage = 24;
@@ -59,8 +59,8 @@ namespace ForjaGame.Resources
             kind = GeneratorCreatureKind.VeinGolem;
             _hostVein = vein;
             _spawnParent = container;
-            initialSpawnDelay = Mathf.Max(4f, firstDelay);
-            respawnCooldown = Mathf.Max(12f, respawnDelay);
+            initialSpawnDelay = Mathf.Max(1.0f, firstDelay);
+            respawnCooldown = Mathf.Max(10f, respawnDelay);
             maxConcurrent = 1;
             creatureHp = hp;
             creatureDamage = dmg;
@@ -78,8 +78,8 @@ namespace ForjaGame.Resources
             kind = GeneratorCreatureKind.BroodSpider;
             _hostNest = nest;
             _spawnParent = container;
-            initialSpawnDelay = Mathf.Max(4f, firstDelay);
-            respawnCooldown = Mathf.Max(12f, respawnDelay);
+            initialSpawnDelay = Mathf.Max(1.0f, firstDelay);
+            respawnCooldown = Mathf.Max(10f, respawnDelay);
             maxConcurrent = Mathf.Clamp(maxAlive, 1, 2);
             creatureHp = hp;
             creatureDamage = biteDmg;

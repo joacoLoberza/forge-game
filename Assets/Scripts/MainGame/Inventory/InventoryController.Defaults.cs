@@ -35,9 +35,9 @@ namespace ForjaGame.Inventory
         {
             _suppressDelveTracking = true;
 
-            // Suministros limpios del taller: carbón base para encender la fragua,
+            // Suministros limpios del taller: carbón base abundante para encender y calibrar la fragua,
             // una pequeña reserva de cobre bruto, mangos de madera sin tallar y el pico de minería.
-            AddItem("Coal", 6);
+            AddItem("Coal", 12);
             AddItem("Copper", 3);
 
             for (int i = 0; i < 4; i++)

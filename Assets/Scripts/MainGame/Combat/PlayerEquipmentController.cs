@@ -155,7 +155,7 @@ namespace ForjaGame.Combat
                 _weaponHolder.localRotation = Quaternion.Euler(gripInHandRot);
             }
 
-            if (_spawnedWeaponInstance != null) UnequipWeapon();
+            UnequipWeapon();
 
             _currentEquippedWeapon = weapon;
             var stance = weapon.GetCombatStance();
@@ -207,6 +207,11 @@ namespace ForjaGame.Combat
 
         public void UnequipWeapon()
         {
+            if (_weaponHolder != null)
+            {
+                for (int i = _weaponHolder.childCount - 1; i >= 0; i--)
+                    ForjaGame.Core.UnitySafeUtility.DestroyGameObjectSafe(_weaponHolder.GetChild(i).gameObject);
+            }
             if (_spawnedWeaponInstance != null) { ForjaGame.Core.UnitySafeUtility.DestroyGameObjectSafe(_spawnedWeaponInstance); _spawnedWeaponInstance = null; }
             _currentEquippedWeapon = null;
             _gripSocketRear = null;

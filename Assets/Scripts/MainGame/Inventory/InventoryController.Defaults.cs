@@ -31,7 +31,13 @@ namespace ForjaGame.Inventory
             }
         }
 
-        private void InitializeDefaultInventory()
+        public void EnsureStarterSupplies()
+        {
+            if (_weapons != null && _weapons.Count > 0) return;
+            InitializeDefaultInventory();
+        }
+
+        public void InitializeDefaultInventory()
         {
             _suppressDelveTracking = true;
 
@@ -43,7 +49,21 @@ namespace ForjaGame.Inventory
             for (int i = 0; i < 4; i++)
                 AddHandle(HandleData.CreateDefault());
 
-            AddWeapon(PickaxeModelGenerator.CreateDefaultIronPickaxe());
+            bool alreadyHasPickaxe = false;
+            if (_weapons != null)
+            {
+                for (int i = 0; i < _weapons.Count; i++)
+                {
+                    if (_weapons[i] != null && _weapons[i].weaponType == WeaponType.Pickaxe)
+                    {
+                        alreadyHasPickaxe = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!alreadyHasPickaxe)
+                AddWeapon(PickaxeModelGenerator.CreateDefaultIronPickaxe());
 
             _suppressDelveTracking = false;
             _delveHarvestedItems.Clear();
@@ -86,7 +106,7 @@ namespace ForjaGame.Inventory
         {
             _isInCaveDelve = false;
             if (_delveHarvestedItems.Count == 0)
-                return "No llevabas minerales sin asegurar de esta incursión.";
+                return "No unsecured ores carried from this expedition.";
 
             var sb = new StringBuilder();
             bool first = true;
@@ -99,7 +119,7 @@ namespace ForjaGame.Inventory
                 first = false;
             }
             _delveHarvestedItems.Clear();
-            return first ? "No llevabas minerales sin asegurar." : $"Botín perdido en la caverna: {sb}.";
+            return first ? "No unsecured ores carried." : $"Ores lost in the cavern: {sb}.";
         }
 
         /// <summary>
@@ -127,8 +147,8 @@ namespace ForjaGame.Inventory
             _suppressDelveTracking = false;
 
             string weaponBlessing = BlessEquippedForgedWeapon();
-            string securedMsg = securedCount > 0 ? $"Botín asegurado intacto ({securedCount} minerales). " : "";
-            return $"{securedMsg}Recompensa del Altar: Lingote Grande de Acero Áureo, Hierro x6, Oro x4, Carbón x12{weaponBlessing}";
+            string securedMsg = securedCount > 0 ? $"Delve loot safely secured ({securedCount} ores). " : "";
+            return $"{securedMsg}Sanctum Reward: Master Golden Steel Ingot, Iron x6, Gold x4, Coal x12{weaponBlessing}";
         }
 
         private string BlessEquippedForgedWeapon()
@@ -137,29 +157,22 @@ namespace ForjaGame.Inventory
             WeaponStats active = equip != null ? equip.EquippedWeapon : null;
             if (active == null || active.weaponType == WeaponType.Pickaxe) return ".";
 
-            if (active.qualityPrefix != "Consagrada")
+            if (active.qualityPrefix != "Consecrated")
             {
                 active.baseDamage = Mathf.Round(active.baseDamage * 1.18f);
                 active.maxSharpness = Mathf.Max(active.maxSharpness, 110f);
                 active.currentSharpness = active.maxSharpness;
                 active.quality = Mathf.Clamp01(active.quality + 0.10f);
-                active.qualityPrefix = "Consagrada";
+                active.qualityPrefix = "Consecrated";
                 InventoryUpdated?.Invoke();
-                return $" y tu {active.weaponName} fue Consagrada (+18% Daño)!";
+                return $" and your {active.weaponName} was Consecrated (+18% Damage)!";
             }
 
             active.currentSharpness = active.maxSharpness;
             InventoryUpdated?.Invoke();
-            return " y el filo de tu arma fue restaurado al máximo.";
+            return " and your weapon's edge was restored to peak sharpness.";
         }
 
-        private static string TranslateResourceName(string id) => id switch
-        {
-            "Coal" => "Carbón",
-            "Copper" => "Cobre",
-            "Iron" => "Hierro",
-            "Gold" => "Oro",
-            _ => id
-        };
+        private static string TranslateResourceName(string id) => id;
     }
 }

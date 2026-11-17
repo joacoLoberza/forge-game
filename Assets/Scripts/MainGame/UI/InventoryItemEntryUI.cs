@@ -27,8 +27,29 @@ namespace ForjaGame.UI
             if (button == null) button = GetComponent<Button>();
             if (button != null)
             {
+                button.transition = Selectable.Transition.None;
+                button.navigation = new Navigation { mode = Navigation.Mode.None };
                 button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(() => _onClickAction?.Invoke());
+                button.onClick.AddListener(() => { ForjaGame.Audio.ForgeAudioSystem.PlayItemSelect(); _onClickAction?.Invoke(); });
+            }
+
+            if (selectionHighlight == null)
+            {
+                Transform hi = transform.Find("SelectionHighlight");
+                if (hi == null)
+                {
+                    var hiGo = new GameObject("SelectionHighlight", typeof(RectTransform), typeof(Image));
+                    hiGo.transform.SetParent(transform, false);
+                    var hRt = hiGo.GetComponent<RectTransform>();
+                    hRt.anchorMin = new Vector2(0f, 0f); hRt.anchorMax = new Vector2(0f, 1f);
+                    hRt.pivot = new Vector2(0f, 0.5f);
+                    hRt.anchoredPosition = Vector2.zero; hRt.sizeDelta = new Vector2(5f, -4f);
+                    var hImg = hiGo.GetComponent<Image>();
+                    hImg.color = new Color(0.86f, 0.65f, 0.22f, 1f);
+                    hImg.raycastTarget = false;
+                    selectionHighlight = hImg;
+                }
+                else selectionHighlight = hi.GetComponent<Image>();
             }
 
             if (backgroundImage == null) backgroundImage = GetComponent<Image>();
@@ -81,7 +102,7 @@ namespace ForjaGame.UI
                 var lrt = labelText.rectTransform;
                 lrt.anchorMin = Vector2.zero;
                 lrt.anchorMax = Vector2.one;
-                lrt.offsetMin = new Vector2(58, 2);
+                lrt.offsetMin = new Vector2(54, 2);
                 lrt.offsetMax = new Vector2(-10, -2);
                 labelText.enableAutoSizing = true;
                 labelText.fontSizeMin = 10f;
@@ -117,11 +138,14 @@ namespace ForjaGame.UI
             {
                 backgroundImage.sprite = isSelected ? BookTextureBuilder.GetTitlePlaqueSprite() : BookTextureBuilder.GetParchmentBannerSprite();
                 backgroundImage.type = Image.Type.Sliced;
-                backgroundImage.color = isSelected ? Color.white : new Color(0.92f, 0.86f, 0.75f, 0.98f);
+                backgroundImage.color = isSelected ? Color.white : new Color(0.95f, 0.90f, 0.80f, 0.98f);
             }
 
             if (selectionHighlight != null)
+            {
                 selectionHighlight.gameObject.SetActive(isSelected);
+                selectionHighlight.transform.SetAsLastSibling();
+            }
 
             if (labelText != null)
             {

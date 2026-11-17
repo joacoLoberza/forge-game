@@ -37,9 +37,49 @@ namespace ForjaGame.UI
             return _cachedTmpFont;
         }
 
+        public static string SanitizeForTMP(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+            input = input
+                .Replace("[🏆]", "")
+                .Replace("[□]", "")
+                .Replace("[\u25A1]", "")
+                .Replace("[R]", "")
+                .Replace("★", "*")
+                .Replace("⏱", "")
+                .Replace("«", "")
+                .Replace("»", "")
+                .Replace("▶", "")
+                .Replace("—", "-")
+                .Replace("…", "..")
+                .Replace("🏆", "")
+                .Replace("🥇", "1.")
+                .Replace("🥈", "2.")
+                .Replace("🔄", "")
+                .Replace("□", "")
+                .Replace("\u25A1", "")
+                .Replace("¤", "");
+
+            var sb = new System.Text.StringBuilder(input.Length);
+            for (int i = 0; i < input.Length; i++)
+            {
+                char c = input[i];
+                if (char.IsSurrogate(c))
+                {
+                    if (char.IsHighSurrogate(c) && i + 1 < input.Length && char.IsLowSurrogate(input[i + 1]))
+                        i++;
+                    continue;
+                }
+                if (c == '\u25A1' || c == '□' || (c >= 0x25A0 && c <= 0x25FF) || c >= 0xE000) continue;
+                sb.Append(c);
+            }
+            return sb.ToString().Trim();
+        }
+
         public static void ApplyToTMP(TMP_Text text)
         {
             if (text == null || !Application.isPlaying) return;
+            if (!string.IsNullOrEmpty(text.text)) text.text = SanitizeForTMP(text.text);
             TMP_FontAsset f = GetTMPFont();
             if (f != null && f.material != null && text.font != f)
             {
@@ -57,10 +97,15 @@ namespace ForjaGame.UI
             var texts = root.GetComponentsInChildren<TMP_Text>(true);
             for (int i = 0; i < texts.Length; i++)
             {
-                if (texts[i] != null && texts[i].font != f)
+                var t = texts[i];
+                if (t != null)
                 {
-                    texts[i].font = f;
-                    texts[i].UpdateMeshPadding();
+                    if (!string.IsNullOrEmpty(t.text)) t.text = SanitizeForTMP(t.text);
+                    if (t.font != f)
+                    {
+                        t.font = f;
+                        t.UpdateMeshPadding();
+                    }
                 }
             }
         }
@@ -74,10 +119,14 @@ namespace ForjaGame.UI
             var all = Object.FindObjectsByType<TMP_Text>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             for (int i = 0; i < all.Length; i++)
             {
-                if (all[i] != null && all[i].font != f)
+                if (all[i] != null)
                 {
-                    all[i].font = f;
-                    all[i].UpdateMeshPadding();
+                    if (!string.IsNullOrEmpty(all[i].text)) all[i].text = SanitizeForTMP(all[i].text);
+                    if (all[i].font != f)
+                    {
+                        all[i].font = f;
+                        all[i].UpdateMeshPadding();
+                    }
                 }
             }
         }

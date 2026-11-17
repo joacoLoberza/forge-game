@@ -1,4 +1,5 @@
 using UnityEngine;
+using ForjaGame.Core;
 
 namespace ForjaGame.Environment
 {
@@ -51,13 +52,32 @@ namespace ForjaGame.Environment
             return (baseH + rimH) * blend;
         }
 
+        private static float GetRowZ(int row, int res)
+        {
+            if (row == res) return PlateauMaxZ;
+            if (row == res - 1) return 27.60f;
+            return Mathf.Lerp(PlateauMinZ, 27.60f, row / (float)(res - 1));
+        }
+
+        private static float GetPlateauMeshY(float wx, int row, int res, float maxH)
+        {
+            float wz = GetRowZ(row, res);
+            float y = GetSimpleHeight(wx, wz, maxH);
+            // Fila final tras Z=27.60m en la boca cavernosa: se hunde bajo el piso de roca sin crear baches previos
+            if (row == res && Mathf.Abs(wx) <= 9.8f)
+            {
+                float xT = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((Mathf.Abs(wx) - 7.8f) / 2.0f));
+                y = Mathf.Lerp(y, -0.38f, xT);
+            }
+            return y;
+        }
+
         public static Mesh GenerateUndulatingMesh(float size, int res, float maxH)
         {
             Mesh m = new Mesh { name = GroundMeshVersionName };
             m.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
             float xStep = (PlateauMaxX - PlateauMinX) / res;
-            float zStep = (PlateauMaxZ - PlateauMinZ) / res;
 
             int triVertexCount = res * res * 6;
             Vector3[] verts = new Vector3[triVertexCount];
@@ -67,22 +87,24 @@ namespace ForjaGame.Environment
             int vIdx = 0;
             for (int z = 0; z < res; z++)
             {
+                float z0 = GetRowZ(z, res);
+                float z1 = GetRowZ(z + 1, res);
                 for (int x = 0; x < res; x++)
                 {
                     float x0 = PlateauMinX + x * xStep;
                     float x1 = PlateauMinX + (x + 1) * xStep;
-                    float z0 = PlateauMinZ + z * zStep;
-                    float z1 = PlateauMinZ + (z + 1) * zStep;
 
-                    float u0 = (x0 - PlateauMinX) / 36f;
-                    float u1 = (x1 - PlateauMinX) / 36f;
-                    float v0 = (z0 - PlateauMinZ) / 36f;
-                    float v1 = (z1 - PlateauMinZ) / 36f;
+                    float spanX = PlateauMaxX - PlateauMinX;
+                    float spanZ = PlateauMaxZ - PlateauMinZ;
+                    float u0 = (x0 - PlateauMinX) / spanX;
+                    float u1 = (x1 - PlateauMinX) / spanX;
+                    float v0 = (z0 - PlateauMinZ) / spanZ;
+                    float v1 = (z1 - PlateauMinZ) / spanZ;
 
-                    Vector3 p00 = new Vector3(x0, GetSimpleHeight(x0, z0, maxH), z0);
-                    Vector3 p10 = new Vector3(x1, GetSimpleHeight(x1, z0, maxH), z0);
-                    Vector3 p01 = new Vector3(x0, GetSimpleHeight(x0, z1, maxH), z1);
-                    Vector3 p11 = new Vector3(x1, GetSimpleHeight(x1, z1, maxH), z1);
+                    Vector3 p00 = new Vector3(x0, GetPlateauMeshY(x0, z, res, maxH), z0);
+                    Vector3 p10 = new Vector3(x1, GetPlateauMeshY(x1, z, res, maxH), z0);
+                    Vector3 p01 = new Vector3(x0, GetPlateauMeshY(x0, z + 1, res, maxH), z1);
+                    Vector3 p11 = new Vector3(x1, GetPlateauMeshY(x1, z + 1, res, maxH), z1);
 
                     verts[vIdx] = p00; uvs[vIdx] = new Vector2(u0, v0); tris[vIdx] = vIdx; vIdx++;
                     verts[vIdx] = p01; uvs[vIdx] = new Vector2(u0, v1); tris[vIdx] = vIdx; vIdx++;
@@ -136,6 +158,36 @@ namespace ForjaGame.Environment
             }
             if (_safeGrassMat.HasProperty("_Smoothness")) _safeGrassMat.SetFloat("_Smoothness", 0.04f);
             return _safeGrassMat;
+        }
+
+        public static void EnsurePlateauInvisibleBoundaries()
+        {
+            var existing = GameObject.Find("[PLATEAU_INVISIBLE_BOUNDARIES]");
+            if (existing != null) UnitySafeUtility.DestroyGameObjectSafe(existing);
+
+            var root = new GameObject("[PLATEAU_INVISIBLE_BOUNDARIES]");
+            root.transform.position = Vector3.zero;
+
+            // Paredes perimetrales invisibles reforzadas para impedir caídas al vacío en los extremos de la meseta
+            CreateInvisibleBoundary(root.transform, "Boundary_South",     new Vector3(0f, 15f, -108f),       new Vector3(230f, 45f, 8f));
+            CreateInvisibleBoundary(root.transform, "Boundary_West",      new Vector3(-108f, 15f, -40f),     new Vector3(8f, 45f, 144f));
+            CreateInvisibleBoundary(root.transform, "Boundary_East",      new Vector3(108f, 15f, -40f),      new Vector3(8f, 45f, 144f));
+            // Paredes norte en la falda montañosa que sellan el macizo y dejan libre el sendero de entrada (X = -6.5 a +6.5)
+            CreateInvisibleBoundary(root.transform, "Boundary_NorthWest", new Vector3(-57.25f, 15f, 28.0f),  new Vector3(101.5f, 45f, 8f));
+            CreateInvisibleBoundary(root.transform, "Boundary_NorthEast", new Vector3(57.25f, 15f, 28.0f),   new Vector3(101.5f, 45f, 8f));
+            // Suelo de seguridad subterráneo anti-caída
+            CreateInvisibleBoundary(root.transform, "Boundary_SubFloor",  new Vector3(0f, -10f, -40f),       new Vector3(240f, 4f, 160f));
+        }
+
+        private static void CreateInvisibleBoundary(Transform parent, string name, Vector3 pos, Vector3 size)
+        {
+            var go = new GameObject(name, typeof(BoxCollider));
+            go.transform.SetParent(parent, false);
+            go.transform.position = pos;
+            go.layer = 0;
+            var col = go.GetComponent<BoxCollider>();
+            col.isTrigger = false;
+            col.size = size;
         }
     }
 }

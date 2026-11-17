@@ -1,169 +1,202 @@
-using System.Collections;
 using UnityEngine;
 using ForjaGame.Audio;
+using ForjaGame.Core;
 
 namespace ForjaGame.Combat
 {
     /// <summary>
-    /// Modelo 3D e IA ecológica del Golem: vigilancia pacífica si el jugador pasa de largo,
-    /// defensa feroz si pican su mena, resonancia lítica (hambre), letargo pétreo (descanso) y patrulla.
+    /// IA ecológica, máquina de estados y sincronización de velocidad de marcha del Gólem subterráneo.
     /// </summary>
     public partial class GolemEnemyController
     {
-        private void SetupGolemVisualModel()
+        private float _stunRecoilUntil;
+
+        protected override void OnParryStunned()
         {
-            Transform visual = transform.Find("Visual_Golem");
-            if (visual == null)
-            {
-                GameObject fbxPrefab = LoadCreatureAsset<GameObject>(
-                    "Assets/Models/Character/golem-animation/source/Model.fbx", "Models/GolemModel");
-                if (fbxPrefab != null)
-                {
-                    GameObject go = Instantiate(fbxPrefab, transform);
-                    go.name = "Visual_Golem";
-                    go.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
-                    go.transform.localScale = Vector3.one * (100.0f * visualScaleMultiplier);
-                    visual = go.transform;
-                }
-            }
-            else visual.localScale = Vector3.one * (100.0f * visualScaleMultiplier);
-
-            if (visual == null) return;
-
-            if (!visual.TryGetComponent<Animator>(out _animator))
-                _animator = visual.GetComponentInChildren<Animator>() ?? visual.gameObject.AddComponent<Animator>();
-
-            var ctrl = LoadCreatureAsset<RuntimeAnimatorController>("Assets/Animations/GolemAnimator.controller", "Animations/GolemAnimator");
-            if (ctrl != null && _animator != null) _animator.runtimeAnimatorController = ctrl;
-
-            Material mat = LoadCreatureAsset<Material>("Assets/Materials/Mat_GolemRock.mat", "Mat_GolemRock");
-            if (mat == null)
-            {
-                Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                mat = new Material(s) { name = "Mat_GolemRock" };
-                Texture2D tex = LoadCreatureAsset<Texture2D>("Assets/Models/Character/golem-animation/textures/GOLEM_SKIN_rock_12.png", "GolemTexture");
-                if (tex != null)
-                {
-                    if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
-                    if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
-                }
-            }
-
-            foreach (var smr in visual.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-            {
-                smr.updateWhenOffscreen = true;
-                smr.enabled = true;
-                smr.sharedMaterial = mat;
-            }
-            foreach (var r in visual.GetComponentsInChildren<MeshRenderer>(true)) { r.enabled = true; r.sharedMaterial = mat; }
-
-            var renderers = visual.GetComponentsInChildren<Renderer>(true);
-            if (renderers.Length > 0 && _col != null)
-            {
-                Bounds b = renderers[0].bounds;
-                for (int i = 1; i < renderers.Length; i++) b.Encapsulate(renderers[i].bounds);
-                if (b.size.y > 0.5f)
-                {
-                    _col.height = b.size.y;
-                    _col.radius = Mathf.Clamp(Mathf.Max(b.size.x, b.size.z) * 0.35f, 0.6f, 1.1f);
-                    _col.center = new Vector3(0f, b.size.y * 0.5f, 0f);
-                }
-            }
+            _isRoaring = _isBullCharging = _isAttacking = false;
+            _stunRecoilUntil = Time.time + 0.34f;
+            ApplyKnockback(-transform.forward, 3.2f, 0.24f);
+            SetAnimatorSpeed(1.25f);
+            PlayGuardedAnim("roar", 0.05f, forceRestart: true);
         }
 
         private void Update()
         {
             if (!IsAlive) return;
-            _playerTransform = FindClosestLivingPlayer(transform.position);
+            if (IsStunned)
+            {
+                if (!IsKnockbackActive) StopHorizontalMovement();
+                if (Time.time < _stunRecoilUntil) SetAnimatorSpeed(1.20f);
+                else { SetAnimatorSpeed(0.16f); PlayGuardedAnim("idle", 0.14f); }
+                return;
+            }
+            Transform livingPlayer = CaveTargetVisibility.FindClosestCaveTarget(transform.position);
+            if (livingPlayer != null) _playerTransform = livingPlayer;
+            else
+            {
+                if (_playerTransform != null && !CaveTargetVisibility.IsTargetAccessibleInCave(transform.position, _playerTransform))
+                    _playerTransform = null;
+                if (_playerTransform == null || !_playerTransform.gameObject.activeInHierarchy)
+                    _playerTransform = FindTrespassingSpiderNearVein();
+            }
             Vector3 toPlayer = _playerTransform != null ? (_playerTransform.position - transform.position) : Vector3.zero;
-            toPlayer.y = 0f;
-            float dist = _playerTransform != null ? toPlayer.magnitude : 999f;
+            toPlayer.y = 0f; float dist = _playerTransform != null ? toPlayer.magnitude : 999f;
+            float hpRatio = (float)currentHealth / Mathf.Max(1, maxHealth);
+
+            if (_isBullCharging)
+            {
+                if (_playerTransform == null || HasWallBetween(_playerTransform.position) || Time.time >= _stateEndTime || dist <= attackRange * 0.90f)
+                {
+                    _isBullCharging = false;
+                    StopHorizontalMovement();
+                    if (_playerTransform != null && dist <= attackRange * 1.25f && !HasWallBetween(_playerTransform.position))
+                        ExecuteTacticalGolemAttack("attack4");
+                    return;
+                }
+                float chargeSpd = moveSpeed * 1.42f * visualScaleMultiplier;
+                MoveAlongCave(_playerTransform.position, chargeSpd, 5.5f);
+                PlayGuardedAnim("walkNormal");
+                SetAnimatorSpeed(0.95f);
+                if (Time.time >= _lastStepDustTime)
+                {
+                    _lastStepDustTime = Time.time + 0.28f;
+                    EnemyAttackTelegraph.EmitImpactDust(transform.position, transform.forward, 3, 0.45f);
+                }
+                return;
+            }
 
             if (_isRoaring)
             {
                 StopHorizontalMovement();
-                if (_playerTransform != null) FaceDirection(toPlayer, 7f);
-                if (Time.time >= _stateEndTime) _isRoaring = false;
+                if (_playerTransform != null) FaceDirection(toPlayer, 6f);
+                if (Time.time >= _stateEndTime) { _isRoaring = false; SetAnimatorSpeed(1.0f); }
                 return;
             }
 
             if (_isAttacking)
             {
                 StopHorizontalMovement();
-                if (_playerTransform != null) FaceDirection(toPlayer, 6f);
-                if (Time.time >= _stateEndTime)
-                {
-                    _isAttacking = false;
-                    _nextAttackCooldown = Time.time + 1.05f;
-                    _currentAttackIndex = (_currentAttackIndex + 1) % _attackSequence.Length;
-                }
+                if (Time.time >= _stateEndTime) { _isAttacking = false; SetAnimatorSpeed(1.0f); _nextAttackCooldown = Time.time + 0.85f; }
                 return;
             }
 
-            float hpRatio = (float)currentHealth / Mathf.Max(1, maxHealth);
             EcologicalIntent intent = _ecoBrain.Evaluate(transform.position, hpRatio, _playerTransform, Time.deltaTime);
-
             switch (intent)
             {
+                case EcologicalIntent.CriticalFlee:
+                    ExecuteTacticalLowHpRetreat(toPlayer, dist);
+                    break;
                 case EcologicalIntent.SelfDefense:
                 case EcologicalIntent.TerritorialDefense:
-                    SetAnimatorSpeed(1.0f);
                     ExecuteGuardianDefense(toPlayer, dist);
                     break;
-
                 case EcologicalIntent.WatchfulVigil:
-                    _hasRoaredThisEngagement = false;
                     StopHorizontalMovement();
-                    SetAnimatorSpeed(0.55f);
-                    if (_playerTransform != null) FaceDirection(toPlayer, 3.8f);
+                    SetAnimatorSpeed(0.55f); if (_playerTransform != null) FaceDirection(toPlayer, 3.8f);
                     PlayGuardedAnim("idle");
                     break;
-
                 case EcologicalIntent.FeedingOnVein:
-                    _hasRoaredThisEngagement = false;
-                    SetAnimatorSpeed(1.0f);
                     ExecuteVeinChanneling();
                     break;
-
                 case EcologicalIntent.Resting:
-                    _hasRoaredThisEngagement = false;
-                    StopHorizontalMovement();
-                    SetAnimatorSpeed(0.16f);
-                    PlayGuardedAnim("idle", 0.35f);
+                    if (Time.time >= _nextRoarAllowedTime) _hasRoaredThisEngagement = false;
+                    StopHorizontalMovement(); SetAnimatorSpeed(0.16f); PlayGuardedAnim("idle", 0.35f);
                     break;
-
                 default:
-                    _hasRoaredThisEngagement = false;
-                    SetAnimatorSpeed(0.88f);
+                    if (Time.time >= _nextRoarAllowedTime) _hasRoaredThisEngagement = false;
                     ExecuteOrganicPatrol();
                     break;
             }
         }
 
+        private void ExecuteTacticalLowHpRetreat(Vector3 toPlayer, float dist)
+        {
+            if (_playerTransform == null) { StopHorizontalMovement(); PlayGuardedAnim("idle"); return; }
+            bool wallBlocked = HasWallBetween(_playerTransform.position);
+            if (!wallBlocked && dist <= attackRange * 1.18f && Time.time >= _nextAttackCooldown)
+            {
+                StopHorizontalMovement(); FaceDirection(toPlayer, 9f);
+                ExecuteSequentialAttack();
+                return;
+            }
+            if (dist < 5.6f)
+            {
+                float dirZ = Mathf.Abs(toPlayer.z) > 0.25f ? -Mathf.Sign(toPlayer.z) : (transform.position.z < (_zoneMinZ + _zoneMaxZ) * 0.5f ? 1f : -1f);
+                float targetZ = Mathf.Clamp(transform.position.z + dirZ * 4.5f, _zoneMinZ + 2.2f, _zoneMaxZ - 2.2f);
+                Vector3 retreatGoal = new Vector3(ForjaGame.Environment.CaveDungeonBuilder.GetSpineX(targetZ), transform.position.y, targetZ);
+                float spd = moveSpeed * 0.92f * visualScaleMultiplier;
+                PlayGuardedAnim("walkNormal");
+                MoveAlongCave(retreatGoal, spd, 7.5f);
+                SyncWalkSpeed(spd);
+            }
+            else
+            {
+                StopHorizontalMovement(); FaceDirection(toPlayer, 5.5f);
+                SetAnimatorSpeed(0.75f); PlayGuardedAnim("idle");
+            }
+        }
+
+        private void SyncWalkSpeed(float desiredSpeed)
+        {
+            float naturalSpeed = Mathf.Max(0.85f, 2.45f * visualScaleMultiplier);
+            float hVel = _rb != null && !_rb.isKinematic ? new Vector2(_rb.linearVelocity.x, _rb.linearVelocity.z).magnitude : desiredSpeed;
+            SetAnimatorSpeed(Mathf.Clamp(hVel / naturalSpeed, 0.30f, 0.78f));
+        }
+
         private void ExecuteGuardianDefense(Vector3 toPlayer, float dist)
         {
-            if (!_hasRoaredThisEngagement)
+            bool wallBlocked = _playerTransform != null && HasWallBetween(_playerTransform.position);
+            if (!_hasRoaredThisEngagement && !wallBlocked && Time.time >= _nextRoarAllowedTime)
             {
-                _hasRoaredThisEngagement = true;
-                _isRoaring = true;
-                _stateEndTime = Time.time + 1.65f;
-                StopHorizontalMovement();
+                _hasRoaredThisEngagement = true; _isRoaring = true; _stateEndTime = Time.time + 1.35f;
+                _nextRoarAllowedTime = Time.time + 35f;
+                StopHorizontalMovement(); SetAnimatorSpeed(1.0f);
+                PlayerCameraFollow.Instance?.TriggerImpulse(0.08f);
                 ForgeAudioSystem.PlayGolemSound(transform.position, CreatureSoundType.Aggro);
-                PlayGuardedAnim("roar");
+                PlayGuardedAnim("roar", 0.08f, forceRestart: true);
                 return;
             }
 
-            if (dist <= attackRange)
+            if (!wallBlocked && dist <= attackRange)
             {
                 StopHorizontalMovement();
-                FaceDirection(toPlayer, 8f);
-                if (Time.time >= _nextAttackCooldown) ExecuteSequentialAttack();
-                else PlayGuardedAnim("idle");
+                float angleToTarget = toPlayer.sqrMagnitude > 0.01f ? Vector3.Angle(transform.forward, toPlayer.normalized) : 0f;
+                FaceDirection(toPlayer, 6.5f);
+                if (Time.time >= _nextAttackCooldown)
+                {
+                    if (angleToTarget > 72f && _attackSequence[_currentAttackIndex] != "attack4")
+                        ExecuteTacticalGolemAttack("attack4");
+                    else
+                        ExecuteSequentialAttack();
+                }
+                else { SetAnimatorSpeed(0.85f); PlayGuardedAnim("idle"); }
+            }
+            else if (!wallBlocked && dist >= 4.4f && dist <= 10.8f && Time.time >= _nextFissureCooldown && Time.time >= _nextAttackCooldown)
+            {
+                _nextFissureCooldown = Time.time + 6.5f;
+                FaceDirection(toPlayer, 7.5f);
+                ExecuteRockFissureAttack();
+            }
+            else if (!wallBlocked && dist >= 4.8f && dist <= 10.5f && Time.time >= _nextChargeCooldown)
+            {
+                // Embestida de Avalancha cuando el jugador intenta mantener distancia media
+                _isBullCharging = true;
+                _stateEndTime = Time.time + 1.05f;
+                _nextChargeCooldown = Time.time + 5.8f;
+                ForgeAudioSystem.PlayGolemSound(transform.position, CreatureSoundType.Aggro);
+                PlayerCameraFollow.Instance?.TriggerImpulse(0.08f);
+            }
+            else if (wallBlocked && dist <= 3.4f)
+            {
+                StopHorizontalMovement(); FaceDirection(toPlayer, 6f);
+                PlayGuardedAnim("idle");
             }
             else if (_playerTransform != null)
             {
-                MoveAlongCave(_playerTransform.position, moveSpeed, 7.5f);
+                float chaseSpd = moveSpeed * visualScaleMultiplier;
+                MoveAlongCave(_playerTransform.position, chaseSpd, 8.0f);
                 PlayGuardedAnim("walkNormal");
+                SyncWalkSpeed(chaseSpd);
             }
         }
 
@@ -171,12 +204,10 @@ namespace ForjaGame.Combat
         {
             var vein = _ecoBrain.TargetVein;
             if (vein == null || !vein.IsAlive) { ExecuteOrganicPatrol(); return; }
-
             if (_ecoBrain.TryPerformFeedBite(transform.position, out bool channeled))
             {
-                StopHorizontalMovement();
-                FaceDirection(vein.transform.position - transform.position, 6f);
-                PlayGuardedAnim("attack3");
+                StopHorizontalMovement(); FaceDirection(vein.transform.position - transform.position, 6f);
+                PlayGuardedAnim("attack3", 0.10f, forceRestart: true);
                 if (channeled)
                 {
                     currentHealth = Mathf.Min(maxHealth, currentHealth + Mathf.RoundToInt(maxHealth * 0.08f));
@@ -185,8 +216,9 @@ namespace ForjaGame.Combat
             }
             else
             {
-                MoveAlongCave(vein.transform.position, moveSpeed * 0.68f, 6f);
-                PlayGuardedAnim("walkNormal");
+                float spd = moveSpeed * 0.72f * visualScaleMultiplier;
+                MoveAlongCave(vein.transform.position, spd, 6f);
+                PlayGuardedAnim("walkNormal"); SyncWalkSpeed(spd);
             }
         }
 
@@ -194,26 +226,22 @@ namespace ForjaGame.Combat
         {
             if (_ecoBrain.IsPatrolMoving)
             {
-                MoveAlongCave(_ecoBrain.PatrolTarget, moveSpeed * 0.56f, 5.5f);
-                PlayGuardedAnim("walkNormal");
+                float spd = moveSpeed * 0.65f * visualScaleMultiplier;
+                MoveAlongCave(_ecoBrain.PatrolTarget, spd, 5.5f);
+                PlayGuardedAnim("walkNormal"); SyncWalkSpeed(spd);
             }
             else { StopHorizontalMovement(); PlayGuardedAnim("idle"); }
         }
 
-        private void ExecuteSequentialAttack()
+        private Transform FindTrespassingSpiderNearVein()
         {
-            _isAttacking = true;
-            _stateEndTime = Time.time + 1.38f;
-            _activeAnimKey = string.Empty;
-            PlayGuardedAnim(_attackSequence[_currentAttackIndex], 0.10f);
-            ForgeAudioSystem.PlayGolemSound(transform.position, CreatureSoundType.Attack);
-            StartCoroutine(ApplyStrikeDelayed(0.54f));
-        }
-
-        private IEnumerator ApplyStrikeDelayed(float delay)
-        {
-            yield return new WaitForSeconds(delay);
-            TryDealConeDamageToPlayer(attackRange + 0.50f, 72f, 1.45f, attackDamage);
+            var spiders = SpiderEnemyController.ActiveSpiders;
+            for (int i = 0; i < spiders.Count; i++)
+                if (spiders[i] != null && spiders[i].IsAlive
+                    && !CaveTargetVisibility.HasAliveWallBetweenZ(transform.position.z, spiders[i].transform.position.z)
+                    && (spiders[i].transform.position - transform.position).sqrMagnitude <= 42.25f)
+                    return spiders[i].transform;
+            return null;
         }
     }
 }

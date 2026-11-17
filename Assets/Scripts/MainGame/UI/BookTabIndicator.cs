@@ -79,12 +79,12 @@ namespace ForjaGame.UI
 
             if (_rectTransform != null)
             {
-                _rectTransform.sizeDelta = new Vector2(_rectTransform.sizeDelta.x, active ? 42f : 34f);
+                _rectTransform.sizeDelta = new Vector2(active ? 78f : 73f, active ? 40f + activeYOffset : 38f);
             }
 
             if (_ribbonImage != null)
             {
-                _ribbonImage.color = active ? ribbonColor : inactiveColor;
+                _ribbonImage.color = active ? Color.Lerp(ribbonColor, Color.white, 0.16f) : inactiveColor;
                 _ribbonImage.raycastTarget = true;
             }
 
@@ -94,9 +94,9 @@ namespace ForjaGame.UI
                     chapterSymbol = "•";
 
                 string raw = CleanSymbols(_labelText.text).Replace("•", "").Trim();
-                _labelText.margin = Vector4.zero;
+                _labelText.margin = new Vector4(3f, active ? 5f : 5f, 3f, 12f);
                 _labelText.text = active ? $"{chapterSymbol} {raw}" : raw;
-                _labelText.color = active ? new Color(1f, 0.96f, 0.88f) : new Color(0.85f, 0.80f, 0.72f);
+                _labelText.color = active ? ForgeCanvasThemeStyler.GoldTitleInk : new Color(0.86f, 0.80f, 0.70f);
                 _labelText.fontStyle = active ? FontStyles.Bold : FontStyles.Normal;
                 _labelText.raycastTarget = false;
             }

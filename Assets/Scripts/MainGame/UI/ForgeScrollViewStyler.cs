@@ -61,22 +61,14 @@ namespace ForjaGame.UI
 
             if (scrollRect.viewport != null)
             {
-                var mask = scrollRect.viewport.GetComponent<Mask>();
-                var vpImg = scrollRect.viewport.GetComponent<Image>();
-                if (mask != null)
-                {
-                    mask.showMaskGraphic = false;
-                    if (vpImg != null) vpImg.color = Color.white;
-                }
-                else if (vpImg != null)
-                {
-                    vpImg.sprite = null;
-                    vpImg.color = Color.clear;
-                    vpImg.raycastTarget = false;
-                }
-
-                if (scrollRect.viewport.GetComponent<RectMask2D>() == null && mask == null)
-                    scrollRect.viewport.gameObject.AddComponent<RectMask2D>();
+                var vp = scrollRect.viewport;
+                if (vp.anchorMin == Vector2.zero && vp.anchorMax == Vector2.zero && vp.sizeDelta == Vector2.zero)
+                { vp.anchorMin = Vector2.zero; vp.anchorMax = Vector2.one; vp.offsetMin = Vector2.zero; vp.offsetMax = scrollRect.verticalScrollbar != null ? new Vector2(-18f, 0f) : Vector2.zero; vp.localScale = Vector3.one; }
+                var mask = vp.GetComponent<Mask>();
+                var vpImg = vp.GetComponent<Image>();
+                if (mask != null) { mask.showMaskGraphic = false; if (vpImg != null) vpImg.color = Color.white; }
+                else if (vpImg != null) { vpImg.sprite = null; vpImg.color = Color.clear; vpImg.raycastTarget = false; }
+                if (vp.GetComponent<RectMask2D>() == null && mask == null) vp.gameObject.AddComponent<RectMask2D>();
             }
 
             if (scrollRect.horizontalScrollbar != null)
@@ -112,22 +104,6 @@ namespace ForjaGame.UI
                 scrollRect.vertical = true;
                 scrollRect.movementType = ScrollRect.MovementType.Clamped;
                 StyleScrollRectVisuals(scrollRect);
-
-                if (scrollRect.viewport != null)
-                {
-                    scrollRect.viewport.anchorMin = Vector2.zero;
-                    scrollRect.viewport.anchorMax = Vector2.one;
-                    scrollRect.viewport.offsetMin = Vector2.zero;
-                    scrollRect.viewport.offsetMax = Vector2.zero;
-                    scrollRect.viewport.pivot = new Vector2(0f, 1f);
-                }
-            }
-
-            if (content is RectTransform contentRt)
-            {
-                contentRt.anchorMin = new Vector2(0f, 1f);
-                contentRt.anchorMax = new Vector2(1f, 1f);
-                contentRt.pivot = new Vector2(0.5f, 1f);
             }
 
             if (!content.TryGetComponent<VerticalLayoutGroup>(out var vlg))
@@ -215,32 +191,47 @@ namespace ForjaGame.UI
             tmp.raycastTarget = false;
             tmp.text = title;
 
-            btn.onClick.AddListener(onClick);
+            btn.onClick.AddListener(() => { ForjaGame.Audio.ForgeAudioSystem.PlayItemSelect(); onClick?.Invoke(); });
             return entryObj;
         }
 
         public static GameObject CreateNoticeEntry(Transform container, string noticeText)
         {
             Transform targetContent = ResolveContentContainer(container);
-
             GameObject noticeObj = new GameObject("Notice", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
             noticeObj.transform.SetParent(targetContent, false);
-
-            var layout = noticeObj.GetComponent<LayoutElement>();
-            layout.minHeight = 50f;
-            layout.preferredHeight = 60f;
-            layout.flexibleWidth = 1f;
-
-            var tmp = noticeObj.GetComponent<TextMeshProUGUI>();
-            MedievalTypographyProvider.ApplyToTMP(tmp);
-            tmp.text = noticeText;
-            tmp.fontSize = 14.5f;
-            tmp.fontStyle = FontStyles.Italic;
-            tmp.color = ForgeCanvasThemeStyler.SubInk;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.textWrappingMode = TextWrappingModes.Normal;
-
+            StyleEmptyNotice(noticeObj, noticeText);
             return noticeObj;
+        }
+
+        public static void StyleEmptyNotice(GameObject noticeGo, string noticeText)
+        {
+            if (noticeGo == null) return;
+            if (noticeGo.TryGetComponent<RectTransform>(out var rt))
+            {
+                rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(1f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f); rt.sizeDelta = new Vector2(-16f, 72f);
+            }
+
+            var layout = noticeGo.GetComponent<LayoutElement>() ?? noticeGo.AddComponent<LayoutElement>();
+            layout.minHeight = 56f; layout.preferredHeight = 72f; layout.flexibleWidth = 1f;
+
+            var tmp = noticeGo.GetComponent<TextMeshProUGUI>();
+            if (tmp != null)
+            {
+                MedievalTypographyProvider.ApplyToTMP(tmp);
+                if (!string.IsNullOrEmpty(noticeText)) tmp.text = noticeText;
+                tmp.fontSize = 14f;
+                tmp.enableAutoSizing = true;
+                tmp.fontSizeMin = 10f;
+                tmp.fontSizeMax = 14.5f;
+                tmp.fontStyle = FontStyles.Italic;
+                tmp.color = ForgeCanvasThemeStyler.SubInk;
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.textWrappingMode = TextWrappingModes.Normal;
+                tmp.overflowMode = TextOverflowModes.Ellipsis;
+                tmp.margin = new Vector4(8f, 4f, 8f, 4f);
+            }
         }
     }
 }

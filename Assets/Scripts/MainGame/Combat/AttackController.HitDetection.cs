@@ -15,9 +15,9 @@ namespace ForjaGame.Combat
             float elapsed = Time.time - _currentAttackStartTime;
             float p = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, attackDuration));
 
-            if (p <= _activeMove.anticipationEnd) return 0.60f;
-            if (p <= _activeMove.hitApex) return 0.25f;
-            return 0.50f;
+            if (p <= _activeMove.anticipationEnd) return 0.85f;
+            if (p <= _activeMove.hitApex) return 0.55f;
+            return 0.80f;
         }
 
         public bool IsDirectionLocked()
@@ -34,7 +34,7 @@ namespace ForjaGame.Combat
             _equippedWeapon = weapon;
             _currentAnalysis = WeaponAnalyzer.Analyze(weapon);
             _currentComboMoves = ComboCatalog.GetCombo(_currentAnalysis.archetype);
-            _maxComboSteps = 5;
+            _maxComboSteps = _currentAnalysis.archetype == WeaponArchetype.Pickaxe ? 1 : 5;
 
             damage = Mathf.Max(1, Mathf.RoundToInt(weapon.EffectiveDamage));
             attackRange = Mathf.Clamp(weapon.attackRange, 1.6f, 4.5f);
@@ -71,36 +71,38 @@ namespace ForjaGame.Combat
             }
         }
 
+        private readonly List<Collider> _combinedHitBuffer = new();
+
         public void GetAttackHitboxParams(out Vector3 localCenter, out Vector3 boxSize)
         {
             if (HasPickaxeEquipped)
             {
                 // Rango de golpe del pico intuitivo y realista cuerpo a cuerpo
-                float pickaxeReach = 1.45f;
-                boxSize = new Vector3(1.15f, 1.70f, pickaxeReach);
-                localCenter = new Vector3(0f, 0.10f, pickaxeReach * 0.5f);
+                float pickaxeReach = 1.50f;
+                boxSize = new Vector3(1.20f, 1.90f, pickaxeReach);
+                localCenter = new Vector3(0f, -0.05f, pickaxeReach * 0.46f);
                 return;
             }
 
             AttackMotionType motion = _activeMove != null ? _activeMove.motionType : AttackMotionType.HorizontalSlash;
-            float range = Mathf.Max(1.2f, attackRange);
-            float forwardDepth = Mathf.Max(1.4f, range * 1.15f);
-            float lateralWidth = Mathf.Max(1.2f, range * 0.95f);
-            float verticalHeight = 2.0f;
+            float range = Mathf.Max(1.35f, attackRange);
+            float forwardDepth = Mathf.Max(1.55f, range * 1.18f);
+            float lateralWidth = Mathf.Max(1.35f, range * 1.02f);
+            float verticalHeight = 2.15f;
 
             switch (motion)
             {
                 case AttackMotionType.Thrust:
-                    boxSize = new Vector3(Mathf.Max(0.9f, lateralWidth * 0.6f), verticalHeight, forwardDepth + 0.3f);
-                    localCenter = new Vector3(0f, 0f, (forwardDepth + 0.3f) * 0.5f);
+                    boxSize = new Vector3(Mathf.Max(0.95f, lateralWidth * 0.65f), verticalHeight, forwardDepth + 0.35f);
+                    localCenter = new Vector3(0f, -0.10f, (forwardDepth + 0.35f) * 0.44f);
                     break;
                 case AttackMotionType.OverheadSlam:
-                    boxSize = new Vector3(Mathf.Max(1.1f, lateralWidth * 0.7f), verticalHeight + 0.3f, forwardDepth);
-                    localCenter = new Vector3(0f, 0f, forwardDepth * 0.5f);
+                    boxSize = new Vector3(Mathf.Max(1.15f, lateralWidth * 0.78f), verticalHeight + 0.3f, forwardDepth);
+                    localCenter = new Vector3(0f, -0.10f, forwardDepth * 0.44f);
                     break;
                 default:
                     boxSize = new Vector3(lateralWidth, verticalHeight, forwardDepth);
-                    localCenter = new Vector3(0f, 0f, forwardDepth * 0.5f);
+                    localCenter = new Vector3(0f, -0.10f, forwardDepth * 0.44f);
                     break;
             }
         }
@@ -109,13 +111,13 @@ namespace ForjaGame.Combat
         {
             GetAttackHitboxParams(out Vector3 localCenter, out Vector3 boxSize);
             Vector3 worldCenter = transform.TransformPoint(localCenter);
-            Vector3 halfExtents = boxSize * 0.5f;
-            Quaternion orientation = transform.rotation;
-
-            Collider[] targets = Physics.OverlapBox(worldCenter, halfExtents, orientation, targetLayers, QueryTriggerInteraction.Collide);
+            _combinedHitBuffer.Clear();
+            Collider[] arcHits = Physics.OverlapBox(worldCenter, boxSize * 0.5f, transform.rotation, targetLayers, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < arcHits.Length; i++) _combinedHitBuffer.Add(arcHits[i]);
+            GetEquipment()?.EdgeAligner?.AppendBladeHits(targetLayers, _combinedHitBuffer);
             bool connected = false;
 
-            foreach (Collider target in targets)
+            foreach (Collider target in _combinedHitBuffer)
             {
                 if (target.gameObject == gameObject || target.transform.IsChildOf(transform)) continue;
 
@@ -128,40 +130,45 @@ namespace ForjaGame.Combat
                 // Garantía: 1 solo impacto por objetivo por cada golpe
                 if (!_hitTargetsThisSwing.Add(d)) continue;
 
-                // El pico solamente afecta a menas de recursos, no a enemigos
-                if (_equippedWeapon != null && _equippedWeapon.weaponType == WeaponType.Pickaxe && d is not ResourceNodeController)
+                // El pico afecta a menas de recursos y a paredes de túnel, no a criaturas vivas
+                if (_equippedWeapon != null && _equippedWeapon.weaponType == WeaponType.Pickaxe && d is not ResourceNodeController && d is not IDestructibleTunnelWall)
                 {
                     continue;
                 }
 
                 connected = true;
                 bool isFinisher = _activeMove != null && _activeMove.IsFinisher;
-                float comboMult = _activeMove != null ? _activeMove.damageMultiplier : (isFinisher ? 1.65f : 1.0f);
+                bool isBackCrit = Vector3.Dot(transform.forward, target.transform.forward) > 0.25f;
+                float comboMult = (_activeMove != null ? _activeMove.damageMultiplier : (isFinisher ? 1.65f : 1.0f)) * (isBackCrit ? 1.30f : 1.0f);
                 int finalDamage = Mathf.Max(1, Mathf.RoundToInt(damage * comboMult));
 
-                if (d is ResourceNodeController node) node.TakeDamageFrom(finalDamage, gameObject);
+                if (d is IDestructibleTunnelWall wall)
+                    wall.TakeWeaponDamage(finalDamage, _equippedWeapon != null ? _equippedWeapon.weaponType : null, gameObject);
+                else if (d is ResourceNodeController node)
+                { node.TakeDamageFrom(finalDamage, gameObject); SpawnVisceralCombatImpact(target.ClosestPoint(worldCenter), true, HasPickaxeEquipped); TriggerImpulseOnPlayerCamera(HasPickaxeEquipped ? 0.055f : 0.025f); }
                 else
                 {
                     d.TakeDamage(finalDamage);
-                    bool heavyHit = isFinisher || (_equippedWeapon != null && _equippedWeapon.GetCombatStance() != WeaponCombatStance.OneHanded);
-                    ForjaGame.Audio.ForgeAudioSystem.PlayHitImpact(target.transform.position, d is GolemEnemyController, heavyHit);
+                    bool isStone = d is GolemEnemyController or TitanBossController;
+                    bool heavyHit = isFinisher || isBackCrit || (_equippedWeapon != null && _equippedWeapon.GetCombatStance() != WeaponCombatStance.OneHanded);
+                    SpawnVisceralCombatImpact(target.ClosestPoint(worldCenter), isStone, heavyHit);
+                    ForjaGame.Audio.ForgeAudioSystem.PlayHitImpact(target.transform.position, isStone, heavyHit);
                 }
 
-                if (isFinisher) TriggerImpulseOnPlayerCamera(0.09f);
-                else TriggerImpulseOnPlayerCamera(0.04f);
+                TriggerImpulseOnPlayerCamera(isFinisher ? 0.09f : 0.04f);
 
                 // Activar Hit-Stop táctil para sensación de impacto contundente
                 float hitStopDur = isFinisher ? 0.10f : (_activeMove != null ? _activeMove.hitStopDuration : 0.055f);
                 TriggerHitStop(hitStopDur);
 
                 // Retroceso físico (Knockback) en el objetivo
+                Vector3 pushDir = (target.transform.position - transform.position);
+                if (d is CaveCreatureBase creature) creature.ApplyKnockback(pushDir, isFinisher ? 9.5f : 5.2f);
                 Rigidbody targetRb = target.attachedRigidbody;
                 if (targetRb != null && !targetRb.isKinematic)
                 {
-                    Vector3 pushDir = (target.transform.position - transform.position);
                     pushDir.y = 0.15f;
-                    float pushForce = isFinisher ? 10.0f : 5.5f;
-                    targetRb.AddForce(pushDir.normalized * pushForce, ForceMode.Impulse);
+                    targetRb.AddForce(pushDir.normalized * (isFinisher ? 10.0f : 5.5f), ForceMode.Impulse);
                 }
 
                 if (_equippedWeapon != null)

@@ -148,6 +148,7 @@ namespace ForjaGame.Forge
         public string handleName;
         public float rangeModifier;
         public float speedModifier;
+        [NonSerialized] public Mesh customMesh;
 
         public string Id => id;
         public string DisplayName => handleName;
@@ -155,7 +156,7 @@ namespace ForjaGame.Forge
         public string Description => $"Range: x{rangeModifier:F2} | Speed: {(speedModifier >= 0 ? "+" : "")}{speedModifier * 100:F0}%";
 
         public static HandleData CreateDefault() =>
-            new HandleData { length = HandleLength.Medium, handleName = "Mango de Madera", rangeModifier = 1.0f, speedModifier = 0.0f };
+            new HandleData { length = HandleLength.Medium, handleName = "Wooden Handle", rangeModifier = 1.0f, speedModifier = 0.0f };
 
         public static HandleData Create(HandleLength length)
         {
@@ -194,12 +195,12 @@ namespace ForjaGame.Forge
 
         public static string GetDisplayName(string itemId) => itemId switch
         {
-            "Iron" => "Mineral de Hierro",
-            "Copper" => "Mineral de Cobre",
-            "Gold" => "Mineral de Oro",
-            "Coal" => "Carbón Mineral",
-            "Wood" => "Madera de Roble",
-            "MonsterBones" => "Huesos de Monstruo",
+            "Iron" => "Iron Ore",
+            "Copper" => "Copper Ore",
+            "Gold" => "Gold Ore",
+            "Coal" => "Coal",
+            "Wood" => "Oak Wood",
+            "MonsterBones" => "Monster Bones",
             _ => itemId
         };
 

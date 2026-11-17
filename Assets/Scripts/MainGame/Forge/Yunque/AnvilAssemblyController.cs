@@ -67,7 +67,8 @@ namespace ForjaGame.Forge
                     float halfZ = _tangDiameter * 0.5f, hZ0 = _tangCenterZ - halfZ, hZ1 = _tangCenterZ + halfZ;
                     float mZ0 = tMinZ + _offsetZ, mZ1 = tMaxZ + _offsetZ;
                     float overlapZ = Mathf.Min(mZ1, hZ1) - Mathf.Max(mZ0, hZ0);
-                    return overlapZ >= 0.015f && Mathf.Abs(_offsetX) <= (_tangLength * 0.65f) + 0.08f && count >= 4;
+                    bool inTut = ForjaGame.UI.ForgeTutorialDirector.Instance != null && ForjaGame.UI.ForgeTutorialDirector.Instance.IsTutorialActive;
+                    return overlapZ >= (inTut ? 0.005f : 0.015f) && Mathf.Abs(_offsetX) <= (_tangLength * (inTut ? 1.15f : 0.65f)) + 0.12f && count >= 4;
                 }
                 if (!GetSliceZBounds(_offsetX, out float sMinZ, out float sMaxZ, out float minX, out float maxX, out int c))
                     return _offsetX >= -0.45f && _offsetX <= 0.25f && Mathf.Abs(_offsetZ) <= 0.12f;
@@ -138,16 +139,22 @@ namespace ForjaGame.Forge
                 foreach (var v in _anvil.ForgedBladeMesh.vertices) { Vector3 p = CustomHeadRotation * v + _bladeTargetLocalPos; if (p.x > maxMetalX) maxMetalX = p.x; }
             float totalLen = Mathf.Max(0.35f, maxMetalX - lowestHandleX), totalCm = Mathf.Round(totalLen * 100f);
             float shaftLen = Mathf.Max(0.25f, val.tangX1 - lowestHandleX);
-            bool isShaftW = _anvil.SelectedWeaponType == WeaponType.Axe || _anvil.SelectedWeaponType == WeaponType.Hammer;
-            HandleLength hLen = isShaftW ? (shaftLen < 0.56f ? HandleLength.Short : (shaftLen <= 0.88f ? HandleLength.Medium : HandleLength.Long)) : (totalLen < 0.88f ? HandleLength.Short : (totalLen <= 1.38f ? HandleLength.Medium : HandleLength.Long));
+            HandleLength hLen = AnvilController.ClassifyHandleLength(shaftLen);
             float baseRng = _anvil.SelectedWeaponType switch { WeaponType.Sword => 1.25f, WeaponType.Axe => 1.10f, WeaponType.Hammer => 1.35f, _ => 1.10f };
             float rangeMod = Mathf.Max(0.40f, totalLen / baseRng), speedMod = Mathf.Clamp((1.10f - totalLen) * 0.35f, -0.30f, +0.30f);
             bool isRefined = val.gripDiameter >= 0.025f && val.gripDiameter <= 0.065f;
             if (isRefined) speedMod += 0.08f; else if (val.gripDiameter > 0.075f) speedMod -= 0.08f;
-            string shapeTag = isRefined ? "Refinado" : (val.gripDiameter > 0.075f ? "en Bruto" : "Esbelto");
-            string partName = _anvil.SelectedWeaponType == WeaponType.Sword ? "Espada" : (_anvil.SelectedWeaponType == WeaponType.Hammer ? "Martillo" : "Hacha");
-            var handle = new HandleData { length = hLen, handleName = $"{partName} Artesanal {shapeTag} ({totalCm:F0} cm)", rangeModifier = rangeMod, speedModifier = speedMod };
+            string shapeTag = isRefined ? "Refined" : (val.gripDiameter > 0.075f ? "Rough" : "Slender");
+            string partName = _anvil.SelectedWeaponType == WeaponType.Sword ? "Sword" : (_anvil.SelectedWeaponType == WeaponType.Hammer ? "Hammer" : "Axe");
+            var handle = new HandleData { length = hLen, handleName = $"{partName} {shapeTag} Handle ({totalCm:F0} cm)", rangeModifier = rangeMod, speedModifier = speedMod, customMesh = handleMesh };
             _previewStats = assembly.AssembleWeapon(_anvil.CurrentIngot, _anvil.SelectedWeaponType, handle, _anvil.ForgedBladeMesh, _anvil.RemainingMassRatio);
+            if (_previewStats != null)
+            {
+                _previewStats.bladeMountRotation = CustomHeadRotation;
+                _previewStats.bladeMountPosition = _bladeTargetLocalPos;
+                _previewStats.CalculateProfile();
+                _previewStats.weaponName = $"{_previewStats.Profile.generatedName} ({_anvil.CurrentIngot.composition.GetAlloyName(partName)})";
+            }
         }
 
         private Vector3 CurrentHandleLocalPos => _handleBaseLocalPos + new Vector3(_handleShiftX, 0f, 0f);
@@ -162,15 +169,15 @@ namespace ForjaGame.Forge
 
         private void Update()
         {
-            if (_bladeObj == null) return;
+            if (_bladeObj == null || ForjaGame.UI.PauseMenuPanel.IsGamePaused) return;
             _playerMovement?.SetMovementEnabled(false);
 
             if (_stage == AssemblyStage.Positioning)
             {
                 if (Keyboard.current != null)
                 {
-                    if (Keyboard.current.rKey.wasPressedThisFrame || Keyboard.current.eKey.wasPressedThisFrame) _rotationStep = (_rotationStep + 1) % 4;
-                    if (Keyboard.current.qKey.wasPressedThisFrame) _rotationStep = (_rotationStep + 3) % 4;
+                    if (Keyboard.current.rKey.wasPressedThisFrame) _rotationStep = (_rotationStep + 1) % 4;
+                    if (Keyboard.current.eKey.wasPressedThisFrame) _rotationStep = (_rotationStep + 3) % 4;
                     float speed = 0.22f * Time.deltaTime;
                     if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) _offsetX -= speed;
                     if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) _offsetX += speed;
@@ -185,6 +192,8 @@ namespace ForjaGame.Forge
                 _bladeObj.transform.localPosition = _bladeTargetLocalPos;
                 if (_anvil?.IngotTransform != null) _anvil.IngotTransform.localPosition = CurrentHandleLocalPos;
 
+                if (Keyboard.current != null && Keyboard.current.backspaceKey.wasPressedThisFrame) { ReturnToHandleCarving(); return; }
+
                 bool canConfirm = IsContactingEye && IsSharpParallel;
                 bool trg = (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) || (Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame);
                 if (trg && canConfirm) { _stage = AssemblyStage.Sliding; _slideTimer = 0f; _bladeStartLocalPos = new Vector3(_bladeTargetLocalPos.x + 1.25f, 0f, _bladeTargetLocalPos.z); _bladeObj.transform.localPosition = _bladeStartLocalPos; }
@@ -196,8 +205,8 @@ namespace ForjaGame.Forge
                 if (_anvil?.IngotTransform != null) _anvil.IngotTransform.localPosition = CurrentHandleLocalPos;
                 if (t >= 1f) {
                     _stage = AssemblyStage.Inspection; _bladeObj.transform.localPosition = _bladeTargetLocalPos;
-                    if (_strikeSound != null && _audioSource != null) _audioSource.PlayOneShot(_strikeSound);
-                    else ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(_bladeObj.transform.position, 1.0f, 0.4f);
+                    ForjaGame.Audio.ForgeAudioSystem.PlayBladeMountedOnHandle(_bladeObj.transform.position);
+                    ForjaGame.Audio.ForgeAudioSystem.PlayProcessComplete(_anvil != null ? _anvil.FinalCombinedQuality : 0.90f);
                     if (_vfxPrefab != null) { var fx = Instantiate(_vfxPrefab, _bladeObj.transform.position, Quaternion.identity); Destroy(fx.gameObject, 1.5f); }
                 }
             }
@@ -205,8 +214,20 @@ namespace ForjaGame.Forge
             {
                 _bladeObj.transform.localPosition = _bladeTargetLocalPos;
                 if (_anvil?.IngotTransform != null) _anvil.IngotTransform.localPosition = CurrentHandleLocalPos;
+                if (Keyboard.current != null && Keyboard.current.backspaceKey.wasPressedThisFrame) { ReturnToHandleCarving(); return; }
                 if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) FinishAssembly();
             }
+        }
+
+        public void ReturnToHandleCarving()
+        {
+            if (_bladeObj != null) Destroy(_bladeObj);
+            _bladeObj = null;
+            _anvil?.ResumeHandleCarvingFromAssembly(_handleBaseLocalPos);
+            var hammerInput = _anvil != null ? (_anvil.GetComponent<AnvilHammerInput>() ?? FindFirstObjectByType<AnvilHammerInput>()) : FindFirstObjectByType<AnvilHammerInput>();
+            hammerInput?.ForceCutModeForHandle();
+            _playerMovement?.SetMovementEnabled(false);
+            Destroy(this);
         }
 
         private void FinishAssembly() { if (_anvil?.IngotTransform != null) _anvil.IngotTransform.localPosition = _handleBaseLocalPos; if (_bladeObj != null) Destroy(_bladeObj); _bladeObj = null; _playerMovement?.SetMovementEnabled(true); _onFinishedCallback?.Invoke(); Destroy(this); }

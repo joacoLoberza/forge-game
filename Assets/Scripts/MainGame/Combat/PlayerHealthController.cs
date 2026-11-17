@@ -18,6 +18,7 @@ namespace ForjaGame.Combat
             set => _fallbackInstance = value;
         }
         public static readonly List<PlayerHealthController> AllPlayers = new();
+        public static bool IsGodModeActive { get; set; }
 
         [Header("Configuración de Salud")]
         [SerializeField] private int maxHealth = 100;
@@ -28,6 +29,9 @@ namespace ForjaGame.Combat
         private Rigidbody _rb;
         private HitboxVisualizer _bodyHurtbox;
         private float _hurtboxBlackUntil = -1f;
+        private float _lastDamageTime = -999f, _nextRegenTime = 0f, _rollInvulnerableUntil = -10f;
+        private int _consecutiveBlockedHits = 0;
+        private float _lastBlockHitTime = -99f;
         private bool _isDefeated = false;
         private PlayerMovement _playerMovement;
 
@@ -35,39 +39,25 @@ namespace ForjaGame.Combat
         public int MaxHealth => maxHealth;
         public bool IsAlive => currentHealth > 0 && !_isDefeated;
         public bool IsDefeated => _isDefeated;
+        public bool IsRollInvulnerable => Time.time < _rollInvulnerableUntil;
+        public void GrantRollInvulnerability(float duration = 1.0f) => _rollInvulnerableUntil = Mathf.Max(_rollInvulnerableUntil, Time.time + Mathf.Max(0.1f, duration));
 
-        private void OnEnable()
-        {
-            if (!AllPlayers.Contains(this))
-                AllPlayers.Add(this);
-        }
-
-        private void OnDisable()
-        {
-            AllPlayers.Remove(this);
-            if (LocalInstance == this) LocalInstance = null;
-        }
+        private void OnEnable() { if (!AllPlayers.Contains(this)) AllPlayers.Add(this); }
+        private void OnDisable() { AllPlayers.Remove(this); if (LocalInstance == this) LocalInstance = null; }
 
         private void Awake()
         {
             var netObj = GetComponent<Unity.Netcode.NetworkObject>();
             if (netObj == null || netObj.IsOwner) LocalInstance = this;
             _fallbackInstance = this;
-
-            _rb = GetComponent<Rigidbody>();
-            _playerMovement = GetComponent<PlayerMovement>();
-            currentHealth = maxHealth;
-            _spawnPosition = transform.position;
-            _spawnRotation = transform.rotation;
-
+            _rb = GetComponent<Rigidbody>(); _playerMovement = GetComponent<PlayerMovement>();
+            currentHealth = maxHealth; _spawnPosition = transform.position; _spawnRotation = transform.rotation;
+            if (GetComponent<PlayerStaminaController>() == null) gameObject.AddComponent<PlayerStaminaController>();
+            if (GetComponent<PlayerScreenEffectsHUD>() == null) gameObject.AddComponent<PlayerScreenEffectsHUD>();
             SetupBodyHurtbox();
         }
 
-        private void Start()
-        {
-            _spawnPosition = transform.position;
-            _spawnRotation = transform.rotation;
-        }
+        private void Start() { _spawnPosition = transform.position; _spawnRotation = transform.rotation; }
 
         private void SetupBodyHurtbox()
         {
@@ -80,45 +70,96 @@ namespace ForjaGame.Combat
 
         private void Update()
         {
-            if (_bodyHurtbox != null)
+            if (_bodyHurtbox != null && Time.time > _hurtboxBlackUntil)
+                _bodyHurtbox.IsConnecting = false;
+
+            // Regeneración pasiva suave (2 HP por segundo) tras 10 segundos sin recibir daño
+            if (IsAlive && currentHealth < maxHealth && Time.time - _lastDamageTime >= 10.0f)
             {
-                if (Time.time > _hurtboxBlackUntil)
+                if (Time.time >= _nextRegenTime)
                 {
-                    _bodyHurtbox.IsConnecting = false;
+                    _nextRegenTime = Time.time + 1.0f;
+                    currentHealth = Mathf.Min(maxHealth, currentHealth + 2);
                 }
             }
         }
 
-        private GUIStyle _hudPlaqueStyle, _hudTitleStyle, _hudSubStyle;
-        private static Texture2D _hpFillCrimsonTex, _hpFillGoldTex;
+        public void TakeDamage(int amount) => TakeDamageFrom(amount, null, false, false);
 
-        public void TakeDamage(int amount)
+        public bool TakeDamageFrom(int amount, CaveCreatureBase attacker = null, bool isRanged = false, bool unparriable = false)
         {
-            if (!IsAlive || _isDefeated) return;
-            currentHealth = Mathf.Max(0, currentHealth - amount);
+            if (!IsAlive || _isDefeated || IsGodModeActive || GameStateController.State == GameState.Victory || GameLoopController.IsEndScreenOpen) return false;
+            if (IsRollInvulnerable) { if (attacker is TrainingDummyController) ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyDummyRolled(); return false; }
+            var atk = GetComponent<AttackController>();
+            if (atk != null && atk.IsBlocking)
+            {
+                bool timedParry = atk.IsTimedParryWindow && !unparriable;
+                GetComponentInChildren<DynamicEdgeAligner>()?.TriggerParryAnimation();
+                atk.SpawnVisceralCombatImpact(transform.position + transform.forward * 0.75f + Vector3.up * 1.05f, true, timedParry);
+                if (timedParry)
+                {
+                    _consecutiveBlockedHits = 0;
+                    ForjaGame.Audio.ForgeAudioSystem.PlayChiselCut(transform.position);
+                    if (!isRanged && attacker != null && attacker.IsAlive)
+                    {
+                        if (attacker is TitanBossController boss) boss.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(amount * 0.10f)));
+                        else attacker.ApplyParryStun(1.05f);
+                    }
+                    return true;
+                }
+                if (Time.time - _lastBlockHitTime > 3.6f) _consecutiveBlockedHits = 0;
+                _lastBlockHitTime = Time.time;
+                _consecutiveBlockedHits += (unparriable || amount >= 18) ? 2 : 1;
+
+                var eq = GetComponent<PlayerEquipmentController>();
+                float blockMult = eq != null && eq.CurrentWeapon != null ? eq.CurrentWeapon.GetPassiveBlockDamageMultiplier() : 0.68f;
+                bool guardBroken = !(attacker is TrainingDummyController) && _consecutiveBlockedHits >= 2;
+                if (guardBroken)
+                {
+                    _consecutiveBlockedHits = 0;
+                    atk.TriggerGuardBreak(1.15f);
+                    blockMult = Mathf.Max(blockMult, 0.62f);
+                    ForjaGame.Audio.ForgeAudioSystem.PlayChiselCut(transform.position);
+                }
+                if (_rb != null && !_rb.isKinematic && attacker != null)
+                {
+                    Vector3 push = transform.position - attacker.transform.position; push.y = 0f;
+                    if (push.sqrMagnitude > 0.01f) _rb.AddForce(push.normalized * (guardBroken ? 5.6f : 3.8f), ForceMode.VelocityChange);
+                }
+                amount = Mathf.Max(1, Mathf.RoundToInt(amount * blockMult));
+                ForjaGame.Audio.ForgeAudioSystem.PlayHitImpact(transform.position, true, guardBroken);
+                if (attacker is TrainingDummyController) ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyDummyBlocked();
+            }
+            if (attacker is TrainingDummyController) { amount = Mathf.Min(amount, Mathf.Max(0, currentHealth - 25)); if (amount == 0) return false; }
+
+            _lastDamageTime = Time.time; currentHealth = Mathf.Max(0, currentHealth - amount);
             ForjaGame.Audio.ForgeAudioSystem.PlayPlayerHurt(transform.position);
             GetComponentInChildren<DynamicEdgeAligner>()?.NotifyCombatAlert();
-
             if (_bodyHurtbox != null) { _bodyHurtbox.IsConnecting = true; _hurtboxBlackUntil = Time.time + 0.30f; }
 
             bool isLocal = (LocalInstance == this) || (GetComponent<Unity.Netcode.NetworkObject>()?.IsOwner ?? true);
-            if (isLocal)
+            if (isLocal && currentHealth > 0)
             {
-                if (_playerMovement != null && _playerMovement.PlayerCamera != null)
-                    _playerMovement.PlayerCamera.GetComponent<PlayerCameraFollow>()?.TriggerImpulse(0.12f);
-                else PlayerCameraFollow.Instance?.TriggerImpulse(0.12f);
+                float hpRatio = Mathf.Clamp01((float)currentHealth / Mathf.Max(1, maxHealth));
+                ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzDanioSegunVida(hpRatio);
+                GetComponent<PlayerScreenEffectsHUD>()?.TriggerDamageHit(amount, maxHealth);
+                var cam = _playerMovement != null && _playerMovement.PlayerCamera != null ? _playerMovement.PlayerCamera.GetComponent<PlayerCameraFollow>() : PlayerCameraFollow.Instance;
+                cam?.TriggerImpulse(0.12f);
             }
             if (currentHealth <= 0) TriggerPlayerDefeat();
+            return false;
         }
 
         private void TriggerPlayerDefeat()
         {
             if (_isDefeated) return;
             _isDefeated = true;
+            PlayerCameraFollow.Instance?.ResetShake();
+            ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzMuerteRojoTotal();
             int pNum = (_playerMovement != null ? _playerMovement.PlayerIndex : 0) + 1;
             Debug.Log($"<color=red><b>[Jugador {pNum}] ¡HAS SIDO DERROTADO!</b></color>");
 
-            if (_rb != null)
+            if (_rb != null && !_rb.isKinematic)
             {
                 _rb.linearVelocity = Vector3.zero;
                 _rb.angularVelocity = Vector3.zero;
@@ -140,94 +181,24 @@ namespace ForjaGame.Combat
             // Si ningún jugador queda vivo, disparar fin de partida global
             if (!anyOtherAlive)
             {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-
-                GameLoopController gameLoop = FindFirstObjectByType<GameLoopController>(FindObjectsInactive.Include);
-                if (gameLoop != null)
-                {
-                    gameLoop.TriggerDefeat();
-                }
+                Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+                FindFirstObjectByType<GameLoopController>(FindObjectsInactive.Include)?.TriggerDefeat();
             }
         }
 
         public void RestoreHealthFull()
         {
-            currentHealth = maxHealth;
-            _isDefeated = false;
-            Time.timeScale = 1f;
+            currentHealth = maxHealth; _isDefeated = false; Time.timeScale = 1f;
+            GetComponent<PlayerStaminaController>()?.RestoreFull();
             _playerMovement?.SetMovementEnabled(true);
-
             if (!ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen && !GameLoopController.IsEndScreenOpen)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
-
-            int pNum = (_playerMovement != null ? _playerMovement.PlayerIndex : 0) + 1;
-            Debug.Log($"<color=green>[Jugador {pNum}] Salud restaurada por completo ({maxHealth} HP).</color>");
+            { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
         }
-
         public void RespawnPlayer()
         {
-            transform.position = _spawnPosition;
-            transform.rotation = _spawnRotation;
-            if (_rb != null)
-            {
-                _rb.linearVelocity = Vector3.zero;
-                _rb.angularVelocity = Vector3.zero;
-            }
+            transform.position = _spawnPosition; transform.rotation = _spawnRotation;
+            if (_rb != null && !_rb.isKinematic) { _rb.linearVelocity = Vector3.zero; _rb.angularVelocity = Vector3.zero; }
             RestoreHealthFull();
-        }
-
-        private void EnsureHudStyles()
-        {
-            if (_hudPlaqueStyle != null) return;
-            _hudPlaqueStyle = new GUIStyle
-            {
-                normal = { background = ForjaGame.UI.BookTextureBuilder.GetParchmentSprite().texture },
-                border = new RectOffset(16, 16, 16, 16), padding = new RectOffset(12, 12, 8, 8)
-            };
-            _hudTitleStyle = new GUIStyle { fontSize = 14, fontStyle = FontStyle.Bold, richText = true, normal = { textColor = new Color(0.17f, 0.11f, 0.06f) } };
-            _hudSubStyle = new GUIStyle { fontSize = 12, fontStyle = FontStyle.Italic, richText = true, normal = { textColor = new Color(0.32f, 0.20f, 0.10f) } };
-            ForjaGame.UI.MedievalTypographyProvider.ApplyToGUIStyle(_hudTitleStyle);
-            ForjaGame.UI.MedievalTypographyProvider.ApplyToGUIStyle(_hudSubStyle);
-
-            _hpFillCrimsonTex = new Texture2D(1, 8, TextureFormat.RGBA32, false);
-            _hpFillGoldTex = new Texture2D(1, 8, TextureFormat.RGBA32, false);
-            for (int y = 0; y < 8; y++)
-            {
-                float hl = y >= 5 ? 1.22f : (y <= 1 ? 0.72f : 1f);
-                _hpFillCrimsonTex.SetPixel(0, y, new Color(Mathf.Clamp01(0.76f * hl), Mathf.Clamp01(0.16f * hl), Mathf.Clamp01(0.14f * hl), 1f));
-                _hpFillGoldTex.SetPixel(0, y, new Color(Mathf.Clamp01(0.86f * hl), Mathf.Clamp01(0.58f * hl), Mathf.Clamp01(0.16f * hl), 1f));
-            }
-            _hpFillCrimsonTex.Apply(); _hpFillGoldTex.Apply();
-        }
-
-        private void OnGUI()
-        {
-            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
-            if (netObj != null && !netObj.IsOwner) return;
-            if (ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen || GameLoopController.IsEndScreenOpen) return;
-
-            EnsureHudStyles();
-            float w = 236f, h = 42f, x = 18f, y = 18f;
-
-            GUI.DrawTexture(new Rect(x - 3f, y - 3f, w + 6f, h + 6f), ForjaGame.UI.BookTextureBuilder.GetLeatherCoverSprite().texture);
-            GUI.Box(new Rect(x, y, w, h), GUIContent.none, _hudPlaqueStyle);
-
-            var heartStyle = new GUIStyle(_hudTitleStyle) { fontSize = 21, alignment = TextAnchor.MiddleCenter };
-            heartStyle.normal.textColor = currentHealth < 30 ? new Color(0.85f, 0.2f, 0.1f) : new Color(0.65f, 0.12f, 0.10f);
-            GUI.Label(new Rect(x + 8f, y + 8f, 24f, 26f), "♥", heartStyle);
-
-            float barX = x + 36f, barY = y + 12f, barW = 130f, barH = 18f;
-            float ratio = Mathf.Clamp01((float)currentHealth / Mathf.Max(1, maxHealth));
-            GUI.DrawTexture(new Rect(barX, barY, barW, barH), ForjaGame.UI.BookTextureBuilder.GetSliderTrackSprite().texture);
-            if (ratio > 0.005f)
-                GUI.DrawTexture(new Rect(barX + 2f, barY + 3f, (barW - 4f) * ratio, 12f), ratio < 0.32f ? _hpFillGoldTex : _hpFillCrimsonTex);
-
-            var numStyle = new GUIStyle(_hudTitleStyle) { fontSize = 13, alignment = TextAnchor.MiddleRight };
-            GUI.Label(new Rect(barX + barW + 6f, y + 9f, 48f, 24f), $"<b>{currentHealth}</b>", numStyle);
         }
     }
 }

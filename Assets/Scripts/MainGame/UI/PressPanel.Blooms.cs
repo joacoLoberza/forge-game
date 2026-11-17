@@ -28,7 +28,11 @@ namespace ForjaGame.UI
             IReadOnlyList<BloomData> blooms = inventory != null ? inventory.Blooms : null;
 
             bool hasBlooms = blooms != null && blooms.Count > 0;
-            if (emptyBloomsNotice != null) emptyBloomsNotice.SetActive(!hasBlooms);
+            if (emptyBloomsNotice != null)
+            {
+                ForgeScrollViewStyler.StyleEmptyNotice(emptyBloomsNotice, "No Blooms in inventory.\nSmelt ores in the furnace!");
+                emptyBloomsNotice.SetActive(!hasBlooms);
+            }
             if (!hasBlooms) return;
 
             for (int i = 0; i < blooms.Count; i++) CreateBloomEntry(targetContainer, blooms[i]);
@@ -36,7 +40,7 @@ namespace ForjaGame.UI
 
         private void CreateBloomEntry(Transform container, BloomData bloom)
         {
-            string title = $"{bloom.DisplayName} (Dif: {bloom.DifficultyLevel})";
+            string title = $"{bloom.DisplayName} (Diff: {bloom.DifficultyLevel})";
             Color metalColor = BloomVisualBuilder.ResolveBloomDisplayColor(bloom);
 
             var spriteDb = ForgeSpriteDatabase.Instance;
@@ -63,7 +67,8 @@ namespace ForjaGame.UI
             }
 
             pressController.InsertBloom(toInsert);
-            SetStatus($"¡{toInsert.DisplayName} colocada en la base inferior de la prensa! Pulsa [ESPACIO].");
+            ForjaGame.Audio.ForgeAudioSystem.PlayItemSelect();
+            SetStatus($"{toInsert.DisplayName} placed on press base! Press [SPACE].");
             UpdateDisplay();
         }
     }

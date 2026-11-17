@@ -51,6 +51,7 @@ namespace ForjaGame.Forge
             _currentBloom = bloom;
             _currentProgress = 0f;
             _isCompleted = false;
+            ForjaGame.Audio.ForgeAudioSystem.PlayItemSelect();
             PressProgressChanged?.Invoke(0f);
             return true;
         }
@@ -66,11 +67,15 @@ namespace ForjaGame.Forge
 
             _currentProgress = Mathf.Clamp01(_currentProgress + push);
             ForjaGame.Audio.ForgeAudioSystem.PlayPressCrush(transform.position);
+            ForjaGame.Hardware.ControladorLucesUDP.Instancia?.ActualizarPrensado(_currentProgress, isPushPulse: true);
             PressProgressChanged?.Invoke(_currentProgress);
 
             if (_currentProgress >= 1.0f)
             {
                 _isCompleted = true;
+                ForjaGame.Audio.ForgeAudioSystem.StopPressLoop();
+                ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(transform.position, 1.0f, 0.5f);
+                ForjaGame.Audio.ForgeAudioSystem.PlayProcessComplete(_currentBloom.quality);
                 IngotData ingot = new IngotData(_currentBloom);
                 PressCompleted?.Invoke(ingot);
             }

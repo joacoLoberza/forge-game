@@ -51,21 +51,22 @@ namespace ForjaGame.Combat
             float hThickness,
             float sharpness,
             float latExtent,
-            float totalMass)
+            float totalMass,
+            ForjaGame.Forge.WeaponType? forgedType = null)
         {
-            const float minHandleLength = 0.15f;
-            const float maxHandleLength = 1.85f;
+            const float minHandleLength = 0.25f;
+            const float maxHandleLength = 1.65f;
             const float maxReasonableLength = 3.0f;
             const float maxReasonableMass = 12.0f;
-            const float forceTwoHandMassThreshold = 3.8f;
-            const float gripOneShortThreshold = 0.15f;
-            const float gripOneHandThreshold = 0.40f;
-            const float gripTwoHandThreshold = 0.75f;
-            const float bladeLengthToWidthRatio = 5.0f;
+            const float forceTwoHandMassThreshold = 4.2f;
+            const float gripOneShortThreshold = 0.32f;
+            const float gripOneHandThreshold = 0.68f;
+            const float gripTwoHandThreshold = 0.86f;
+            const float bladeLengthToWidthRatio = 4.5f;
             const float bladeSharpnessThreshold = 0.35f;
             const float axeLateralExtentThreshold = 0.08f;
-            const float axeSharpnessThreshold = 0.40f;
-            const float polearmRatioThreshold = 1.8f;
+            const float axeSharpnessThreshold = 0.35f;
+            const float polearmRatioThreshold = 2.1f;
 
             float safeHandleLen = Mathf.Clamp(handleLen, minHandleLength, maxReasonableLength);
             float safeHeadLen = Mathf.Max(0.08f, hLength);
@@ -110,22 +111,22 @@ namespace ForjaGame.Combat
                 gripMode = GripMode.TwoHand;
             }
 
-            // 5. Clasificación de Familia (WeaponFamily)
+            // 5. Clasificación de Familia (WeaponFamily) combinando morfología real + tipo de molde forjado
             float lenToWidthRatio = safeHeadLen / safeHeadWidth;
             WeaponFamily weaponFamily;
 
-            if (lenToWidthRatio >= bladeLengthToWidthRatio && safeSharpness >= bladeSharpnessThreshold)
-            {
-                weaponFamily = WeaponFamily.Blade;
-            }
-            else if (latExtent >= axeLateralExtentThreshold && safeSharpness >= axeSharpnessThreshold)
-            {
-                weaponFamily = WeaponFamily.Axe;
-            }
-            else
-            {
+            if (forgedType == ForjaGame.Forge.WeaponType.Hammer)
                 weaponFamily = WeaponFamily.Blunt;
-            }
+            else if (forgedType == ForjaGame.Forge.WeaponType.Axe)
+                weaponFamily = safeSharpness >= 0.25f ? WeaponFamily.Axe : WeaponFamily.Blunt;
+            else if (forgedType == ForjaGame.Forge.WeaponType.Sword)
+                weaponFamily = safeSharpness >= 0.25f ? WeaponFamily.Blade : WeaponFamily.Blunt;
+            else if (lenToWidthRatio >= bladeLengthToWidthRatio && safeSharpness >= bladeSharpnessThreshold)
+                weaponFamily = WeaponFamily.Blade;
+            else if (latExtent >= axeLateralExtentThreshold && safeSharpness >= axeSharpnessThreshold)
+                weaponFamily = WeaponFamily.Axe;
+            else
+                weaponFamily = WeaponFamily.Blunt;
 
             // 6. Generación de Nombre Procedural (Sección 4 C)
             float shaftRatio = safeHandleLen / safeHeadLen;
@@ -157,35 +158,35 @@ namespace ForjaGame.Combat
             {
                 WeaponFamily.Blade => grip switch
                 {
-                    GripMode.OneShort => "Daga",
-                    GripMode.OneHand => isShaftVariant ? "Sable de Asta" : "Espada",
-                    GripMode.TwoHand => "Mandoble",
-                    GripMode.Pole => "Guja",
-                    _ => "Espada"
+                    GripMode.OneShort => "Dagger",
+                    GripMode.OneHand => isShaftVariant ? "Pole Saber" : "Sword",
+                    GripMode.TwoHand => "Greatsword",
+                    GripMode.Pole => "Glaive",
+                    _ => "Sword"
                 },
                 WeaponFamily.Axe => grip switch
                 {
-                    GripMode.OneShort => "Hachuela",
-                    GripMode.OneHand => "Hacha de Mano",
-                    GripMode.TwoHand => isShaftVariant ? "Alabarda" : "Hacha de Guerra",
-                    GripMode.Pole => "Alabarda",
-                    _ => "Hacha de Guerra"
+                    GripMode.OneShort => "Hatchet",
+                    GripMode.OneHand => mass < 2.2f ? "Light Axe" : "Hand Axe",
+                    GripMode.TwoHand => isShaftVariant ? "Halberd" : "Battleaxe",
+                    GripMode.Pole => "Halberd",
+                    _ => "Battleaxe"
                 },
                 WeaponFamily.Blunt => grip switch
                 {
-                    GripMode.OneShort => "Porra",
-                    GripMode.OneHand => "Maza",
-                    GripMode.TwoHand => mass > 5.5f ? "Gran Mazo" : "Martillo de Guerra",
-                    GripMode.Pole => "Martillo de Asta",
-                    _ => "Martillo de Guerra"
+                    GripMode.OneShort => "Club",
+                    GripMode.OneHand => "Mace",
+                    GripMode.TwoHand => mass > 5.5f ? "Greatmaul" : "Warhammer",
+                    GripMode.Pole => "Polehammer",
+                    _ => "Warhammer"
                 },
-                _ => "Arma"
+                _ => "Weapon"
             };
         }
 
         public override string ToString()
         {
-            return $"{generatedName} [{family}, {grip}] | Masa: {mass:F1}kg, Long: {length:F2}m (Mango: {handleLength:F2}m), Inercia: {inertia:F2} kg·m², CoM: {gripToCom:F2}m";
+            return $"{generatedName} [{family}, {grip}] | Mass: {mass:F1}kg, Len: {length:F2}m (Handle: {handleLength:F2}m), Inertia: {inertia:F2} kg·m², CoM: {gripToCom:F2}m";
         }
     }
 }

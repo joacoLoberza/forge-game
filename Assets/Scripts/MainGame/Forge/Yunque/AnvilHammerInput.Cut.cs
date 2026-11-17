@@ -8,7 +8,7 @@ namespace ForjaGame.Forge
     /// Submódulo de corte interactivo para AnvilHammerInput:
     /// Permite trazar cortes polilínea con claridad y constancia inmediata,
     /// previsualizando en tiempo real el área a descartar mediante hatching,
-    /// alternando de lado con [Tab], ejecutando con [R] y deshaciendo con Click Derecho.
+    /// alternando de lado con [F], ejecutando con [R] y deshaciendo con Click Derecho.
     /// </summary>
     public partial class AnvilHammerInput
     {
@@ -22,9 +22,9 @@ namespace ForjaGame.Forge
         private void HandleToolModeHotkeys()
         {
             if (Keyboard.current == null) return;
-            if (Keyboard.current.digit1Key.wasPressedThisFrame && (anvilController == null || !anvilController.IsCarvingHandle)) { _toolMode = AnvilToolMode.Hammer; ResetCutState(true); }
-            if (Keyboard.current.digit2Key.wasPressedThisFrame) _toolMode = AnvilToolMode.Cut;
-            if (Keyboard.current.digit3Key.wasPressedThisFrame) { _toolMode = AnvilToolMode.Polish; ResetCutState(true); }
+            if (Keyboard.current.digit1Key.wasPressedThisFrame && (anvilController == null || !anvilController.IsCarvingHandle)) { _toolMode = AnvilToolMode.Hammer; ResetCutState(true); ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
+            if (Keyboard.current.digit2Key.wasPressedThisFrame) { _toolMode = AnvilToolMode.Cut; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
+            if (Keyboard.current.digit3Key.wasPressedThisFrame) { _toolMode = AnvilToolMode.Polish; ResetCutState(true); ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
         }
 
         private void ResetCutState(bool clearPoints = false)
@@ -32,6 +32,12 @@ namespace ForjaGame.Forge
             _flipCutSide = false;
             _previewDiscardedTris = null;
             if (clearPoints) _cutPoints.Clear();
+        }
+
+        public void ForceCutModeForHandle()
+        {
+            _toolMode = AnvilToolMode.Cut;
+            ResetCutState(true);
         }
 
         private void UpdateCutPreview()
@@ -45,16 +51,24 @@ namespace ForjaGame.Forge
         {
             if (Mouse.current == null || anvilController == null) return;
 
-            _hasHoverPoint = RaycastIngotHorizontalPlane(out Vector3 localPoint, out _);
+            _hasHoverPoint = RaycastIngotHorizontalPlane(out Vector3 localPoint, out Vector3 worldHover);
             _currentHoverLocal = localPoint;
+            float cutYaw = 0f;
+            if (_cutPoints.Count >= 1)
+            {
+                Vector3 d = (_cutPoints.Count >= 2 ? (_cutPoints[^1] - _cutPoints[0]) : (_currentHoverLocal - _cutPoints[0]));
+                if (d.sqrMagnitude > 0.0001f) cutYaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            }
+            anvilController.ThermalController?.UpdateHammerHover(worldHover, _hasHoverPoint && !IsMouseOverUI(), AnvilToolMode.Cut, false, cutYaw);
 
             if (_hasHoverPoint && Mouse.current.leftButton.wasPressedThisFrame && !IsMouseOverUI())
             {
                 _cutPoints.Add(_currentHoverLocal);
+                ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
                 UpdateCutPreview();
             }
 
-            if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame && _cutPoints.Count >= 1)
+            if (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame && _cutPoints.Count >= 1)
             {
                 _flipCutSide = !_flipCutSide;
                 UpdateCutPreview();
@@ -84,7 +98,7 @@ namespace ForjaGame.Forge
             bool success = anvilController.ApplyCut(_cutPoints, _flipCutSide);
             if (success)
             {
-                if (sparkVFXPrefab != null)
+                if (sparkVFXPrefab != null && !anvilController.IsCarvingHandle)
                 {
                     for (int i = 0; i < ptsCopy.Count; i++)
                     {
@@ -92,14 +106,14 @@ namespace ForjaGame.Forge
                         Destroy(fx.gameObject, 1.5f);
                     }
                 }
-                if (hammerAudioSource != null && strikeSound != null) hammerAudioSource.PlayOneShot(strikeSound);
-                else ForjaGame.Audio.ForgeAudioSystem.PlayChiselCut(worldPos);
+                anvilController.ThermalController?.TriggerHammerStrikeAndSparks(worldPos, 0.85f, true);
+                ForjaGame.Audio.ForgeAudioSystem.PlayChiselCut(worldPos, anvilController.IsCarvingHandle);
                 ResetCutState(true);
 
                 if (anvilController.IsCarvingHandle && anvilController.CheckAndApplyHandleFracture(out bool fractured))
                 {
-                    if (sparkVFXPrefab != null) Instantiate(sparkVFXPrefab, worldPos, Quaternion.identity);
-                    if (hammerAudioSource != null && strikeSound != null) hammerAudioSource.PlayOneShot(strikeSound);
+                    anvilController.ThermalController?.TriggerSawdustBurst(worldPos, 24);
+                    ForjaGame.Audio.ForgeAudioSystem.PlayChiselCut(worldPos, true);
                 }
             }
         }
@@ -147,23 +161,31 @@ namespace ForjaGame.Forge
             if (_hasHoverPoint)
                 DrawVerticalPillar(ingotT, _currentHoverLocal, yTop, yBot, guideCol, null);
 
-            float w = 720f, h = 95f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 25f;
-            string targetName = anvilController.IsCarvingHandle ? "mango de madera" : "lingote";
+            if (anvilController != null && !anvilController.IsCarvingHandle)
+            {
+                float tw = 840f, th = 74f, tx = (Screen.width - tw) * 0.5f, ty = 68f;
+                string topMsg = "<size=15><b>INTERACTIVE CUTTING TOOL</b></size>\n" +
+                                "<color=#2B1306>Use <b>[Left Click]</b> on metal to mark cut vertices  •  <b>[R]</b> Execute cut  •  <b>[F]</b> Flip side</color>";
+                GUI.Box(new Rect(tx, ty, tw, th), topMsg, _goldBannerStyle);
+            }
+
+            float w = 840f, h = 105f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 25f;
+            string targetName = anvilController.IsCarvingHandle ? "wooden handle" : "ingot";
             string modeInfo, hotkeysInfo;
 
             if (_cutPoints.Count == 0)
             {
-                modeInfo = $"<color=#FFCC00>Haz click sobre el {targetName} para marcar los puntos del corte.</color>";
-                hotkeysInfo = "[Click Izq] Marcar punto  •  [1] Forjar  •  [3] Pulir";
+                modeInfo = $"<color=#166534><b>[STEP 1]</b> Click on the {targetName} to mark cut plane points.</color>";
+                hotkeysInfo = "<b>[Left Click]</b> Mark point  •  <b>[1]</b> Hammer  •  <b>[3]</b> Polish  •  <b>[H]</b> Hearth";
             }
             else
             {
-                string sideName = _flipCutSide ? "<color=#33CCFF>LADO INTERIOR / ALTERNATIVO</color>" : "<color=#FFAA33>ZONA EXTERIOR (DEFAULT)</color>";
-                modeInfo = $"<color=#FFDD44><b>CORTE DEFINIDO ({_cutPoints.Count} puntos, {sideName})</b></color> — Área rallada = parte a eliminar.";
-                hotkeysInfo = "<b>[R] Ejecutar corte</b>  •  <b>[Tab] Alternar lado</b>  •  [Click Der/Borrar] Deshacer punto  •  [Esc] Limpiar";
+                string sideName = _flipCutSide ? "<color=#1E3A8A><b>INNER / ALTERNATE SIDE</b></color>" : "<color=#9A3412><b>OUTER ZONE (DEFAULT)</b></color>";
+                modeInfo = $"<color=#1C1917><b>CUT DEFINED ({_cutPoints.Count} pts, {sideName})</b></color> — Hatched area will be trimmed.";
+                hotkeysInfo = "<color=#991B1B><b>[R] Execute Cut</b></color>  •  <b>[F] Flip Side</b>  •  <b>[Right Click] Undo</b>  •  <b>[Esc] Clear</b>";
             }
 
-            string info = $"<b>HERRAMIENTA DE CORTE INTERACTIVO</b>\n{modeInfo}\n{hotkeysInfo}";
+            string info = $"<size=14><b>INTERACTIVE CUTTING TOOL</b></size>\n{modeInfo}\n{hotkeysInfo}";
             GUI.Box(new Rect(x, y, w, h), info, _hudStyle);
         }
 

@@ -23,7 +23,7 @@ namespace ForjaGame.UI
                     ch.gameObject.SetActive(false);
             }
 
-            CreateOrGetTitleBanner(root, "PressTopTitlePlaque", "PRENSA MECÁNICA",
+            CreateOrGetTitleBanner(root, "PressTopTitlePlaque", "MECHANICAL PRESS",
                 new Vector2(0f, -14f), new Vector2(440f, 52f), fontSize: 22f, topAnchored: true);
 
             RectTransform leftBody = CreateOrGetParchmentCard(root, "LeftPressCard", new Vector2(-665f, -32f), new Vector2(480f, 800f));
@@ -39,16 +39,16 @@ namespace ForjaGame.UI
                 bottomOuter.sizeDelta = new Vector2(740f, 156f);
             }
 
-            CreateOrGetTitleBanner(bottomBody, "BottomDetailsHeader", "DIFICULTAD Y DETALLES DE PRENSADO",
+            CreateOrGetTitleBanner(bottomBody, "BottomDetailsHeader", "PRESSING DETAILS & DIFFICULTY",
                 new Vector2(0f, 44f), new Vector2(420f, 28f), fontSize: 14f);
 
             if (panel.BloomInfoText != null)
                 PlaceBodyText(panel.BloomInfoText, bottomBody, new Vector2(0f, -14f), new Vector2(680f, 76f), 14.5f, TextAlignmentOptions.Center, DarkInk);
 
-            CreateOrGetTitleBanner(leftBody, "LeftPressHeader", "LUPAS EN INVENTARIO",
+            CreateOrGetTitleBanner(leftBody, "LeftPressHeader", "BLOOMS IN INVENTORY",
                 new Vector2(0f, 348f), new Vector2(400f, 42f), fontSize: 17f);
 
-            CreateOrGetTitleBanner(rightBody, "RightPressHeader", "FORJADO DE LINGOTE",
+            CreateOrGetTitleBanner(rightBody, "RightPressHeader", "INGOT COMPACTING",
                 new Vector2(0f, 348f), new Vector2(400f, 42f), fontSize: 17f);
 
             ScrollRect bloomScroll = panel.GetComponentInChildren<ScrollRect>(true);
@@ -80,10 +80,10 @@ namespace ForjaGame.UI
             }
 
             EnsureHelperNote(leftBody, "PressGuideNote",
-                "<b>Cómo usar la Prensa:</b>\n1. Elige una Lupa: se colocará en la base inferior.\n2. Pulsa [ESPACIO] repetidamente: el torno gira y la pala baja.\n3. Al llegar al 100%, recoge tu Lingote 3D.",
+                "<b>How to use the Press:</b>\n1. Select a Bloom: it rests on the lower base.\n2. Press [SPACE] repeatedly: compacting the billet.\n3. At 100%, collect your 3D Ingot.",
                 new Vector2(0f, -255f), new Vector2(400f, 130f));
 
-            CreateOrGetTitleBanner(rightBody, "PressGaugeHeader", "COMPACTACIÓN MECÁNICA",
+            CreateOrGetTitleBanner(rightBody, "PressGaugeHeader", "MECHANICAL COMPACTION",
                 new Vector2(0f, 240f), new Vector2(380f, 36f), fontSize: 15f);
 
             Slider pressSlider = panel.PressProgressSlider;
@@ -103,15 +103,26 @@ namespace ForjaGame.UI
                 PlaceBodyText(panel.ProgressText, rightBody, new Vector2(0f, 125f), new Vector2(220f, 36f), 22f, TextAlignmentOptions.Center, new Color(0.62f, 0.28f, 0.05f, 1f), bold: true);
 
             if (panel.MashButton != null)
+            {
                 StyleForgeButton(panel.MashButton, primary: true, rightBody, new Vector2(0f, 38f), new Vector2(400f, 56f));
+                SetButtonText(panel.MashButton, "PRESS [SPACE]");
+            }
             if (panel.ExtractIngotButton != null)
+            {
                 StyleForgeButton(panel.ExtractIngotButton, primary: true, rightBody, new Vector2(0f, 38f), new Vector2(400f, 56f));
+                SetButtonText(panel.ExtractIngotButton, "Collect Ingot");
+            }
             if (panel.RetrieveBloomButton != null)
+            {
                 StyleForgeButton(panel.RetrieveBloomButton, primary: false, rightBody, new Vector2(0f, -32f), new Vector2(400f, 44f));
+                SetButtonText(panel.RetrieveBloomButton, "Retrieve Bloom");
+            }
             if (panel.StatusText != null)
                 PlaceInsetStatusBox(panel.StatusText, rightBody, new Vector2(0f, -150f), new Vector2(400f, 88f));
             if (panel.CloseButton != null)
-                StyleForgeButton(panel.CloseButton, primary: false, rightBody, new Vector2(0f, -320f), new Vector2(240f, 42f));
+            {
+                StyleCloseButton(panel.CloseButton, rightBody, new Vector2(0f, -320f), topRightCorner: false, label: "Close");
+            }
 
             foreach (var t in panel.GetComponentsInChildren<TMP_Text>(true))
             {
@@ -123,7 +134,7 @@ namespace ForjaGame.UI
                     MedievalTypographyProvider.ApplyToTMP(t);
                     t.margin = Vector4.zero;
                     t.color = SubInk;
-                    t.text = "No tienes Lupas forjadas en el inventario.\n¡Funde minerales en el Horno de Forja!";
+                    t.text = "No Blooms in inventory.\nSmelt raw ores in the Smelting Furnace!";
                     t.fontSize = 14.5f;
                     t.fontStyle = FontStyles.Italic;
                     t.alignment = TextAlignmentOptions.Center;

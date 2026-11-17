@@ -7,7 +7,7 @@ namespace ForjaGame.Environment
     [ExecuteAlways]
     public partial class GreenPlateauTerrainController : MonoBehaviour
     {
-        private const string GroundMeshVersionName = "MountainPlateauGround_V4";
+        private const string GroundMeshVersionName = "MountainPlateauGround_V6";
 
         public static GreenPlateauTerrainController Instance { get; private set; }
 
@@ -55,8 +55,11 @@ namespace ForjaGame.Environment
         {
             var old = GameObject.Find("NaturalGreenPlateau");
             if (old != null) UnitySafeUtility.DestroyGameObjectSafe(old);
+            var bounds = GameObject.Find("[PLATEAU_INVISIBLE_BOUNDARIES]");
+            if (bounds != null) UnitySafeUtility.DestroyGameObjectSafe(bounds);
             CleanPreviousStoneWorkshop();
             CleanPreviousEnvironmentProps();
+            CleanPreviousNatureVegetation();
         }
 
         public void EnsurePlateau()
@@ -94,9 +97,43 @@ namespace ForjaGame.Environment
             GameObject workshop = EnsureStoneWorkshopFloor();
             EnsureRusticWorkshopStructure(workshop != null ? workshop.transform : null);
             EnsureEnvironmentProps();
+            EnsureNatureVegetation();
+            EnsureAtmosphericLightingAndSky();
+            EnsurePlateauInvisibleBoundaries();
 
             CaveDungeonBuilder.EnsureCaveBuiltInScene(forceRebuild: false);
             ForjaGame.Forge.ForgeStationModelSetup.SetupAllModelsInScene(false);
+        }
+
+        public static void EnsureAtmosphericLightingAndSky()
+        {
+            var sunObj = GameObject.Find("Directional Light") ?? GameObject.Find("Sun");
+            if (sunObj == null) sunObj = new GameObject("Directional Light", typeof(Light));
+            var sun = sunObj.GetComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.color = new Color(1.0f, 0.95f, 0.86f);
+            sun.intensity = 1.25f;
+            sun.shadows = LightShadows.Soft;
+            sun.shadowStrength = 0.85f;
+            sunObj.transform.rotation = Quaternion.Euler(48f, -36f, 0f);
+
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.36f, 0.46f, 0.64f);
+            RenderSettings.ambientEquatorColor = new Color(0.30f, 0.34f, 0.30f);
+            RenderSettings.ambientGroundColor = new Color(0.18f, 0.16f, 0.12f);
+            RenderSettings.ambientIntensity = 1.05f;
+
+            Shader skyShader = Shader.Find("Skybox/Procedural") ?? Shader.Find("Universal Render Pipeline/Unlit");
+            if (skyShader != null)
+            {
+                Material skyMat = new Material(skyShader) { name = "Mat_MedievalSky" };
+                if (skyMat.HasProperty("_SkyTint")) skyMat.SetColor("_SkyTint", new Color(0.24f, 0.44f, 0.76f));
+                if (skyMat.HasProperty("_GroundColor")) skyMat.SetColor("_GroundColor", new Color(0.35f, 0.30f, 0.22f));
+                if (skyMat.HasProperty("_AtmosphereThickness")) skyMat.SetFloat("_AtmosphereThickness", 1.02f);
+                if (skyMat.HasProperty("_Exposure")) skyMat.SetFloat("_Exposure", 1.15f);
+                if (skyMat.HasProperty("_SunSize")) skyMat.SetFloat("_SunSize", 0.04f);
+                RenderSettings.skybox = skyMat;
+            }
         }
 
         [ContextMenu("Reconstruir Meseta y Taller")]

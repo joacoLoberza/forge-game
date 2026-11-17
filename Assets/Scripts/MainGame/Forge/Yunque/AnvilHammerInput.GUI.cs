@@ -31,20 +31,22 @@ namespace ForjaGame.Forge
             }
             else
             {
+                anvilController.ThermalController?.UpdateHammerHover(Vector3.zero, false, AnvilToolMode.Polish);
                 return;
             }
 
-            if (Mouse.current.leftButton.isPressed)
+            bool isRubbing = Mouse.current.leftButton.isPressed && !IsMouseOverUI();
+            anvilController.ThermalController?.UpdateHammerHover(worldHitPoint, !IsMouseOverUI(), AnvilToolMode.Polish, isRubbing);
+            if (isRubbing)
             {
-                if (anvilController.PolishSurface(worldHitPoint, 0.035f, 4.0f))
+                bool polished = anvilController.PolishSurface(worldHitPoint, 0.035f, 4.0f);
+                if (polished && sparkVFXPrefab != null && !anvilController.IsCarvingHandle && Random.value < 0.20f)
+                    Instantiate(sparkVFXPrefab, worldHitPoint + Vector3.up * 0.015f, Quaternion.identity);
+                if (Time.time >= _nextPolishScrapeTime)
                 {
-                    if (sparkVFXPrefab != null && Random.value < 0.20f)
-                        Instantiate(sparkVFXPrefab, worldHitPoint + Vector3.up * 0.015f, Quaternion.identity);
-                    if (Time.time >= _nextPolishScrapeTime)
-                    {
-                        _nextPolishScrapeTime = Time.time + 0.22f;
-                        ForjaGame.Audio.ForgeAudioSystem.PlayPolishScrape(worldHitPoint);
-                    }
+                    _nextPolishScrapeTime = Time.time + 0.22f;
+                    if (polished) anvilController.ThermalController?.TriggerHammerStrikeAndSparks(worldHitPoint, 0.35f, true);
+                    ForjaGame.Audio.ForgeAudioSystem.PlayPolishScrape(worldHitPoint);
                 }
             }
         }
@@ -62,22 +64,22 @@ namespace ForjaGame.Forge
 
             if (anvilController != null && anvilController.IsCarvingHandle)
             {
-                if (GUI.Button(new Rect(startX, topY, bw, bh), "[2] Corte", _toolMode == AnvilToolMode.Cut ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Cut;
-                if (GUI.Button(new Rect(startX + bw + gap, topY, bw, bh), "[3] Pulir / Lijar", _toolMode == AnvilToolMode.Polish ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Polish;
+                if (GUI.Button(new Rect(startX, topY, bw, bh), "[2] Cut", _toolMode == AnvilToolMode.Cut ? _tabActiveStyle : _tabInactiveStyle)) { _toolMode = AnvilToolMode.Cut; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
+                if (GUI.Button(new Rect(startX + bw + gap, topY, bw, bh), "[3] Polish / Sand", _toolMode == AnvilToolMode.Polish ? _tabActiveStyle : _tabInactiveStyle)) { _toolMode = AnvilToolMode.Polish; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
                 return;
             }
 
-            if (GUI.Button(new Rect(startX, topY, bw, bh), "[1] Martillo", _toolMode == AnvilToolMode.Hammer ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Hammer;
-            if (GUI.Button(new Rect(startX + bw + gap, topY, bw, bh), "[2] Corte", _toolMode == AnvilToolMode.Cut ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Cut;
-            if (GUI.Button(new Rect(startX + (bw + gap) * 2, topY, bw, bh), "[3] Pulir", _toolMode == AnvilToolMode.Polish ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Polish;
+            if (GUI.Button(new Rect(startX, topY, bw, bh), "[1] Hammer", _toolMode == AnvilToolMode.Hammer ? _tabActiveStyle : _tabInactiveStyle)) { _toolMode = AnvilToolMode.Hammer; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
+            if (GUI.Button(new Rect(startX + bw + gap, topY, bw, bh), "[2] Cut", _toolMode == AnvilToolMode.Cut ? _tabActiveStyle : _tabInactiveStyle)) { _toolMode = AnvilToolMode.Cut; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
+            if (GUI.Button(new Rect(startX + (bw + gap) * 2, topY, bw, bh), "[3] Polish", _toolMode == AnvilToolMode.Polish ? _tabActiveStyle : _tabInactiveStyle)) { _toolMode = AnvilToolMode.Polish; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
         }
 
         private void DrawPolishGUI()
         {
             EnsureUIStyles();
-            float w = 680f, h = 58f, x = (Screen.width - w) * 0.5f, y = 68f;
-            string msg = "<b>MODO PULIDO Y LIJADO FINO</b>\n" +
-                         "<color=#3B2314>Mantén [Click Izquierdo] y frota el cursor por las aristas para redondearlas  •  <b>[1]</b> Martillo</color>";
+            float w = 840f, h = 74f, x = (Screen.width - w) * 0.5f, y = 68f;
+            string msg = "<size=15><b>POLISHING & FINE SANDING MODE</b></size>\n" +
+                         "<color=#2B1306>Hold <b>[Left Click]</b> and rub cursor across metal edges to smooth them  •  <b>[1]</b> Hammer  •  <b>[2]</b> Cut</color>";
             GUI.Box(new Rect(x, y, w, h), msg, _goldBannerStyle);
         }
 
@@ -94,23 +96,23 @@ namespace ForjaGame.Forge
 
             // Columna 1: Estado de la pieza y calidad
             bool isHammer = anvilController.SelectedWeaponType == WeaponType.Hammer;
-            string partTitle = isHammer ? "CABEZA DE MARTILLO" : (anvilController.SelectedWeaponType == WeaponType.Axe ? "HOJA DE HACHA" : "HOJA DE ESPADA");
+            string partTitle = isHammer ? "HAMMER HEAD" : (anvilController.SelectedWeaponType == WeaponType.Axe ? "AXE BLADE" : "SWORD BLADE");
             bool isEdgeReady = anvilController.IsEdgeComplete;
             string edgeBadge = isEdgeReady
-                ? "<color=#168A48><b>[ ✓ FILO LISTO ]</b></color>"
-                : "<color=#C87514><b>[ FORJANDO FILO ]</b></color>";
+                ? "<color=#168A48><b>[ ✓ EDGE READY ]</b></color>"
+                : "<color=#C87514><b>[ FORGING EDGE ]</b></color>";
             string col1 = $"<b>{partTitle}</b>\n" +
                           $"{edgeBadge}\n" +
-                          $"Calidad Metal: <b>{anvilController.ForgingQuality * 100f:F0}%</b>";
-            GUI.Label(new Rect(x + 18f, y + 14f, 240f, 74f), col1, _parchmentCardStyle);
+                          $"Metal Quality: <b>{anvilController.ForgingQuality * 100f:F0}%</b>";
+            GUI.Label(new Rect(x + 18f, y + 14f, 240f, 74f), col1, _plainTextStyle);
 
             // Columna 2: Monitor Térmico con barra de calor e indicación de Fragua [H] centrada
             float currentTemp = anvilController.ThermalController != null ? anvilController.ThermalController.CurrentTemperature : 750f;
             bool isReheating = anvilController.ThermalController != null && anvilController.ThermalController.IsReheating;
-            string tempTitle = $"<b>CALOR: {currentTemp:F0}°C</b>";
+            string tempTitle = $"<b>HEAT: {currentTemp:F0}°C</b>";
             string tempHint = isReheating
-                ? (currentTemp > 1220f ? "<color=#D82010><b>¡LÍMITE! [H] Retirar</b></color>" : "<color=#D86210><b>[En Fragua] [H] Sacar</b></color>")
-                : (currentTemp < 500f ? "<color=#2B68A0><b>Frío • Presiona [H]</b></color>" : "<color=#966814><b>Maleabilidad Ideal</b></color>");
+                ? (currentTemp > 1220f ? "<color=#D82010><b>OVERHEAT! [H] Remove</b></color>" : "<color=#D86210><b>[In Hearth] [H] Pull Out</b></color>")
+                : (currentTemp < 500f ? "<color=#2B68A0><b>Cold • Press [H]</b></color>" : "<color=#966814><b>Ideal Malleability</b></color>");
             GUI.Label(new Rect(x + 270f, y + 12f, 260f, 22f), tempTitle, _centerTextStyle);
             DrawThermalGradientBar(new Rect(x + 280f, y + 36f, 240f, 16f), currentTemp);
             GUI.Label(new Rect(x + 270f, y + 58f, 260f, 24f), tempHint, _centerTextStyle);
@@ -118,20 +120,23 @@ namespace ForjaGame.Forge
             // Columna 3: Acción contextual, selector de herramientas (1, 2, 3) y templado
             bool isQuenching = anvilController.QuenchDifferential != null && anvilController.QuenchDifferential.IsQuenching;
             if (isQuenching)
-                GUI.Box(new Rect(x + 545f, y + 24f, 275f, 48f), "<b>TEMPLANDO EN AGUA...</b>", _goldBannerStyle);
+                GUI.Box(new Rect(x + 545f, y + 24f, 275f, 48f), "<b>QUENCHING IN WATER...</b>", _goldBannerStyle);
             else if (isEdgeReady)
             {
-                if (GUI.Button(new Rect(x + 545f, y + 18f, 275f, 60f), "<b>★ [ESPACIO] TEMPLAR ★</b>\n<size=11>Sumergir en agua para endurecer</size>", _goldBannerStyle))
+                if (GUI.Button(new Rect(x + 545f, y + 18f, 275f, 60f), "<b>★ [SPACE] QUENCH ★</b>\n<size=11>Submerge in water to harden</size>", _goldBannerStyle))
+                {
+                    ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
                     HandleSpacebarPress();
+                }
             }
             else
             {
-                float btnW = 82f, btnH = 26f, btnY = y + 50f, btnStartX = x + 555f;
-                string toolName = _toolMode == AnvilToolMode.Hammer ? "Martillar" : (_toolMode == AnvilToolMode.Cut ? "Cortar" : "Pulir");
-                GUI.Label(new Rect(x + 555f, y + 14f, 265f, 32f), $"<b>[Click Izq]</b> {toolName}  •  <b>[F]</b> Pausa", _parchmentCardStyle);
-                if (GUI.Button(new Rect(btnStartX, btnY, btnW, btnH), "[1] Martillo", _toolMode == AnvilToolMode.Hammer ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Hammer;
-                if (GUI.Button(new Rect(btnStartX + btnW + 6f, btnY, btnW - 12f, btnH), "[2] Corte", _toolMode == AnvilToolMode.Cut ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Cut;
-                if (GUI.Button(new Rect(btnStartX + btnW * 2f - 2f, btnY, btnW - 6f, btnH), "[3] Pulir", _toolMode == AnvilToolMode.Polish ? _tabActiveStyle : _tabInactiveStyle)) _toolMode = AnvilToolMode.Polish;
+                float btnW = 84f, btnH = 28f, btnY = y + 50f, gap = 6f, btnStartX = x + 550f;
+                string toolName = _toolMode == AnvilToolMode.Hammer ? "Hammer" : (_toolMode == AnvilToolMode.Cut ? "Cut" : "Polish");
+                GUI.Label(new Rect(btnStartX, y + 14f, 266f, 28f), $"<b>[Left Click]</b> {toolName}  •  <b>[F]</b> Pause", _plainTextStyle);
+                if (GUI.Button(new Rect(btnStartX, btnY, btnW, btnH), "[1] Hammer", _toolMode == AnvilToolMode.Hammer ? _tabActiveStyle : _tabInactiveStyle)) { _toolMode = AnvilToolMode.Hammer; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
+                if (GUI.Button(new Rect(btnStartX + btnW + gap, btnY, btnW, btnH), "[2] Cut", _toolMode == AnvilToolMode.Cut ? _tabActiveStyle : _tabInactiveStyle)) { _toolMode = AnvilToolMode.Cut; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
+                if (GUI.Button(new Rect(btnStartX + (btnW + gap) * 2f, btnY, btnW, btnH), "[3] Polish", _toolMode == AnvilToolMode.Polish ? _tabActiveStyle : _tabInactiveStyle)) { _toolMode = AnvilToolMode.Polish; ForjaGame.Audio.ForgeAudioSystem.PlayUITab(); }
             }
         }
 
@@ -233,12 +238,9 @@ namespace ForjaGame.Forge
 
         private static void EnsureLineTexture()
         {
-            if (_lineTexture == null)
-            {
-                _lineTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-                _lineTexture.SetPixel(0, 0, Color.white);
-                _lineTexture.Apply();
-            }
+            if (_lineTexture != null) return;
+            _lineTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            _lineTexture.SetPixel(0, 0, Color.white); _lineTexture.Apply();
         }
     }
 }

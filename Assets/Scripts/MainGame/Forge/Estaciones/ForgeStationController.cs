@@ -18,7 +18,7 @@ namespace ForjaGame.Forge
 
         public bool IsOccupied => _isOccupied;
         public GameObject CurrentInteractor => _currentInteractor;
-        public string InteractionPrompt => "Abrir Forja";
+        public string InteractionPrompt => "Open Forge";
 
         private void Awake()
         {

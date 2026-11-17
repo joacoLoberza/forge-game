@@ -24,6 +24,7 @@ namespace ForjaGame.EditorTools
                 {
                     GolemSetupTool.SetupGolemAssets();
                     SpiderSetupTool.SetupSpiderAssets();
+                    TitanSetupTool.SetupTitanAssets();
                     EnsureGrassMaterialAsset();
                     EnsureStoneFloorMaterialAsset();
                     GenerateMapAndCaveInScene(forceRebuildCave: true);
@@ -41,6 +42,7 @@ namespace ForjaGame.EditorTools
         {
             GolemSetupTool.SetupGolemAssets();
             SpiderSetupTool.SetupSpiderAssets();
+            TitanSetupTool.SetupTitanAssets();
             EnsureGrassMaterialAsset();
             EnsureStoneFloorMaterialAsset();
             GenerateMapAndCaveInScene(forceRebuildCave: true);

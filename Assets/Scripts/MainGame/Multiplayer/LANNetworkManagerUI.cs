@@ -109,20 +109,20 @@ namespace ForjaGame.Multiplayer
 
         private void DrawActiveSessionHUD(NetworkManager netManager)
         {
-            float w = 285f, h = 104f, x = Screen.width - w - 18f, y = 18f;
+            float w = 275f, h = 96f, x = Screen.width - w - 18f, y = 18f;
 
             GUI.DrawTexture(new Rect(x - 4f, y - 4f, w + 8f, h + 8f), BookTextureBuilder.GetLeatherCoverSprite().texture);
             GUILayout.BeginArea(new Rect(x, y, w, h), _plaqueStyle);
 
-            string role = netManager.IsHost ? "ANFITRIÓN LAN" : (netManager.IsServer ? "SERVIDOR LAN" : "CLIENTE LAN");
+            string role = netManager.IsHost ? "LAN HOST" : (netManager.IsServer ? "LAN SERVER" : "LAN CLIENT");
             GUILayout.Label($"<b>[{role}]</b>", _headerStyle);
 
             int playerCount = netManager.ConnectedClientsIds != null ? netManager.ConnectedClientsIds.Count : 1;
-            string hostInfo = netManager.IsHost ? $"IP: {_detectedLocalIp}:{port}" : $"Puerto: {port}";
-            GUILayout.Label($"Herreros conectados: <b>{playerCount}</b>  •  {hostInfo}", _labelStyle);
+            string hostInfo = netManager.IsHost ? $"IP: {_detectedLocalIp}:{port}" : $"Port: {port}";
+            GUILayout.Label($"Blacksmiths Connected: <b>{playerCount}</b>  •  {hostInfo}", _labelStyle);
 
             GUILayout.Space(4f);
-            if (GUILayout.Button("Desconectar al Menú", _buttonStyle, GUILayout.Height(26f)))
+            if (GUILayout.Button("Disconnect to Menu", _buttonStyle, GUILayout.Height(26f)))
             {
                 IsLanSessionRequested = false;
                 Cursor.lockState = CursorLockMode.None;

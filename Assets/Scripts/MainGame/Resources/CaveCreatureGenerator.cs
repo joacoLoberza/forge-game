@@ -32,8 +32,8 @@ namespace ForjaGame.Resources
         [SerializeField] private float initialSpawnDelay = 1.5f;
         [SerializeField] private float respawnCooldown = 32f;
         [SerializeField] private int maxConcurrent = 1;
-        [SerializeField] private int creatureHp = 280;
-        [SerializeField] private int creatureDamage = 24;
+        [SerializeField] private int creatureHp = 110;
+        [SerializeField] private int creatureDamage = 10;
         [SerializeField] private float creatureScale = 1.0f;
         [SerializeField] private float zoneMinZ = 29f;
         [SerializeField] private float zoneMaxZ = 224f;

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using ForjaGame.Combat;
 
 namespace ForjaGame.Forge
 {
@@ -81,6 +82,7 @@ namespace ForjaGame.Forge
                 handleLength = handle.length,
                 composition = ingot.composition,
                 customMesh = customBladeMesh,
+                customHandleMesh = handle?.customMesh != null ? handle.customMesh : WeaponVisualBuilder.GenerateArchetypeHandle(handle.length, weaponType),
                 vertexPositions = customBladeMesh != null ? (Vector3[])customBladeMesh.vertices.Clone() : null,
                 baseDamage = finalDamage,
                 attackSpeed = finalAttackSpeed,
@@ -90,7 +92,7 @@ namespace ForjaGame.Forge
                 quality = ingot.quality,
                 qualityPrefix = qualityPrefix
             };
-
+            stats.bladeMountRotation = weaponType == WeaponType.Sword ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
             var profile = stats.CalculateProfile();
             Debug.Log($"<color=#33FFAA><b>[WeaponProfile] {profile}</b></color>");
             return stats;

@@ -42,9 +42,8 @@ namespace ForjaGame.Resources
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smooth);
             if (mat.HasProperty("_EmissionColor"))
             {
-                mat.EnableKeyword("_EMISSION");
-                float emissionIntensity = (itemId != null && (itemId.ToLowerInvariant().Contains("gold") || itemId.ToLowerInvariant().Contains("oro"))) ? 0.48f : 0.30f;
-                mat.SetColor("_EmissionColor", col * emissionIntensity);
+                mat.DisableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", Color.black);
             }
             return mat;
         }
@@ -68,13 +67,14 @@ namespace ForjaGame.Resources
             int seed = root.GetInstanceID() ^ (itemId != null ? itemId.GetHashCode() : 0);
             string idLower = itemId != null ? itemId.ToLowerInvariant() : "iron";
 
-            // 1. Roca base facetada y orgánica
+            // 1. Roca base facetada más amplia y asentada en pendientes para máxima visibilidad en la mina
             GameObject rockBase = new GameObject("RockBase", typeof(MeshFilter), typeof(MeshRenderer));
             rockBase.transform.SetParent(root.transform, false);
-            rockBase.transform.localPosition = Vector3.zero;
+            rockBase.transform.localPosition = new Vector3(0f, -0.18f, 0f);
             rockBase.transform.localRotation = Quaternion.Euler(0f, (seed % 360), 0f);
+            rockBase.transform.localScale = new Vector3(1.38f, 1.55f, 1.38f);
 
-            Mesh rockMesh = OreMeshGenerator.CreateRockBaseMesh(1.10f, 0.65f, seed);
+            Mesh rockMesh = OreMeshGenerator.CreateRockBaseMesh(1.15f, 0.78f, seed);
             rockBase.GetComponent<MeshFilter>().sharedMesh = rockMesh;
             rockBase.GetComponent<MeshRenderer>().sharedMaterial = CreateRockMaterial();
 
@@ -91,16 +91,6 @@ namespace ForjaGame.Resources
                 BuildGoldVein(root.transform, oreMat, seed, breakableClusters);
             else
                 BuildDefaultVein(root.transform, oreMat, seed, breakableClusters);
-
-            // 3. Luz ambiental suave característica
-            GameObject lightObj = new GameObject("VeinLight", typeof(Light));
-            lightObj.transform.SetParent(root.transform, false);
-            lightObj.transform.localPosition = new Vector3(0f, 0.8f, 0f);
-            Light l = lightObj.GetComponent<Light>();
-            l.type = LightType.Point;
-            l.color = GetColorForResource(itemId);
-            l.range = 3.5f;
-            l.intensity = 0.85f;
         }
 
         private static void BuildCopperSpires(Transform root, Material mat, int seed, List<GameObject> clusters)
@@ -112,11 +102,11 @@ namespace ForjaGame.Resources
                 spire.transform.SetParent(root, false);
 
                 float angle = i * Mathf.PI * 2f / spireCount + (i * 0.2f);
-                float r = 0.42f + (i % 2) * 0.12f;
-                spire.transform.localPosition = new Vector3(Mathf.Cos(angle) * r, 0.28f + (i % 3) * 0.10f, Mathf.Sin(angle) * r);
+                float r = 0.52f + (i % 2) * 0.16f;
+                spire.transform.localPosition = new Vector3(Mathf.Cos(angle) * r, 0.42f + (i % 3) * 0.14f, Mathf.Sin(angle) * r);
                 spire.transform.localRotation = Quaternion.Euler(25f * (i % 2 == 0 ? 1 : -1), angle * Mathf.Rad2Deg, 25f);
 
-                spire.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateCrystalSpireMesh(0.18f, 0.42f, seed + i * 17);
+                spire.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateCrystalSpireMesh(0.24f, 0.62f, seed + i * 17);
                 spire.GetComponent<MeshRenderer>().sharedMaterial = mat;
                 clusters.Add(spire);
             }
@@ -131,11 +121,11 @@ namespace ForjaGame.Resources
                 nodule.transform.SetParent(root, false);
 
                 float angle = i * Mathf.PI * 2f / noduleCount;
-                float r = 0.48f;
-                nodule.transform.localPosition = new Vector3(Mathf.Cos(angle) * r, 0.22f + (i % 2) * 0.18f, Mathf.Sin(angle) * r);
+                float r = 0.56f;
+                nodule.transform.localPosition = new Vector3(Mathf.Cos(angle) * r, 0.36f + (i % 2) * 0.22f, Mathf.Sin(angle) * r);
                 nodule.transform.localRotation = Quaternion.Euler(15f * i, angle * Mathf.Rad2Deg + 45f, 0f);
 
-                nodule.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateFacetedChunkMesh(0.20f, seed + i * 29);
+                nodule.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateFacetedChunkMesh(0.28f, seed + i * 29);
                 nodule.GetComponent<MeshRenderer>().sharedMaterial = mat;
                 clusters.Add(nodule);
             }
@@ -150,11 +140,11 @@ namespace ForjaGame.Resources
                 coal.transform.SetParent(root, false);
 
                 float angle = i * Mathf.PI * 2f / blockCount;
-                float r = 0.38f + (i % 3) * 0.10f;
-                coal.transform.localPosition = new Vector3(Mathf.Cos(angle) * r, 0.18f + i * 0.08f, Mathf.Sin(angle) * r);
+                float r = 0.48f + (i % 3) * 0.14f;
+                coal.transform.localPosition = new Vector3(Mathf.Cos(angle) * r, 0.32f + i * 0.10f, Mathf.Sin(angle) * r);
                 coal.transform.localRotation = Quaternion.Euler(10f, angle * Mathf.Rad2Deg, 12f * (i - 2));
 
-                coal.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateFacetedChunkMesh(0.18f, seed + i * 37);
+                coal.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateFacetedChunkMesh(0.26f, seed + i * 37);
                 coal.GetComponent<MeshRenderer>().sharedMaterial = mat;
                 clusters.Add(coal);
             }
@@ -169,12 +159,11 @@ namespace ForjaGame.Resources
                 gold.transform.SetParent(root, false);
 
                 float angle = i * Mathf.PI * 2f / blockCount;
-                float r = 0.38f + (i % 3) * 0.10f;
-                gold.transform.localPosition = new Vector3(Mathf.Cos(angle) * r, 0.18f + i * 0.08f, Mathf.Sin(angle) * r);
-                // Basado exactamente en carbón pero con rotación ligera distintiva
+                float r = 0.48f + (i % 3) * 0.14f;
+                gold.transform.localPosition = new Vector3(Mathf.Cos(angle) * r, 0.32f + i * 0.10f, Mathf.Sin(angle) * r);
                 gold.transform.localRotation = Quaternion.Euler(18f * (i % 2 == 0 ? 1f : -1f), angle * Mathf.Rad2Deg + 25f, 15f * (i - 2));
 
-                gold.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateFacetedChunkMesh(0.18f, seed + i * 43);
+                gold.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateFacetedChunkMesh(0.26f, seed + i * 43);
                 gold.GetComponent<MeshRenderer>().sharedMaterial = mat;
                 clusters.Add(gold);
             }

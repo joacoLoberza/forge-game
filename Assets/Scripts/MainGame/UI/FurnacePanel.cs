@@ -52,6 +52,7 @@ namespace ForjaGame.UI
         private string _lastStatusMessage = string.Empty;
 
         public IReadOnlyList<MetalType> StagedOres => _stagedOres;
+        public Transform OresContainer => oresContainer;
         public Slider TemperatureSlider => temperatureSlider;
         public Slider ProgressSlider => progressSlider;
         public TMP_Text TemperatureText => temperatureText;
@@ -63,23 +64,28 @@ namespace ForjaGame.UI
         public Button ExtractBloomButton => extractBloomButton;
         public Button InsertOresButton => insertOresButton;
         public Button CloseButton => closeButton;
+        public static FurnacePanel Instance { get; private set; }
 
         protected override void Awake()
         {
             base.Awake();
+            if (Instance == null) Instance = this;
             ResolveControllers();
-            if (TryGetComponent<Image>(out var bgImage)) bgImage.enabled = false;
+
+            var bgImage = GetComponent<Image>();
+            if (bgImage != null) bgImage.enabled = false;
+
             if (extractOreButton != null && extractOreButton == extractBloomButton) extractOreButton = null;
 
             EnsureInsertOresButtonExists();
             EnsureExtractOreButtonExists();
             EnsureBellowsButtonExists();
 
-            if (addCoalButton != null) { BindPressDown(addCoalButton, OnAddCoalClicked); SetButtonLabel(addCoalButton, "+ Carbón [Shift]"); }
-            if (bellowsButton != null) { BindPressDown(bellowsButton, OnBellowsClicked); SetButtonLabel(bellowsButton, "Fuelle [Espacio]"); }
-            if (extractOreButton != null) { BindPressDown(extractOreButton, OnExtractLastOreClicked); SetButtonLabel(extractOreButton, "Quitar Mineral"); }
-            if (insertOresButton != null) { BindPressDown(insertOresButton, OnInsertStagedOresClicked); SetButtonLabel(insertOresButton, "Ingresar minerales"); }
-            if (extractBloomButton != null) { BindPressDown(extractBloomButton, OnExtractBloomClicked); SetButtonLabel(extractBloomButton, "Sacar Lupa"); }
+            if (addCoalButton != null) { BindPressDown(addCoalButton, OnAddCoalClicked); SetButtonLabel(addCoalButton, "+ Coal [Shift]"); }
+            if (bellowsButton != null) { BindPressDown(bellowsButton, OnBellowsClicked); SetButtonLabel(bellowsButton, "Bellows [Space]"); }
+            if (extractOreButton != null) { BindPressDown(extractOreButton, OnExtractLastOreClicked); SetButtonLabel(extractOreButton, "Remove Ore"); }
+            if (insertOresButton != null) { BindPressDown(insertOresButton, OnInsertStagedOresClicked); SetButtonLabel(insertOresButton, "Insert Ores"); }
+            if (extractBloomButton != null) { BindPressDown(extractBloomButton, OnExtractBloomClicked); SetButtonLabel(extractBloomButton, "Extract Bloom"); }
             if (closeButton != null) BindPressDown(closeButton, Close);
 
             SetupSliders();
@@ -110,7 +116,7 @@ namespace ForjaGame.UI
                 insertOresButton = foundBtn;
                 return;
             }
-            insertOresButton = CreateActionButton("InsertOresButton", "Ingresar minerales");
+            insertOresButton = CreateActionButton("InsertOresButton", "Insert Ores");
         }
 
         private void EnsureExtractOreButtonExists()
@@ -123,7 +129,7 @@ namespace ForjaGame.UI
                 extractOreButton = foundBtn;
                 return;
             }
-            extractOreButton = CreateActionButton("ExtractOreButton_Dedicated", "Quitar Mineral");
+            extractOreButton = CreateActionButton("ExtractOreButton_Dedicated", "Remove Ore");
         }
 
         private Button CreateActionButton(string objName, string labelText)
@@ -227,5 +233,7 @@ namespace ForjaGame.UI
             if (_visualController != null)
                 _visualController.BottomBloomClicked -= OnExtractBloomClicked;
         }
+
+        protected override void OnDestroy() { base.OnDestroy(); if (Instance == this) Instance = null; }
     }
 }

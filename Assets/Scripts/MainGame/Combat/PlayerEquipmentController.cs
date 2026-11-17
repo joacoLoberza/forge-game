@@ -12,11 +12,7 @@ namespace ForjaGame.Combat
     {
         public static PlayerEquipmentController LocalInstance { get; set; }
         private static PlayerEquipmentController _fallbackInstance;
-        public static PlayerEquipmentController Instance
-        {
-            get => LocalInstance != null ? LocalInstance : _fallbackInstance;
-            set => _fallbackInstance = value;
-        }
+        public static PlayerEquipmentController Instance { get => LocalInstance != null ? LocalInstance : _fallbackInstance; set => _fallbackInstance = value; }
 
         [Header("Referencias")]
         [SerializeField] private AttackController attackController;
@@ -41,7 +37,13 @@ namespace ForjaGame.Combat
         public WeaponStats CurrentWeapon => _currentEquippedWeapon;
         public WeaponStats EquippedWeapon => _currentEquippedWeapon;
         public bool HasWeaponEquipped => _currentEquippedWeapon != null;
-        public bool IsEquipped(WeaponStats weapon) => _currentEquippedWeapon != null && _currentEquippedWeapon == weapon;
+        public bool IsEquipped(WeaponStats weapon)
+        {
+            if (_currentEquippedWeapon == null || weapon == null) return false;
+            return ReferenceEquals(_currentEquippedWeapon, weapon) ||
+                   (!string.IsNullOrEmpty(_currentEquippedWeapon.id) && _currentEquippedWeapon.id == weapon.id) ||
+                   (_currentEquippedWeapon.weaponType == WeaponType.Pickaxe && weapon.weaponType == WeaponType.Pickaxe);
+        }
         public Transform WeaponHolder => _weaponHolder;
         public Transform GripSocketFront => _gripSocketFront;
         public Transform GripSocketRear => _gripSocketRear;
@@ -54,7 +56,11 @@ namespace ForjaGame.Combat
         private void Awake()
         {
             var netObj = GetComponent<Unity.Netcode.NetworkObject>();
-            if (netObj == null || netObj.IsOwner) LocalInstance = this;
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsListening)
+            {
+                if (netObj != null && netObj.IsOwner) LocalInstance = this;
+            }
+            else if (netObj == null || netObj.IsOwner) LocalInstance = this;
             _fallbackInstance = this;
 
             EnsurePaladinVisual();
@@ -65,28 +71,36 @@ namespace ForjaGame.Combat
 
         private void Start()
         {
+            LoadDefaultAssetsIfMissing();
+            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
+            if (netObj != null && !netObj.IsOwner) return;
+            if (netObj != null && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenu") return;
+            EnsureEquippedVisualInCurrentScene();
+        }
+
+        public void EnsureEquippedVisualInCurrentScene()
+        {
             EnsurePaladinVisual();
             EnsureHolder();
             EnsureEdgeAlignerOnAnimator();
-            LoadDefaultAssetsIfMissing();
+
+            var inv = GetComponent<ForjaGame.Inventory.InventoryController>() ?? ForjaGame.Inventory.InventoryController.LocalInstance;
+            if (inv != null) inv.EnsureStarterSupplies();
 
             if (_currentEquippedWeapon == null)
             {
-                var inv = GetComponent<ForjaGame.Inventory.InventoryController>() ?? ForjaGame.Inventory.InventoryController.LocalInstance;
                 WeaponStats pickaxe = null;
                 if (inv != null && inv.Weapons != null)
                 {
                     for (int i = 0; i < inv.Weapons.Count; i++)
-                    {
-                        if (inv.Weapons[i] != null && inv.Weapons[i].weaponType == WeaponType.Pickaxe)
-                        {
-                            pickaxe = inv.Weapons[i];
-                            break;
-                        }
-                    }
+                        if (inv.Weapons[i] != null && inv.Weapons[i].weaponType == WeaponType.Pickaxe) { pickaxe = inv.Weapons[i]; break; }
                 }
-                if (pickaxe == null) pickaxe = PickaxeModelGenerator.CreateDefaultIronPickaxe();
+                if (pickaxe == null) { pickaxe = PickaxeModelGenerator.CreateDefaultIronPickaxe(); inv?.AddWeapon(pickaxe); }
                 EquipWeapon(pickaxe);
+            }
+            else if (_spawnedWeaponInstance == null || _weaponHolder == null || _weaponHolder.childCount == 0)
+            {
+                EquipWeapon(_currentEquippedWeapon);
             }
         }
 
@@ -184,6 +198,8 @@ namespace ForjaGame.Combat
                 _edgeAligner.weaponLengthY = Mathf.Max(0.5f, weapon.attackRange * 0.75f);
                 _edgeAligner.isTwoHandedWeapon = is2H;
                 _edgeAligner.isPickaxeOrTool = weapon.weaponType == WeaponType.Pickaxe;
+                _edgeAligner.weaponArchetype = weapon.weaponType;
+                _edgeAligner.isFrontFaceDominant = weapon.isFrontFaceDominant;
                 _edgeAligner.secondaryGripDistanceOnShaft = stance == WeaponCombatStance.Polearm ? 0.44f : 0.28f;
                 _edgeAligner.CaptureCalibratedRotation();
             }
@@ -194,11 +210,10 @@ namespace ForjaGame.Combat
                 if (overrideCtrl != null) _paladinAnimator.runtimeAnimatorController = overrideCtrl;
                 if (_paladinAnimator.layerCount > 1)
                 {
-                    float initWeight = weapon.weaponType == WeaponType.Pickaxe ? 0.18f : (is2H ? 0.42f : 0.22f);
-                    _paladinAnimator.SetLayerWeight(1, initWeight);
+                    _paladinAnimator.SetLayerWeight(1, 0f);
                     _paladinAnimator.CrossFadeInFixedTime("CombatStance", 0.15f, 1);
                 }
-                if (_paladinAnimator.layerCount > 2) _paladinAnimator.SetLayerWeight(2, 1.0f);
+                if (_paladinAnimator.layerCount > 2) _paladinAnimator.SetLayerWeight(2, 0.55f);
             }
 
             if (attackController != null) attackController.ApplyWeaponStats(weapon);

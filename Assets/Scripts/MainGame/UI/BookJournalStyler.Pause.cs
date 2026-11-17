@@ -12,144 +12,116 @@ namespace ForjaGame.UI
             if (pause == null) return;
 
             Transform root = pause.transform;
-            var rt = root.GetComponent<RectTransform>();
-            if (rt != null)
-            {
-                rt.localRotation = Quaternion.identity; rt.localScale = Vector3.one;
-                rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = Vector2.zero;
-                rt.sizeDelta = new Vector2(440f, 520f);
-            }
+            Slider existingSlider = null;
+            Button resumeBtn = null, backBtn = null;
 
-            var img = root.GetComponent<Image>() ?? root.gameObject.AddComponent<Image>();
-            img.sprite = BookTextureBuilder.GetParchmentSprite();
-            img.type = Image.Type.Sliced;
-            img.color = new Color(0.96f, 0.93f, 0.86f, 0.98f);
-
-            foreach (var legacyTxt in root.GetComponentsInChildren<Text>(true))
-            {
-                if (legacyTxt == null) continue;
-                Font medFont = MedievalTypographyProvider.GetIMGUIFont();
-                if (medFont != null) legacyTxt.font = medFont;
-                if (legacyTxt.GetComponentInParent<Button>() != null) continue;
-                string ln = legacyTxt.name.ToLowerInvariant();
-                if (ln.Contains("porcent") || ln.Contains("percent") || ln.Contains("value"))
-                {
-                    PlaceVolumePercentInsideSheet(legacyTxt.rectTransform, root);
-                    legacyTxt.fontSize = 17;
-                    legacyTxt.fontStyle = FontStyle.Bold;
-                    legacyTxt.alignment = TextAnchor.MiddleCenter;
-                    legacyTxt.color = ForgeCanvasThemeStyler.DarkInk;
-                    legacyTxt.horizontalOverflow = HorizontalWrapMode.Overflow;
-                    legacyTxt.verticalOverflow = VerticalWrapMode.Overflow;
-                    legacyTxt.raycastTarget = false;
-                }
-            }
-
-            foreach (var tmpTxt in root.GetComponentsInChildren<TMP_Text>(true))
-            {
-                if (tmpTxt == null || tmpTxt.GetComponentInParent<Button>() != null) continue;
-                MedievalTypographyProvider.ApplyToTMP(tmpTxt);
-                string tn = tmpTxt.name.ToLowerInvariant();
-                if (tn.Contains("porcent") || tn.Contains("percent") || tn.Contains("volvalue"))
-                {
-                    PlaceVolumePercentInsideSheet(tmpTxt.rectTransform, root);
-                    tmpTxt.fontSize = 17f;
-                    tmpTxt.fontStyle = FontStyles.Bold;
-                    tmpTxt.alignment = TextAlignmentOptions.Center;
-                    tmpTxt.color = ForgeCanvasThemeStyler.DarkInk;
-                    tmpTxt.margin = Vector4.zero;
-                    tmpTxt.raycastTarget = false;
-                }
-            }
-
-            for (int i = 0; i < root.childCount; i++)
+            for (int i = root.childCount - 1; i >= 0; i--)
             {
                 Transform ch = root.GetChild(i);
-                string n = ch.name.ToLowerInvariant();
-                var chRt = ch.GetComponent<RectTransform>();
-                if (chRt == null) continue;
+                string cn = ch.name;
+                if (cn == "BookPageStackLeft" || cn == "BookPageStackRight" || cn == "LeftPage" || cn == "RightPage" || cn == "BookSpine" || cn == "BtnPauseCloseTab")
+                    continue;
 
-                chRt.localRotation = Quaternion.identity; chRt.localScale = Vector3.one;
-                chRt.anchorMin = chRt.anchorMax = chRt.pivot = new Vector2(0.5f, 0.5f);
-
-                if (n.Contains("porcent") || n.Contains("percent") || n.Contains("volvalue"))
+                if (existingSlider == null) existingSlider = ch.GetComponentInChildren<Slider>(true);
+                string n = cn.ToLowerInvariant();
+                if (ch.TryGetComponent<Button>(out var b))
                 {
-                    chRt.anchoredPosition = new Vector2(138f, 65f);
-                    chRt.sizeDelta = new Vector2(84f, 32f);
+                    if (n.Contains("resume") || n.Contains("reanudar") || n.Contains("continuar") || n.Contains("volver"))
+                        resumeBtn = resumeBtn ?? b;
+                    else if (n.Contains("back") || n.Contains("menu") || n.Contains("salir"))
+                        backBtn = backBtn ?? b;
+                    continue;
                 }
-                else if (n.Contains("pausetext") || n.Contains("title"))
+                if (ch.TryGetComponent<Slider>(out var rootSlider))
                 {
-                    chRt.anchoredPosition = new Vector2(0f, 180f);
-                    chRt.sizeDelta = new Vector2(340f, 48f);
+                    existingSlider = existingSlider ?? rootSlider;
+                    continue;
                 }
-                else if (n.Contains("volumentext"))
-                {
-                    chRt.anchoredPosition = new Vector2(0f, 108f);
-                    chRt.sizeDelta = new Vector2(320f, 32f);
-                    var t = ch.GetComponent<TMP_Text>();
-                    if (t != null)
-                    {
-                        MedievalTypographyProvider.ApplyToTMP(t);
-                        t.text = "Volumen Maestro";
-                        t.fontSize = 17f;
-                        t.enableAutoSizing = true;
-                        t.fontSizeMin = 13f;
-                        t.fontSizeMax = 18f;
-                        t.alignment = TextAlignmentOptions.Center;
-                        t.color = ForgeCanvasThemeStyler.DarkInk;
-                    }
-                }
-                else if (ch.GetComponent<Slider>() != null || n.Contains("slider"))
-                {
-                    chRt.anchoredPosition = new Vector2(-34f, 65f);
-                    chRt.sizeDelta = new Vector2(240f, 30f);
-                    var sl = ch.GetComponent<Slider>();
-                    if (sl != null) ForgeCanvasThemeStyler.StyleSliderControl(sl, interactive: true);
-                }
-                else if (n.Contains("resume") || n.Contains("reanudar"))
-                {
-                    chRt.anchoredPosition = new Vector2(0f, -10f);
-                    chRt.sizeDelta = new Vector2(240f, 44f);
-                    var bTxt = ch.GetComponentInChildren<TMP_Text>(true);
-                    if (bTxt != null)
-                    {
-                        MedievalTypographyProvider.ApplyToTMP(bTxt);
-                        bTxt.text = "Reanudar Partida";
-                        bTxt.fontSize = 15f;
-                        bTxt.fontStyle = FontStyles.Bold;
-                        bTxt.color = ForgeCanvasThemeStyler.DarkInk;
-                        bTxt.alignment = TextAlignmentOptions.Center;
-                    }
-                }
-                else if (n.Contains("back") || n.Contains("menu") || n.Contains("salir"))
-                {
-                    chRt.anchoredPosition = new Vector2(0f, -126f);
-                    chRt.sizeDelta = new Vector2(240f, 44f);
-                    var bTxt = ch.GetComponentInChildren<TMP_Text>(true);
-                    if (bTxt != null)
-                    {
-                        MedievalTypographyProvider.ApplyToTMP(bTxt);
-                        bTxt.text = "Volver al Menú";
-                        bTxt.fontSize = 15f;
-                        bTxt.fontStyle = FontStyles.Bold;
-                        bTxt.color = ForgeCanvasThemeStyler.DarkInk;
-                        bTxt.alignment = TextAlignmentOptions.Center;
-                    }
-                }
+                ch.gameObject.SetActive(false);
             }
 
-            EnsureTutorialToggleButton(root);
-            var buttons = root.GetComponentsInChildren<Button>(true);
-            foreach (var b in buttons)
+            // Misma plantilla de libro abierto que el Inventario
+            var (leftPage, rightPage) = BookJournalTemplateBuilder.EnsureOpenBookShell(root);
+
+            if (existingSlider == null) existingSlider = rightPage.GetComponentInChildren<Slider>(true);
+            foreach (var b in rightPage.GetComponentsInChildren<Button>(true))
             {
-                var bImg = b.GetComponent<Image>() ?? b.gameObject.AddComponent<Image>();
-                bImg.sprite = BookTextureBuilder.GetParchmentBannerSprite();
-                bImg.type = Image.Type.Sliced;
-                bImg.color = new Color(0.90f, 0.84f, 0.74f, 1f);
+                string n = b.name.ToLowerInvariant();
+                if (resumeBtn == null && (n.Contains("resume") || n.Contains("reanudar"))) resumeBtn = b;
+                else if (backBtn == null && (n.Contains("back") || n.Contains("menu") || n.Contains("salir"))) backBtn = b;
             }
 
-            StyleTexts(root);
+            // Página Izquierda: Referencia rápida del taller y controles
+            ForgeCanvasThemeStyler.CreateOrGetTitleBanner(leftPage, "PauseCodexHeader", "EXPEDITION CODEX",
+                new Vector2(0f, 184f), new Vector2(346f, 40f), 17f);
+
+            string player = ForjaGame.Multiplayer.GameSessionData.PlayerName;
+            string team = ForjaGame.Multiplayer.GameSessionData.TeamName;
+            string who = string.IsNullOrWhiteSpace(team) ? $"<b>Blacksmith:</b> {player}" : $"<b>Blacksmith:</b> {player}  •  <b>Party:</b> {team}";
+            string guideText =
+                $"{who}\n\n" +
+                "<b>WORKSHOP FLOW:</b>\n" +
+                "1. Smelt raw ores & coal in the <b>Furnace</b> into a Bloom.\n" +
+                "2. Compact the Bloom in the <b>Mechanical Press</b>.\n" +
+                "3. Heat, shape, quench and assemble at the <b>Anvil</b>.\n\n" +
+                "<b>COMBAT & EXPLORATION:</b>\n" +
+                "• <b>[WASD]</b> Move  |  <b>[Shift]</b> Sprint  |  <b>[Space]</b> Jump\n" +
+                "• <b>[Q]</b> Dodge Roll (1s Invuln)  |  <b>[LMB]</b> Strike\n" +
+                "• <b>[RMB]</b> Block / Timed Parry  |  <b>[F]</b> Interact\n" +
+                "• <b>[E]</b> Open Inventory Tome";
+            EnsurePausePageBody(leftPage, "PauseGuideBody", guideText, new Vector2(0f, -20f), new Vector2(354f, 326f));
+
+            // Página Derecha: Controles de Pausa + Slider de volumen KISS
+            ForgeCanvasThemeStyler.CreateOrGetTitleBanner(rightPage, "PauseTitleBanner", "PAUSE MENU",
+                new Vector2(0f, 184f), new Vector2(346f, 40f), 17f);
+
+            ForgeCanvasThemeStyler.EnsureStyledVolumeChassis(
+                rightPage, "PauseVolumeChassis", new Vector2(0f, 102f), 344f,
+                ForjaGame.Audio.ForgeAudioSystem.GetMasterVolume(),
+                v => pause.ApplyVolumeFromUI(v), existingSlider, null);
+
+            if (resumeBtn != null)
+            {
+                resumeBtn.gameObject.SetActive(true);
+                ForgeCanvasThemeStyler.StyleForgeButton(resumeBtn, primary: true, rightPage, new Vector2(0f, 14f), new Vector2(280f, 46f));
+                var bTxt = resumeBtn.GetComponentInChildren<TMP_Text>(true);
+                if (bTxt != null) bTxt.text = "Resume Game";
+            }
+
+            EnsureTutorialToggleButton(rightPage);
+            var tutTr = rightPage.Find("BtnTutorial");
+            if (tutTr != null && tutTr.TryGetComponent<Button>(out var tutBtn))
+                ForgeCanvasThemeStyler.StyleForgeButton(tutBtn, primary: false, rightPage, new Vector2(0f, -50f), new Vector2(280f, 42f));
+
+            if (backBtn != null)
+            {
+                backBtn.gameObject.SetActive(true);
+                ForgeCanvasThemeStyler.StyleForgeButton(backBtn, primary: false, rightPage, new Vector2(0f, -110f), new Vector2(280f, 42f));
+                var bTxt = backBtn.GetComponentInChildren<TMP_Text>(true);
+                if (bTxt != null) bTxt.text = "Return to Menu";
+            }
+
+            // Solapa-marcapáginas de cierre coherente con Inventario
+            BookJournalTemplateBuilder.CreateOrGetCloseBookmarkTab(root, "BtnPauseCloseTab", "Close [ESC]", pause.ResumeGame);
+            MedievalTypographyProvider.ApplyToAllTMPInHierarchy(root);
+        }
+
+        private static void EnsurePausePageBody(Transform page, string name, string body, Vector2 pos, Vector2 size)
+        {
+            Transform tr = page.Find(name);
+            GameObject go = tr != null ? tr.gameObject : new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+            go.transform.SetParent(page, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = pos; rt.sizeDelta = size;
+            var tmp = go.GetComponent<TextMeshProUGUI>();
+            MedievalTypographyProvider.ApplyToTMP(tmp);
+            tmp.text = body; tmp.fontSize = 13.5f;
+            tmp.enableAutoSizing = true; tmp.fontSizeMin = 10.5f; tmp.fontSizeMax = 14f;
+            tmp.color = ForgeCanvasThemeStyler.DarkInk;
+            tmp.alignment = TextAlignmentOptions.TopLeft;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
+            tmp.raycastTarget = false;
         }
 
         private static void EnsureTutorialToggleButton(Transform root)
@@ -165,34 +137,28 @@ namespace ForjaGame.UI
                 var lRt = lGo.GetComponent<RectTransform>();
                 lRt.anchorMin = Vector2.zero; lRt.anchorMax = Vector2.one; lRt.offsetMin = lRt.offsetMax = Vector2.zero;
             }
-            var tutRt = tutGo.GetComponent<RectTransform>();
-            tutRt.anchorMin = tutRt.anchorMax = tutRt.pivot = new Vector2(0.5f, 0.5f);
-            tutRt.anchoredPosition = new Vector2(0f, -68f); tutRt.sizeDelta = new Vector2(240f, 44f);
             var tutTxt = tutGo.GetComponentInChildren<TMP_Text>(true);
             void RefreshLabel()
             {
                 if (tutTxt != null)
                 {
                     MedievalTypographyProvider.ApplyToTMP(tutTxt);
-                    tutTxt.text = ForjaGame.Core.TutorialSettings.IsTutorialEnabled ? "Guías Tutorial: <b>ON</b>" : "Guías Tutorial: <b>OFF</b>";
-                    tutTxt.fontSize = 15f; tutTxt.fontStyle = FontStyles.Bold;
+                    tutTxt.text = ForjaGame.Core.TutorialSettings.IsTutorialEnabled ? "Tutorial Guides: <b>ON</b>" : "Tutorial Guides: <b>OFF</b>";
+                    tutTxt.fontSize = 14.5f; tutTxt.fontStyle = FontStyles.Bold;
                     tutTxt.color = ForgeCanvasThemeStyler.DarkInk; tutTxt.alignment = TextAlignmentOptions.Center;
                 }
             }
             RefreshLabel();
             var tutBtn = tutGo.GetComponent<Button>();
             tutBtn.onClick.RemoveAllListeners();
-            tutBtn.onClick.AddListener(() => { ForjaGame.Core.TutorialSettings.Toggle(); RefreshLabel(); ForjaGame.Audio.ForgeAudioSystem.PlayUIClick(); });
-        }
-
-        private static void PlaceVolumePercentInsideSheet(RectTransform pctRt, Transform pauseRoot)
-        {
-            if (pctRt == null || pauseRoot == null) return;
-            pctRt.SetParent(pauseRoot, false);
-            pctRt.localRotation = Quaternion.identity; pctRt.localScale = Vector3.one;
-            pctRt.anchorMin = pctRt.anchorMax = pctRt.pivot = new Vector2(0.5f, 0.5f);
-            pctRt.anchoredPosition = new Vector2(138f, 65f);
-            pctRt.sizeDelta = new Vector2(84f, 32f);
+            tutBtn.onClick.AddListener(() =>
+            {
+                ForjaGame.Core.TutorialSettings.Toggle();
+                RefreshLabel();
+                if (!ForjaGame.Core.TutorialSettings.IsTutorialEnabled)
+                    ForgeTutorialDirector.Instance?.HideBeaconLights();
+                ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
+            });
         }
     }
 }

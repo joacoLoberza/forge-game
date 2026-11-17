@@ -12,6 +12,7 @@ namespace ForjaGame.Resources
     /// Veta o yacimiento mineral en el mundo. Notifica perturbaciones territoriales a la fauna
     /// subterránea al ser picada y permite alimentación ecológica sin soltar pepitas al suelo.
     /// </summary>
+    [ExecuteAlways]
     [RequireComponent(typeof(BoxCollider))]
     public class ResourceNodeController : MonoBehaviour, IDamageable
     {
@@ -32,9 +33,6 @@ namespace ForjaGame.Resources
         private Vector3 _originalScale;
         private Coroutine _hitFeedbackRoutine;
         private readonly List<GameObject> _clusters = new();
-        private Collider _cachedCollider;
-        private Renderer[] _cachedRenderers;
-        private Light[] _cachedLights;
 
         public bool IsAlive => !_isDestroyed && _currentHealth > 0;
         public string ItemId => itemId;
@@ -59,31 +57,29 @@ namespace ForjaGame.Resources
 
         public void EnsureSolidCollider()
         {
-            if (!TryGetComponent<BoxCollider>(out var box))
-            {
-                box = gameObject.AddComponent<BoxCollider>();
-            }
-            if (box != null)
-            {
-                box.center = new Vector3(0f, 0.60f, 0f);
-                box.size = new Vector3(2.2f, 1.6f, 2.2f);
-            }
+            if (!TryGetComponent<BoxCollider>(out var box)) box = gameObject.AddComponent<BoxCollider>();
+            if (box != null) { box.center = new Vector3(0f, 0.60f, 0f); box.size = new Vector3(2.2f, 1.6f, 2.2f); }
         }
 
         public void EnsureVisuals()
         {
-            var mf = GetComponent<MeshFilter>();
-            if (mf != null) ForjaGame.Core.UnitySafeUtility.DestroySafe(mf);
-            var mr = GetComponent<MeshRenderer>();
-            if (mr != null) ForjaGame.Core.UnitySafeUtility.DestroySafe(mr);
-
-            if (transform.childCount == 0) BuildVisuals();
+            if (TryGetComponent<MeshFilter>(out var mf)) ForjaGame.Core.UnitySafeUtility.DestroySafe(mf);
+            if (TryGetComponent<MeshRenderer>(out var mr)) ForjaGame.Core.UnitySafeUtility.DestroySafe(mr);
+            if (transform.position.z >= ForjaGame.Environment.CaveDungeonBuilder.CaveEntranceZ)
+            {
+                Vector3 p = transform.position;
+                transform.position = new Vector3(p.x, ForjaGame.Environment.CaveDungeonBuilder.GetFloorY(p.x, p.z), p.z);
+            }
+            var childMf = GetComponentInChildren<MeshFilter>(true);
+            var childMr = GetComponentInChildren<MeshRenderer>(true);
+            if (transform.childCount == 0 || childMf == null || childMf.sharedMesh == null || childMr == null || childMr.sharedMaterial == null)
+                BuildVisuals();
             else if (_clusters.Count == 0)
             {
                 for (int i = 0; i < transform.childCount; i++)
                 {
                     var ch = transform.GetChild(i).gameObject;
-                    if (ch.name.Contains("Spire") || ch.name.Contains("Nodule") || ch.name.Contains("Strata") || ch.name.Contains("Nugget") || ch.name.Contains("Chunk"))
+                    if (ch.name.Contains("Spire") || ch.name.Contains("Nodule") || ch.name.Contains("Strata") || ch.name.Contains("Nugget") || ch.name.Contains("Chunk") || ch.name.Contains("Vein"))
                         _clusters.Add(ch);
                 }
             }
@@ -131,11 +127,13 @@ namespace ForjaGame.Resources
                 if (!hasPickaxe)
                 {
                     ForgeAudioSystem.PlayHitImpact(transform.position, isStoneOrArmor: true, isHeavy: false);
+                    ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzGolpeForja();
                     TriggerHitShake(false);
                     return;
                 }
             }
 
+            ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzGolpeForja();
             _currentHealth = Mathf.Max(0, _currentHealth - 1);
             bool depleted = _currentHealth <= 0;
             ForgeAudioSystem.PlayPickaxeStrike(transform.position, depleted);
@@ -226,14 +224,10 @@ namespace ForjaGame.Resources
 
         private void SetVisualsActive(bool active)
         {
-            if (_cachedCollider == null) _cachedCollider = GetComponent<Collider>();
-            if (_cachedCollider != null) _cachedCollider.enabled = active;
-            _cachedRenderers ??= GetComponentsInChildren<Renderer>(true);
-            for (int i = 0; i < _cachedRenderers.Length; i++)
-                if (_cachedRenderers[i] != null) _cachedRenderers[i].enabled = active;
-            _cachedLights ??= GetComponentsInChildren<Light>(true);
-            for (int i = 0; i < _cachedLights.Length; i++)
-                if (_cachedLights[i] != null) _cachedLights[i].enabled = active;
+            var col = GetComponent<Collider>();
+            if (col != null) col.enabled = active;
+            foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = active;
+            foreach (var l in GetComponentsInChildren<Light>(true)) l.enabled = active;
         }
     }
 }

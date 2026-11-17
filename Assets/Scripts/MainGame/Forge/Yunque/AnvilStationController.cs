@@ -49,14 +49,31 @@ namespace ForjaGame.Forge
                 if (bridge != null && bridge.IsSpawned && bridge.IsOccupiedInNetwork)
                 {
                     if (Unity.Netcode.NetworkManager.Singleton != null && bridge.CurrentOccupantClientId != Unity.Netcode.NetworkManager.Singleton.LocalClientId)
-                        return "Yunque ocupado";
+                        return "Anvil Occupied";
                 }
-                return "Forjar en el Yunque";
+                if (ForjaGame.Core.TutorialSettings.IsTutorialEnabled)
+                {
+                    var tut = ForjaGame.UI.ForgeTutorialDirector.Instance;
+                    if (tut != null && tut.IsTutorialActive)
+                    {
+                        var inv = ForjaGame.Inventory.InventoryController.LocalInstance;
+                        bool hasIngot = (anvilController != null && (anvilController.CurrentIngot != null || anvilController.IsForging)) || (inv != null && inv.Ingots != null && inv.Ingots.Count > 0);
+                        if (!hasIngot)
+                        {
+                            bool hasBloom = inv != null && inv.Blooms != null && inv.Blooms.Count > 0;
+                            return (hasBloom || tut.CurrentStage == ForjaGame.UI.TutorialStage.PressCompact)
+                                ? "WARNING! You have no Ingot. Go to the Press"
+                                : "WARNING! You have no Ingot. Go to the Furnace";
+                        }
+                    }
+                }
+                return "Forge on Anvil";
             }
         }
 
         public override bool CanInteract(GameObject interactor)
         {
+            if (!base.CanInteract(interactor)) return false;
             var bridge = GetComponent<ForjaGame.Multiplayer.NetworkForgeStationBridge>();
             if (bridge != null && bridge.IsSpawned && bridge.IsOccupiedInNetwork)
             {
@@ -127,8 +144,8 @@ namespace ForjaGame.Forge
 
         protected override void GetStationCameraFocus(out Vector3 focusPoint, out Vector3 camOffset)
         {
-            float baseY = ForgeStationModelSetup.GetGroundHeightAt(transform.position.x, transform.position.z);
-            focusPoint = new Vector3(transform.position.x, baseY + 0.96f, transform.position.z);
+            float groundY = ForgeStationModelSetup.GetGroundHeightAt(transform.position.x, transform.position.z);
+            focusPoint = new Vector3(transform.position.x, groundY + 1.48f, transform.position.z);
             camOffset = new Vector3(-0.56f, 0.54f, -1.48f);
         }
 

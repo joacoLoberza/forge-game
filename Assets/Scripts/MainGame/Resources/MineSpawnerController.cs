@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using ForjaGame.Combat;
 using ForjaGame.Core;
 using ForjaGame.Environment;
@@ -8,166 +7,189 @@ using ForjaGame.Environment;
 namespace ForjaGame.Resources
 {
     /// <summary>
-    /// Orquestador de la Expedición en la Gran Caverna (Z = 28m..226m).
-    /// Mantiene estrictamente 24 menas preciosas (6 Carbón, 6 Cobre, 6 Oro, 6 Hierro) repartidas
-    /// entre cámaras Y corredores de conexión para evitar tramos vacíos.
+    /// Orquestador ecológico de yacimientos minerales y hábitats en las 6 cámaras (V10):
+    /// - Genera 48 vetas minerales claramente visibles desde el ingreso a la mina (Z = 44m)
+    ///   hasta el Santuario Final (Z = 540m), integradas frente a los Filones Madre y en las terrazas.
     /// </summary>
     public partial class MineSpawnerController : MonoBehaviour
     {
-        private const string ExpeditionVersionMarker = "OrganicExpedition_V5";
-
         public static MineSpawnerController Instance { get; private set; }
+        public static ResourceNodeController FirstCoalVein { get; private set; }
+        public static ForjaGame.Combat.SpiderEnemyController FirstDoorSpider { get; private set; }
 
-        [Header("Configuración General")]
-        [SerializeField] private bool autoSpawnOnStart = true;
-        [SerializeField] private bool spawnEnemiesInCave = true;
-
-        [Header("Anclas Opcionales de Minerales")]
-        [SerializeField] private Transform[] coalSpawnPoints;
-        [SerializeField] private Transform[] copperSpawnPoints;
-        [SerializeField] private Transform[] goldSpawnPoints;
-        [SerializeField] private Transform[] ironSpawnPoints;
-        [SerializeField] private Transform[] enemySpawnPoints;
-
-        private readonly List<ResourceNodeController> _spawnedNodes = new();
-        private readonly List<SpiderBroodNest> _broodNests = new();
-        private Transform _caveContainer;
-        private static bool _sceneHooked;
-
-        private readonly struct VeinSpec
+        [System.Serializable]
+        public class OreTierSpawnConfig
         {
-            public readonly string Id; public readonly float Z; public readonly float SideRatio;
-            public readonly int Hp; public readonly int MinDrop; public readonly int MaxDrop;
-            public readonly bool HasGolemGenerator; public readonly float GolemDelay;
-            public VeinSpec(string id, float z, float side, int hp, int minD, int maxD, bool golem, float delay = 1.5f)
-            { Id = id; Z = z; SideRatio = side; Hp = hp; MinDrop = minD; MaxDrop = maxD; HasGolemGenerator = golem; GolemDelay = delay; }
+            public string resourceType = "Coal";
+            public int count = 5;
+            public float minZ = 42f, maxZ = 180f;
+            public int maxHealth = 55;
+            public int dropAmount = 3;
+            public float respawnDelay = 25f;
+            public float minLateralFactor = 0.22f, maxLateralFactor = 0.76f;
+
+            public OreTierSpawnConfig() { }
+            public OreTierSpawnConfig(string type, int cnt, float z0, float z1, int hp, int drop, float resp, float lat0, float lat1)
+            {
+                resourceType = type; count = cnt; minZ = z0; maxZ = z1;
+                maxHealth = hp; dropAmount = drop; respawnDelay = resp;
+                minLateralFactor = lat0; maxLateralFactor = lat1;
+            }
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics() => _sceneHooked = false;
+        [SerializeField] private List<OreTierSpawnConfig> oreTiers = new();
+        private Transform _nodesContainer;
+        private Transform _enemiesContainer;
+        private readonly Dictionary<string, List<ResourceNodeController>> _nodesByOreType = new();
+
+        private void Awake()
+        {
+            Instance = this;
+            EnsureDefaultTierConfigs();
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void InitSceneMines()
+        private static void AutoBootstrapMineSpawner()
         {
-            if (!_sceneHooked) { _sceneHooked = true; SceneManager.sceneLoaded += (s, _) => EnsureSpawnerInScene(s); }
-            EnsureSpawnerInScene(SceneManager.GetActiveScene());
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenu") return;
+            if (Instance == null && FindFirstObjectByType<MineSpawnerController>() == null)
+                new GameObject("MineSpawnerController").AddComponent<MineSpawnerController>();
         }
 
-        private static void EnsureSpawnerInScene(Scene scene)
+        private void Start()
         {
-            string name = scene.name;
-            if (string.IsNullOrEmpty(name) || name.IndexOf("menu", System.StringComparison.OrdinalIgnoreCase) >= 0) return;
-            var spawner = FindFirstObjectByType<MineSpawnerController>() ?? new GameObject("MineSpawnerController").AddComponent<MineSpawnerController>();
-            spawner.SpawnAllDefaultMineZones(forceRebuild: false);
+            CaveDungeonBuilder.EnsureCaveBuiltInScene();
+            SpawnAllCaveResources();
+            SpawnAllCaveEnemies();
         }
 
-        private void Awake() { if (Instance == null) Instance = this; ForjaGame.Forge.ForgeStationModelSetup.RemoveMineVisual(); }
-        private void Start() { ForjaGame.Forge.ForgeStationModelSetup.RemoveMineVisual(); if (autoSpawnOnStart) SpawnAllDefaultMineZones(false); }
-
-        public void SpawnAllDefaultMineZones(bool forceRebuild = false)
+        private void OnDestroy()
         {
-            CaveDungeonBuilder.EnsureCaveBuiltInScene(forceRebuild: forceRebuild);
-            PurgeLegacyCampVeinsAndBosses();
-
-            GameObject container = GameObject.Find("[CAVE_EXPEDITION_AREA]");
-            bool isOutdated = container != null && container.transform.Find(ExpeditionVersionMarker) == null;
-            if (container != null && (forceRebuild || isOutdated))
-            {
-                UnitySafeUtility.DestroyGameObjectSafe(container);
-                container = null;
-            }
-            if (container == null)
-            {
-                container = new GameObject("[CAVE_EXPEDITION_AREA]");
-                new GameObject(ExpeditionVersionMarker).transform.SetParent(container.transform, false);
-            }
-            _caveContainer = container.transform;
-
-            _spawnedNodes.RemoveAll(n => n == null);
-            var existingNodes = container.GetComponentsInChildren<ResourceNodeController>(true);
-            if (forceRebuild || isOutdated || existingNodes.Length != 24)
-            {
-                for (int i = existingNodes.Length - 1; i >= 0; i--) UnitySafeUtility.DestroyGameObjectSafe(existingNodes[i].gameObject);
-                _spawnedNodes.Clear();
-                BuildPreciousVeinsAndGolemGenerators();
-            }
-            else if (_spawnedNodes.Count == 0) _spawnedNodes.AddRange(existingNodes);
-
-            if (spawnEnemiesInCave) SpawnCaveEnemies(forceRebuild || isOutdated);
+            if (Instance == this) Instance = null;
         }
 
-        private void BuildPreciousVeinsAndGolemGenerators()
+        private void EnsureDefaultTierConfigs()
         {
-            VeinSpec[] specs =
+            oreTiers = new List<OreTierSpawnConfig>
             {
-                new("Coal",   35.0f, -0.58f, 3, 3, 5, false),
-                new("Coal",   40.8f,  0.56f, 3, 3, 5, true,  1.2f),
-                new("Coal",   49.2f, -0.64f, 3, 3, 5, false),
-                new("Coal",   55.0f,  0.62f, 3, 3, 5, true,  1.5f),
-                new("Coal",   61.0f, -0.55f, 3, 3, 5, false),
-                new("Coal",   66.5f,  0.58f, 3, 3, 5, false),
-                new("Copper", 74.8f, -0.56f, 3, 2, 4, true,  1.2f),
-                new("Copper", 81.8f,  0.56f, 3, 2, 4, false),
-                new("Copper", 92.5f, -0.66f, 3, 2, 4, false),
-                new("Copper", 99.8f,  0.64f, 3, 2, 4, true,  1.5f),
-                new("Copper", 108.0f,-0.60f, 3, 2, 4, false),
-                new("Copper", 115.2f, 0.58f, 3, 2, 4, true,  1.8f),
-                new("Gold",   127.5f,-0.55f, 4, 2, 3, false),
-                new("Gold",   137.8f, 0.56f, 4, 2, 3, true,  1.2f),
-                new("Gold",   147.2f,-0.56f, 4, 2, 3, false),
-                new("Gold",   159.5f, 0.65f, 4, 2, 3, true,  1.6f),
-                new("Gold",   168.8f,-0.64f, 4, 2, 3, false),
-                new("Gold",   177.5f, 0.60f, 4, 2, 3, true,  1.8f),
-                new("Iron",   187.2f,-0.55f, 5, 2, 4, false),
-                new("Iron",   192.8f, 0.56f, 5, 2, 4, true,  1.2f),
-                new("Iron",   197.8f,-0.55f, 5, 2, 4, false),
-                new("Iron",   203.5f,-0.62f, 5, 2, 4, false),
-                new("Iron",   208.5f, 0.62f, 5, 2, 4, true,  1.5f),
-                new("Iron",   211.2f,-0.52f, 5, 2, 4, false)
+                new("Coal",  12,  44f, 185f,  45, 3, 20f, 0.24f, 0.54f),
+                new("Copper",12,  58f, 280f,  70, 3, 26f, 0.25f, 0.56f),
+                new("Iron",  14, 145f, 468f, 105, 3, 32f, 0.26f, 0.58f),
+                new("Gold",  10, 245f, 478f, 150, 2, 42f, 0.28f, 0.60f)
+            };
+        }
+
+        public void SpawnAllCaveResources()
+        {
+            EnsureDefaultTierConfigs();
+            var existingByName = GameObject.Find("[CAVE_ORE_NODES]");
+            if (existingByName != null) UnitySafeUtility.DestroyGameObjectSafe(existingByName);
+            if (_nodesContainer != null) UnitySafeUtility.DestroyGameObjectSafe(_nodesContainer.gameObject);
+            _nodesContainer = new GameObject("[CAVE_ORE_NODES]").transform;
+            _nodesByOreType.Clear();
+
+            // Limpiar cualquier nodo huérfano dentro de la cueva antes de generar los nuevos
+            foreach (var old in FindObjectsByType<ResourceNodeController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (old != null && old.transform.position.z >= CaveDungeonBuilder.CaveEntranceZ - 1f)
+                    UnitySafeUtility.DestroyGameObjectSafe(old.gameObject);
+            }
+
+            int[][] chamberByTier =
+            {
+                new[] { -1, -1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 },             // Coal:   Galería de entrada + Cámara 1 y Cámara 2
+                new[] { 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2 },               // Copper: Cámara 1, Cámara 2 y Cámara 3
+                new[] { 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4 },         // Iron:   Cámaras 2, 3, 4 y 5
+                new[] { 2, 2, 3, 3, 3, 4, 4, 4, 4, 4 }                      // Gold:   Cámaras 3, 4 y 5 (Cámara 6 solo para el Titán)
             };
 
-            for (int i = 0; i < specs.Length; i++)
+            int seed = 101;
+            for (int t = 0; t < oreTiers.Count; t++)
             {
-                var s = specs[i];
-                float sx = CaveDungeonBuilder.GetSpineX(s.Z);
-                CaveDungeonBuilder.GetWallWidthsAtZ(s.Z, out float lw, out float rw);
-                float x = sx + s.SideRatio * (s.SideRatio < 0f ? lw : rw);
-                Vector3 pos = new Vector3(x, CaveDungeonBuilder.GetFloorY(x, s.Z) + 0.04f, s.Z);
+                var cfg = oreTiers[t];
+                var list = new List<ResourceNodeController>();
+                _nodesByOreType[cfg.resourceType] = list;
+                int[] chMap = chamberByTier[Mathf.Clamp(t, 0, chamberByTier.Length - 1)];
 
-                GameObject veinObj = SpawnVein(pos, s.Id, s.Hp, s.MinDrop, s.MaxDrop, needPickaxe: true);
-                if (_caveContainer != null) veinObj.transform.SetParent(_caveContainer, true);
-
-                if (s.HasGolemGenerator && veinObj.TryGetComponent<ResourceNodeController>(out var node))
+                for (int i = 0; i < cfg.count; i++)
                 {
-                    var gen = veinObj.AddComponent<CaveCreatureGenerator>();
-                    int hp = 260 + Mathf.RoundToInt((s.Z - 35f) * 0.65f);
-                    int dmg = 22 + Mathf.RoundToInt((s.Z - 35f) * 0.05f);
-                    float scale = Mathf.Lerp(0.92f, 1.08f, (s.Z - 35f) / 180f);
-                    gen.ConfigureVeinGolemGenerator(node, _caveContainer, s.GolemDelay, 38f, hp, dmg, scale, s.Z - 22f, s.Z + 22f);
+                    seed += 41;
+                    int chIdx = chMap[i % chMap.Length];
+                    Vector3 spawnPos = ComputeGeologicalVeinClusterPosition(chIdx, i, seed);
+
+                    var go = new GameObject($"OreVein_{cfg.resourceType}_{i}", typeof(ResourceNodeController));
+                    go.transform.SetParent(_nodesContainer, false);
+                    go.transform.position = spawnPos;
+                    go.transform.rotation = Quaternion.Euler(0f, (seed * 53f) % 360f, 0f);
+
+                    var node = go.GetComponent<ResourceNodeController>();
+                    node.InitializeNode(cfg.resourceType, Mathf.Max(2, cfg.maxHealth / 25), cfg.dropAmount, cfg.dropAmount + 1);
+                    if (cfg.resourceType == "Coal" && i == 0) FirstCoalVein = node;
+                    list.Add(node);
                 }
             }
         }
 
-        public static void PurgeLegacyCampVeinsAndBosses()
+        private static Vector3 ComputeGeologicalVeinClusterPosition(int chIdx, int indexInTier, int seed)
         {
-            UnitySafeUtility.DestroyGameObjectSafe(GameObject.Find("[TESTING_MINERAL_VEINS]"));
-            UnitySafeUtility.DestroyGameObjectSafe(GameObject.Find("GolemEnemy_Boss"));
-            var stray = GameObject.Find("Mineral");
-            if (stray != null && stray.GetComponent<ResourceNodeController>() != null) UnitySafeUtility.DestroyGameObjectSafe(stray);
-            foreach (var n in FindObjectsByType<ResourceNodeController>(FindObjectsSortMode.None))
-                if (n != null && n.transform.position.z < 22f) UnitySafeUtility.DestroyGameObjectSafe(n.gameObject);
+            if (chIdx < 0)
+            {
+                // Primera mena de carbón ANTES de la primera pared destruible (en lugar del nido eliminado en Z=40.5m)
+                // y segunda mena introductoria justo después de la pared (Cámara 1, Z=51m).
+                float ez = indexInTier == 0 ? 40.5f : 51.0f;
+                float esx = CaveDungeonBuilder.GetSpineX(ez);
+                float ex = esx + (indexInTier == 0 ? 2.4f : -2.6f);
+                return new Vector3(ex, CaveDungeonBuilder.GetFloorY(ex, ez), ez);
+            }
+
+            if (chIdx >= 5) chIdx = 4; // Cámara 6 (Santuario Final) queda reservada exclusivamente para el combate con el Titán
+
+            // En cada cámara (0..4): ubicar las vetas SIEMPRE en el flanco geológico opuesto a la gruta de arañas (-GetChamberExitSide),
+            // garantizando que ninguna mena aparezca ni atraviese las cuevas de las arañas.
+            float cz = CaveDungeonBuilder.AlcoveCenterZ[chIdx];
+            CaveDungeonBuilder.GetWallWidthsAtZ(cz, out float chLw, out float chRw);
+            float spiderSide = CaveDungeonBuilder.GetChamberExitSide(chIdx);
+            float veinSideSign = -spiderSide; // Lado estrictamente opuesto a la gruta de arañas
+            float sideSpan = veinSideSign > 0f ? chRw : chLw;
+
+            float latRatio = Mathf.Lerp(0.25f, 0.52f, ((seed * 17 + indexInTier * 23) % 100) / 100f);
+            float zOff = Mathf.Lerp(-12.5f, 12.0f, ((indexInTier * 31 + seed * 13) % 100) / 100f);
+
+            float wz = cz + zOff;
+            float wx = CaveDungeonBuilder.GetSpineX(wz) + veinSideSign * (sideSpan * latRatio);
+
+            // Verificación estricta de distancia: mínimo 18m de cualquier nido de arañas
+            Vector3 spiderNest = CaveDungeonBuilder.GetSpiderAlcoveWorldPosition(chIdx);
+            Vector2 vPos = new Vector2(wx, wz), sPos = new Vector2(spiderNest.x, spiderNest.z);
+            if (Vector2.Distance(vPos, sPos) < 18f)
+            {
+                wx = CaveDungeonBuilder.GetSpineX(wz) + veinSideSign * (sideSpan * 0.48f);
+            }
+
+            return new Vector3(wx, CaveDungeonBuilder.GetFloorY(wx, wz), wz);
         }
 
-        public static GameObject SpawnVein(Vector3 position, string itemId, int health = 3, int minDrop = 2, int maxDrop = 4, bool needPickaxe = true)
+        public static void PurgeLegacyCampVeinsAndBosses()
         {
-            GameObject nodeObj = new GameObject($"Vein_{itemId}", typeof(BoxCollider));
-            nodeObj.transform.position = position;
-            var node = nodeObj.AddComponent<ResourceNodeController>();
-            node.InitializeNode(itemId, health, minDrop, maxDrop, needPickaxe);
-            node.EnsureSolidCollider();
-            node.EnsureVisuals();
-            if (Instance != null) Instance._spawnedNodes.Add(node);
-            return nodeObj;
+            var exp = GameObject.Find("[CAVE_EXPEDITION_AREA]");
+            if (exp != null) UnitySafeUtility.DestroyGameObjectSafe(exp);
+            var oldNodes = GameObject.Find("[CAVE_ORE_NODES]");
+            if (oldNodes != null) UnitySafeUtility.DestroyGameObjectSafe(oldNodes);
+            var oldEnemies = GameObject.Find("[CAVE_ECOLOGY_ENEMIES]");
+            if (oldEnemies != null) UnitySafeUtility.DestroyGameObjectSafe(oldEnemies);
+        }
+
+        public void SpawnAllDefaultMineZones(bool forceRebuild = false)
+        {
+            SpawnAllCaveResources();
+            SpawnAllCaveEnemies();
+        }
+
+        private ResourceNodeController GetRepresentativeVein(string oreType, int index)
+        {
+            if (_nodesByOreType.TryGetValue(oreType, out var list) && list != null && list.Count > 0)
+                return list[Mathf.Clamp(index, 0, list.Count - 1)];
+            return null;
         }
     }
 }

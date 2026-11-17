@@ -71,7 +71,7 @@ namespace ForjaGame.UI
 
             ForgePhase selectedPhase = GetPhaseForZone(index);
             forgeController.ChangePhase(selectedPhase);
-            SetStatus($"Trabajando en: {zones[index].zoneName}...");
+            SetStatus($"Working on: {zones[index].zoneName}...");
         }
 
         /// <summary>

@@ -25,12 +25,11 @@ namespace ForjaGame.Combat
 
     public enum WeaponArchetype
     {
-        Dagger,
-        Sword1H,
-        Axe1H,
-        Hammer1H,
-        Heavy2H,
-        Polearm
+        Dagger, Sword1H, Axe1H, Hammer1H, Heavy2H, Polearm,
+        SwordShort, SwordMed, SwordLong,
+        AxeShort, AxeMed, AxeLong,
+        HammerShort, HammerMed, HammerLong,
+        Pickaxe
     }
 
     [Serializable]
@@ -86,11 +85,12 @@ namespace ForjaGame.Combat
             float headL = 0.80f, headW = 0.06f, headT = 0.015f, latExt = 0.02f;
             if (weapon.customMesh != null && weapon.customMesh.bounds.size.sqrMagnitude > 0.001f)
             {
-                var b = weapon.customMesh.bounds;
-                headL = Mathf.Max(0.10f, b.size.x);
-                headW = Mathf.Max(0.02f, b.size.z);
-                headT = Mathf.Max(0.008f, b.size.y);
-                latExt = Mathf.Abs(b.center.z) / Mathf.Max(0.01f, b.size.z);
+                Bounds rb = WeaponStats.ComputeRotatedMeshBounds(weapon.customMesh, weapon.bladeMountRotation);
+                headL = Mathf.Max(0.10f, rb.size.x);
+                headW = Mathf.Max(0.02f, rb.size.z);
+                headT = Mathf.Max(0.008f, rb.size.y);
+                float latOff = Mathf.Max(Mathf.Abs(rb.center.z), Mathf.Abs(weapon.bladeMountPosition.z));
+                latExt = Mathf.Max(weapon.weaponType == WeaponType.Axe ? 0.22f : 0f, latOff / Mathf.Max(0.05f, headW));
             }
             else
             {

@@ -40,6 +40,7 @@ namespace ForjaGame.Core
                 Transform ch = parent.GetChild(i);
                 if (ch != null && ch.name == exactName)
                 {
+                    ch.gameObject.SetActive(false);
                     if (!Application.isPlaying) ch.SetParent(null);
                     DestroyGameObjectSafe(ch.gameObject);
                 }

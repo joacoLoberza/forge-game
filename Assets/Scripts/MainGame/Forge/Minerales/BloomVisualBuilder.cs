@@ -83,8 +83,7 @@ namespace ForjaGame.Forge
                 0.28f * sizeMult, sides: 9, new Vector3(1.22f, 0.68f, 0.96f), jitter: 0.22f, seed, "BloomCoreMesh");
             core.GetComponent<MeshFilter>().sharedMesh = coreMesh;
             core.GetComponent<MeshRenderer>().sharedMaterial = coreMat;
-            // Eleva el núcleo para que la base del Bloom descanse sobre el ancla (Y >= 0) sin incrustarse en la mesada
-            core.transform.localPosition = new Vector3(0f, 0.235f * sizeMult, 0f);
+            core.transform.localPosition = Vector3.zero;
 
             // Relieves metálicos del propio color de la aleación para dar volumen esponjoso
             for (int i = 0; i < 3; i++)
@@ -118,6 +117,17 @@ namespace ForjaGame.Forge
                     slag.GetComponent<MeshFilter>().sharedMesh = OreMeshGenerator.CreateFacetedChunkMesh(crustSize, seed + 101 + i * 23);
                     slag.GetComponent<MeshRenderer>().sharedMaterial = slagMat;
                 }
+            }
+
+            // Ajustar la base de la Lupa para que descanse exactamente a nivel Y = 0 (la misma altura base que el lingote)
+            Renderer[] allRenderers = root.GetComponentsInChildren<Renderer>(true);
+            if (allRenderers != null && allRenderers.Length > 0)
+            {
+                Bounds b = allRenderers[0].bounds;
+                for (int i = 1; i < allRenderers.Length; i++)
+                    if (allRenderers[i] != null && allRenderers[i].enabled) b.Encapsulate(allRenderers[i].bounds);
+                float bottomDelta = b.min.y - root.transform.position.y;
+                core.transform.localPosition -= new Vector3(0f, bottomDelta, 0f);
             }
 
             return root;
@@ -174,7 +184,10 @@ namespace ForjaGame.Forge
             Shader lit = Shader.Find("Universal Render Pipeline/Lit");
             if (lit == null) lit = Shader.Find("Standard");
             Material ingotMat = new Material(lit) { name = "Mat_PressedIngot" };
-            SetSurface(ingotMat, metalCol, metallic: 0.90f, smoothness: 0.74f, emission: metalCol * 0.14f);
+            Texture2D brushedTex = ThermalIngotGradientBuilder.CreateBrushedIngotTexture(metalCol);
+            SetSurface(ingotMat, Color.white, metallic: 0.88f, smoothness: 0.68f, emission: Color.black);
+            if (ingotMat.HasProperty("_BaseMap")) ingotMat.SetTexture("_BaseMap", brushedTex);
+            ingotMat.mainTexture = brushedTex;
             root.GetComponent<MeshRenderer>().sharedMaterial = ingotMat;
 
             root.transform.localPosition = new Vector3(0f, dims.y * 0.5f, 0f);

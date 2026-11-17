@@ -5,11 +5,13 @@ using UnityEngine.SceneManagement;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using TMPro;
+using ForjaGame.UI;
 
 public enum NetworkModeSelection { None, Solo, Host, Client }
+public enum MainMenuScreen { Title, ModeSelection, SingleplayerSetup, MultiplayerSetup, LobbyRoom, Leaderboard }
 
 /// <summary>
-/// Controlador principal del Menú de Inicio: Solitario, Crear Partida LAN (Host) y Unirse por IP (Cliente).
+/// Controlador principal del Menú de Inicio: Solitario, Sala de Espera LAN (Host) y Unirse por IP (Cliente).
 /// </summary>
 public partial class PlayMainGame : MonoBehaviour
 {
@@ -18,12 +20,14 @@ public partial class PlayMainGame : MonoBehaviour
     [SerializeField] private ushort port = 7777;
 
     private NetworkModeSelection _selectedMode = NetworkModeSelection.Solo;
+    private MainMenuScreen _currentScreen = MainMenuScreen.Title;
     private string _targetIp = "127.0.0.1", _detectedLocalIp = "127.0.0.1";
-    private string _statusMessage = "Elige explorar en solitario o abrir las puertas de tu taller en red local (LAN).";
+    private string _statusMessage = "Select singleplayer or gather your team for LAN multiplayer.";
     private bool _isConnecting;
     private float _connectStartedAt;
 
     public NetworkModeSelection SelectedMode => _selectedMode;
+    public MainMenuScreen CurrentScreen => _currentScreen;
     public string TargetIp { get => _targetIp; set => _targetIp = value; }
     public ushort Port => port;
     public string StatusMessage => _statusMessage;
@@ -36,6 +40,8 @@ public partial class PlayMainGame : MonoBehaviour
         Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
         _detectedLocalIp = GetLocalIPv4(); _targetIp = _detectedLocalIp;
         if (playButtonText == null) playButtonText = GetComponentInChildren<TMP_Text>(true);
+        MainMenuBackdropBuilder.EnsureBackdrop();
+        ForjaGame.Audio.ForgeAudioSystem.EnsureInstance();
         BuildMedievalMainMenuUI(); RefreshMainMenuVisuals();
     }
 
@@ -44,15 +50,15 @@ public partial class PlayMainGame : MonoBehaviour
         if (_isConnecting && _selectedMode == NetworkModeSelection.Client && Time.unscaledTime - _connectStartedAt > 10.5f)
         {
             CancelConnection();
-            _statusMessage = "Tiempo agotado: no se encontró ningún Anfitrión en la IP indicada.";
+            _statusMessage = "Connection timed out: no Host found at that IP address.";
             RefreshMainMenuVisuals();
         }
+        UpdateLobbyTick();
     }
 
     private void OnEnable()
     {
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
         if (NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.OnClientDisconnectCallback += OnNetworkDisconnect;
@@ -71,40 +77,29 @@ public partial class PlayMainGame : MonoBehaviour
 
     private void OnNetworkDisconnect(ulong clientId)
     {
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
         _isConnecting = false;
-        _statusMessage = "No se pudo establecer conexión con el Anfitrión. Verifica la IP y el puerto 7777.";
+        _statusMessage = "Disconnected from Host. Check the IP address and port 7777.";
         RefreshMainMenuVisuals();
+        if (_currentScreen == MainMenuScreen.LobbyRoom) SwitchScreen(MainMenuScreen.MultiplayerSetup);
     }
 
     private void OnNetworkConnect(ulong clientId)
     {
         if (NetworkManager.Singleton != null && clientId == NetworkManager.Singleton.LocalClientId)
         {
-            _statusMessage = "¡Conexión establecida con la Fragua! Entrando al mundo...";
+            _isConnecting = false;
+            _statusMessage = "Connected to the expedition! Waiting to start...";
             RefreshMainMenuVisuals();
+            OpenLobbyRoom();
         }
     }
 
-    public void SelectHostMode()
-    {
-        _selectedMode = NetworkModeSelection.Host;
-        StartHostAndLoadGame();
-    }
-
-    public void SelectClientMode()
-    {
-        _selectedMode = NetworkModeSelection.Client;
-        StartClientAndConnect();
-    }
-
-    public void PlayGame()
-    {
-        if (_selectedMode == NetworkModeSelection.Host) StartHostAndLoadGame();
-        else if (_selectedMode == NetworkModeSelection.Client) StartClientAndConnect();
-        else StartSoloGame();
-    }
+    public void PlayGame() => OpenModeSelection();
+    public void OpenModeSelection() => SwitchScreen(MainMenuScreen.ModeSelection);
+    public void OpenSingleplayerSetup() => SwitchScreen(MainMenuScreen.SingleplayerSetup);
+    public void OpenMultiplayerSetup() => SwitchScreen(MainMenuScreen.MultiplayerSetup);
+    public void ReturnToTitleScreen() => SwitchScreen(MainMenuScreen.Title);
 
     public void StartSoloGame()
     {
@@ -118,28 +113,27 @@ public partial class PlayMainGame : MonoBehaviour
             Destroy(NetworkManager.Singleton.gameObject);
         }
 
-        _statusMessage = "Encendiendo la fragua en solitario...";
+        _statusMessage = "Starting singleplayer journey...";
         RefreshMainMenuVisuals();
         SceneManager.LoadScene("Furnace", LoadSceneMode.Single);
     }
 
-    public void StartHostAndLoadGame()
+    public void StartHostLobby()
     {
         if (_isConnecting) CancelConnection();
         _selectedMode = NetworkModeSelection.Host;
         ForjaGame.Multiplayer.LANNetworkManagerUI.IsLanSessionRequested = true;
 
         var net = EnsureNetworkManager();
-        if (net == null) { _statusMessage = "Error: No se pudo inicializar el gestor de red LAN."; RefreshMainMenuVisuals(); return; }
+        if (net == null) { _statusMessage = "Error: Could not initialize LAN network manager."; RefreshMainMenuVisuals(); return; }
 
-        ConfigureTransport(net, "127.0.0.1", port);
-        _isConnecting = true;
-        _connectStartedAt = Time.unscaledTime;
-        _statusMessage = $"Abriendo taller LAN en {_detectedLocalIp}:{port}...";
+        ConfigureTransport(net, "0.0.0.0", port);
+        _isConnecting = false;
+        _statusMessage = $"Opening waiting lobby at {_detectedLocalIp}:{port}...";
         RefreshMainMenuVisuals();
 
-        if (net.StartHost()) net.SceneManager.LoadScene("Furnace", LoadSceneMode.Single);
-        else { _isConnecting = false; _statusMessage = "Error al abrir el puerto 7777 como Anfitrión (¿puerto en uso?)."; RefreshMainMenuVisuals(); }
+        if (net.StartHost()) OpenLobbyRoom();
+        else { _statusMessage = "Error opening port 7777 as Host (port already in use?)."; RefreshMainMenuVisuals(); }
     }
 
     public void StartClientAndConnect()
@@ -151,7 +145,7 @@ public partial class PlayMainGame : MonoBehaviour
         ForjaGame.Multiplayer.LANNetworkManagerUI.IsLanSessionRequested = true;
 
         var net = EnsureNetworkManager();
-        if (net == null) { _statusMessage = "Error: No se pudo inicializar el gestor de red LAN."; RefreshMainMenuVisuals(); return; }
+        if (net == null) { _statusMessage = "Error: Could not initialize LAN network manager."; RefreshMainMenuVisuals(); return; }
 
         string cleanIp = string.IsNullOrWhiteSpace(_targetIp) ? "127.0.0.1" : _targetIp.Trim();
         ConfigureTransport(net, cleanIp, port);
@@ -162,13 +156,13 @@ public partial class PlayMainGame : MonoBehaviour
 
         _isConnecting = true;
         _connectStartedAt = Time.unscaledTime;
-        _statusMessage = $"Conectando al taller del Anfitrión en {cleanIp}:{port}...";
+        _statusMessage = $"Connecting to Host at {cleanIp}:{port}...";
         RefreshMainMenuVisuals();
 
         if (!net.StartClient())
         {
             _isConnecting = false;
-            _statusMessage = "No fue posible iniciar el cliente de red.";
+            _statusMessage = "Could not start network client.";
             RefreshMainMenuVisuals();
         }
     }
@@ -184,7 +178,7 @@ public partial class PlayMainGame : MonoBehaviour
             net.Shutdown();
         }
         _isConnecting = false;
-        _statusMessage = "Conexión cancelada.";
+        _statusMessage = "Connection cancelled.";
         RefreshMainMenuVisuals();
     }
 

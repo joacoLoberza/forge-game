@@ -21,13 +21,13 @@ namespace ForjaGame.UI
             var rootImg = root.GetComponent<Image>();
             if (rootImg != null) rootImg.enabled = false;
 
-            CreateOrGetTitleBanner(root, "AnvilTopTitlePlaque", "YUNQUE DE FORJA",
+            CreateOrGetTitleBanner(root, "AnvilTopTitlePlaque", "BLACKSMITH ANVIL",
                 new Vector2(0f, -14f), new Vector2(420f, 50f), fontSize: 21f, topAnchored: true);
 
             RectTransform leftBody = CreateOrGetParchmentCard(root, "LeftAnvilCard", new Vector2(-665f, -32f), new Vector2(480f, 820f));
             RectTransform rightBody = CreateOrGetParchmentCard(root, "RightAnvilCard", new Vector2(665f, -32f), new Vector2(480f, 820f));
 
-            CreateOrGetTitleBanner(rightBody, "RightAnvilHeader", "GUÍA DE FORJA",
+            CreateOrGetTitleBanner(rightBody, "RightAnvilHeader", "FORGE GUIDE",
                 new Vector2(0f, 355f), new Vector2(400f, 42f), fontSize: 17f);
 
             Transform guideObj = rightBody.Find("AnvilGuideText");
@@ -39,12 +39,12 @@ namespace ForjaGame.UI
                 guideTxt = go.GetComponent<TextMeshProUGUI>();
             }
             guideTxt.gameObject.name = "AnvilGuideText";
-            guideTxt.text = "<b>PASOS DEL FORJADO ARTESANAL:</b>\n\n" +
-                            "<b>1. Selección de Arma:</b>\nElige el arma a forjar.\n\n" +
-                            "<b>2. Selección de Lingote:</b>\nEl metal define peso, filo y daño.\n\n" +
-                            "<b>3. Martillado y Corte:</b>\n[1] Extiende el metal con el martillo.\n[2] Recorta el exceso con el cincel.\n[3] Lija y pule las aristas.\n\n" +
-                            "<b>4. Fragua y Templado:</b>\n[H] Recalienta el lingote si se enfría.\n[Espacio] Templa en agua al completar el filo.\n\n" +
-                            "<b>5. Ensamblaje:</b>\nAlinea el mango y consagra tu arma.";
+            guideTxt.text = "<b>ARTISAN FORGING STEPS:</b>\n\n" +
+                            "<b>1. Weapon Selection:</b>\nChoose weapon archetype to forge.\n\n" +
+                            "<b>2. Ingot Selection:</b>\nMetal alloy defines mass, edge, and damage.\n\n" +
+                            "<b>3. Hammering & Cutting:</b>\n[1] Spread metal with hammer.\n[2] Trim excess with chisel.\n[3] Polish and refine edges.\n\n" +
+                            "<b>4. Hearth & Quenching:</b>\n[H] Reheat workpiece if cooling.\n[Space] Quench in water once edge is ready.\n\n" +
+                            "<b>5. Assembly:</b>\nAlign handle tang and consecrate weapon.";
             PlaceBodyText(guideTxt, rightBody, new Vector2(0f, 55f), new Vector2(400f, 500f), 13.5f, TextAlignmentOptions.TopLeft, DarkInk);
 
             for (int i = root.childCount - 1; i >= 0; i--)
@@ -84,7 +84,9 @@ namespace ForjaGame.UI
                 PlaceInsetStatusBox(panel.StatusText, rightBody, new Vector2(0f, -270f), new Vector2(420f, 56f));
 
             if (panel.CloseButton != null)
-                StyleForgeButton(panel.CloseButton, primary: false, rightBody, new Vector2(0f, -345f), new Vector2(280f, 44f));
+            {
+                StyleCloseButton(panel.CloseButton, rightBody, new Vector2(0f, -345f), topRightCorner: false, label: "Close");
+            }
 
             foreach (var b in leftBody.GetComponentsInChildren<Button>(true))
             {
@@ -96,13 +98,13 @@ namespace ForjaGame.UI
                 {
                     StyleForgeButton(b, primary: true, b.transform.parent, new Vector2(0f, -214f), new Vector2(340f, 48f));
                     var t = b.GetComponentInChildren<TMP_Text>(true);
-                    if (t != null) { MedievalTypographyProvider.ApplyToTMP(t); t.text = "FORJAR EN EL YUNQUE"; }
+                    if (t != null) { MedievalTypographyProvider.ApplyToTMP(t); t.text = "FORGE ON ANVIL"; }
                 }
-                else if (bn.Contains("back") || bn.Contains("atras") || bn.Contains("regresar"))
+                else if (bn.Contains("back") || bn.Contains("atras") || bn.Contains("regresar") || bn.Contains("volver"))
                 {
                     StyleForgeButton(b, primary: false, b.transform.parent, new Vector2(0f, -276f), new Vector2(260f, 42f));
                     var t = b.GetComponentInChildren<TMP_Text>(true);
-                    if (t != null) { MedievalTypographyProvider.ApplyToTMP(t); t.text = "« Volver"; }
+                    if (t != null) { MedievalTypographyProvider.ApplyToTMP(t); t.text = "« Back"; }
                 }
                 else StyleForgeButton(b, primary: false, b.transform.parent, b.GetComponent<RectTransform>().anchoredPosition, new Vector2(280f, 44f));
             }
@@ -121,7 +123,7 @@ namespace ForjaGame.UI
                 header = go.GetComponent<TextMeshProUGUI>();
             }
             header.gameObject.name = "WeaponTitle";
-            header.text = "SELECCIONA EL ARMA A FORJAR";
+            header.text = "SELECT WEAPON TO FORGE";
             var hRt = header.rectTransform;
             hRt.anchorMin = hRt.anchorMax = hRt.pivot = new Vector2(0.5f, 1f);
             hRt.anchoredPosition = new Vector2(0f, -6f);
@@ -129,11 +131,11 @@ namespace ForjaGame.UI
             DecorateTitleText(header, 17.5f);
 
             StyleLargeWeaponOptionButton(swordBtn, step1, new Vector2(0f, 154f), new Vector2(404f, 138f),
-                "<size=21><b>ESPADA</b></size>\n<size=13.5>Hoja equilibrada · Cortes veloces y gran control</size>");
+                "<size=21><b>SWORD</b></size>\n<size=13.5>Balanced blade · Swift strikes & high control</size>");
             StyleLargeWeaponOptionButton(axeBtn, step1, new Vector2(0f, 2f), new Vector2(404f, 138f),
-                "<size=21><b>HACHA</b></size>\n<size=13.5>Hoja pesada · Alto daño de tajo lateral</size>");
+                "<size=21><b>AXE</b></size>\n<size=13.5>Heavy blade · High cleave damage</size>");
             StyleLargeWeaponOptionButton(hammerBtn, step1, new Vector2(0f, -150f), new Vector2(404f, 138f),
-                "<size=21><b>MARTILLO</b></size>\n<size=13.5>Maza contundente · Impacto demoledor contra corazas</size>");
+                "<size=21><b>HAMMER</b></size>\n<size=13.5>Blunt maul · Crushing impact against armor</size>");
         }
 
         private static void CleanButtonPlaques(Transform step1, params Button[] buttons)
@@ -191,14 +193,14 @@ namespace ForjaGame.UI
 
             foreach (var t in stepRoot.GetComponentsInChildren<TMP_Text>(true))
             {
-                if (t.GetComponentInParent<Button>(true) != null || t.GetComponentInParent<ScrollRect>(true) != null) continue;
+                if (t.GetComponentInParent<Button>(true) != null || t.GetComponentInParent<ScrollRect>(true) != null || t.name == "IngotPreviewDesc") continue;
                 MedievalTypographyProvider.ApplyToTMP(t);
                 var tRt = t.rectTransform;
                 tRt.anchorMin = tRt.anchorMax = tRt.pivot = new Vector2(0.5f, 1f);
                 tRt.anchoredPosition = new Vector2(0f, -4f);
                 tRt.sizeDelta = new Vector2(396f, 38f);
-                if (sn.Contains("ingot") || sn.Contains("step2")) t.text = "ELIGE UN LINGOTE METÁLICO";
-                else if (sn.Contains("handle") || sn.Contains("step3")) t.text = "ELIGE UN MANGO DE ARMA";
+                if (sn.Contains("ingot") || sn.Contains("step2")) t.text = "SELECT METAL INGOT";
+                else if (sn.Contains("handle") || sn.Contains("step3")) t.text = "SELECT WEAPON HANDLE";
                 DecorateTitleText(t, 16.5f);
             }
 
@@ -208,8 +210,9 @@ namespace ForjaGame.UI
                 sRt.localRotation = Quaternion.identity;
                 sRt.localScale = Vector3.one;
                 sRt.anchorMin = sRt.anchorMax = sRt.pivot = new Vector2(0.5f, 0.5f);
-                sRt.anchoredPosition = new Vector2(0f, 10f);
-                sRt.sizeDelta = new Vector2(408f, 440f);
+                bool isStep2 = sn.Contains("ingot") || sn.Contains("step2");
+                sRt.anchoredPosition = isStep2 ? new Vector2(0f, 88f) : new Vector2(0f, 10f);
+                sRt.sizeDelta = isStep2 ? new Vector2(408f, 300f) : new Vector2(408f, 440f);
 
                 var sImg = sr.GetComponent<Image>() ?? sr.gameObject.AddComponent<Image>();
                 sImg.sprite = BookTextureBuilder.GetParchmentBannerSprite();

@@ -12,25 +12,25 @@ namespace ForjaGame.Combat
 
             if (weapon != null && (weapon.customMesh != null || weapon.customHandleMesh != null))
             {
-                rearY = -separation * 0.5f;
-                frontY = separation * 0.5f;
+                rearY = 0f;
+                frontY = separation;
             }
             else
             {
                 if (stance == WeaponCombatStance.Polearm)
                 {
-                    rearY = 0.05f;
-                    frontY = 0.05f + separation;
+                    rearY = 0.02f;
+                    frontY = 0.02f + separation;
                 }
                 else if (stance == WeaponCombatStance.TwoHanded || (weapon != null && weapon.ingotSize == ItemSize.Large))
                 {
-                    rearY = -0.24f;
-                    frontY = -0.02f;
+                    rearY = 0f;
+                    frontY = separation;
                 }
                 else
                 {
-                    rearY = -0.16f;
-                    frontY = -0.06f;
+                    rearY = 0f;
+                    frontY = separation;
                 }
             }
 
@@ -53,44 +53,32 @@ namespace ForjaGame.Combat
         private RuntimeAnimatorController GetOverrideControllerForWeapon(WeaponStats weapon)
         {
             if (weapon == null) return _baseAnimatorController;
-            string resName = "Sword1H_Override";
+            bool force2H = weapon.GetCombatStance() == WeaponCombatStance.TwoHanded && weapon.weaponType != WeaponType.Pickaxe;
+            string lenTag = weapon.handleLength switch { HandleLength.Short => "Short", HandleLength.Long => "Long", _ => force2H ? "Long" : "Med" };
+            string primary = weapon.weaponType switch
+            {
+                WeaponType.Pickaxe => "Pickaxe_Override",
+                WeaponType.Axe => $"Axe{lenTag}_Override",
+                WeaponType.Hammer => $"Hammer{lenTag}_Override",
+                _ => $"Sword{lenTag}_Override"
+            };
+            string fallback = weapon.weaponType switch
+            {
+                WeaponType.Pickaxe => "Pickaxe_Override",
+                WeaponType.Axe => lenTag == "Long" ? "Heavy2H_Override" : "Axe1H_Override",
+                WeaponType.Hammer => lenTag == "Long" ? "Hammer2H_Override" : "Hammer1H_Override",
+                _ => lenTag == "Short" ? "Dagger_Override" : (lenTag == "Long" ? "Heavy2H_Override" : "Sword1H_Override")
+            };
 
-            var stance = weapon.GetCombatStance();
-            if (weapon.weaponType == WeaponType.Pickaxe)
+            foreach (string resName in new[] { primary, fallback })
             {
-                resName = "Pickaxe_Override";
-            }
-            else if (weapon.weaponType == WeaponType.Hammer)
-            {
-                resName = (stance == WeaponCombatStance.TwoHanded || stance == WeaponCombatStance.Polearm)
-                    ? "Hammer2H_Override"
-                    : "Hammer1H_Override";
-            }
-            else if (stance == WeaponCombatStance.Polearm)
-            {
-                resName = "Polearm_Override";
-            }
-            else if (stance == WeaponCombatStance.TwoHanded)
-            {
-                resName = "Heavy2H_Override";
-            }
-            else
-            {
-                if (weapon.weaponType == WeaponType.Axe)
-                    resName = "Axe1H_Override";
-                else if (weapon.weaponType == WeaponType.Sword && weapon.handleLength == HandleLength.Short)
-                    resName = "Dagger_Override";
-                else
-                    resName = "Sword1H_Override";
-            }
-
-            var loaded = UnityEngine.Resources.Load<RuntimeAnimatorController>($"Animations/{resName}");
-            if (loaded != null) return loaded;
-
+                var loaded = UnityEngine.Resources.Load<RuntimeAnimatorController>($"Animations/{resName}");
+                if (loaded != null) return loaded;
 #if UNITY_EDITOR
-            var overrideCtrl = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>($"Assets/Animations/Character/{resName}.overrideController");
-            if (overrideCtrl != null) return overrideCtrl;
+                var overrideCtrl = UnityEditor.AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>($"Assets/Animations/Character/{resName}.overrideController");
+                if (overrideCtrl != null) return overrideCtrl;
 #endif
+            }
             return _baseAnimatorController;
         }
 
@@ -165,10 +153,27 @@ namespace ForjaGame.Combat
             }
 
             var capsuleRenderer = GetComponent<MeshRenderer>();
-            if (capsuleRenderer != null)
+            if (capsuleRenderer != null) capsuleRenderer.enabled = false;
+        }
+
+        public bool TogglePickaxeAndForgedWeapon()
+        {
+            var inv = GetComponent<ForjaGame.Inventory.InventoryController>() ?? ForjaGame.Inventory.InventoryController.LocalInstance;
+            if (inv == null || inv.Weapons == null) return false;
+            bool isPick = _currentEquippedWeapon != null && _currentEquippedWeapon.weaponType == WeaponType.Pickaxe;
+            WeaponStats pick = null, forged = null;
+            for (int i = 0; i < inv.Weapons.Count; i++)
             {
-                capsuleRenderer.enabled = false;
+                var w = inv.Weapons[i];
+                if (w == null) continue;
+                if (w.weaponType == WeaponType.Pickaxe && pick == null) pick = w;
+                else if (w.weaponType != WeaponType.Pickaxe) forged = w;
             }
+            WeaponStats target = isPick ? forged : pick;
+            if (target == null) return false;
+            EquipWeapon(target);
+            ForjaGame.Audio.ForgeAudioSystem.PlayItemSelect();
+            return true;
         }
     }
 }

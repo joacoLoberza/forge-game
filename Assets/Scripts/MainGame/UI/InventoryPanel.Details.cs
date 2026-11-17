@@ -12,7 +12,11 @@ namespace ForjaGame.UI
 
             if (item == null)
             {
-                if (emptySelectionNotice != null) emptySelectionNotice.SetActive(true);
+                if (emptySelectionNotice != null)
+                {
+                    ForgeScrollViewStyler.StyleEmptyNotice(emptySelectionNotice, "No item selected.\nChoose an item from the inventory.");
+                    emptySelectionNotice.SetActive(true);
+                }
                 if (rightItemTitleText != null) rightItemTitleText.text = "";
                 if (rightItemCategoryText != null) rightItemCategoryText.text = "";
                 if (rightItemDescriptionText != null) rightItemDescriptionText.text = "";
@@ -110,7 +114,8 @@ namespace ForjaGame.UI
             StringBuilder sb = new StringBuilder();
             sb.AppendLine($"<b>Purity:</b> <color={ingot.PurityColorHex}>{ingot.PurityPercentage}% [{ingot.PurityRank}]</color>");
             sb.AppendLine($"<b>Size:</b> {ingot.SizeLabel}\n");
-            sb.AppendLine($"<b>{ingot.composition.GetCompositionDescription()}</b>\n");
+            string compDesc = ingot.composition != null ? ingot.composition.GetCompositionDescription() : "Standard Forged Alloy";
+            sb.AppendLine($"<b>{compDesc}</b>\n");
             sb.AppendLine("<b>Recommended Next Step:</b>");
             sb.AppendLine("Take this Ingot to the <b>Anvil</b> to shape and assemble your weapon.");
             SetRightDescription(sb.ToString());
@@ -122,7 +127,7 @@ namespace ForjaGame.UI
             string title = count > 1 ? $"{handle.DisplayName} x{count}" : handle.DisplayName;
             SetRightHeader(title, "Weapon Handle");
             StringBuilder sb = new StringBuilder();
-            if (count > 1) sb.AppendLine($"<b>Cantidad en posesión:</b> {count} unidades\n");
+            if (count > 1) sb.AppendLine($"<b>Amount in possession:</b> {count} units\n");
             sb.AppendLine($"<b>Length:</b> {handle.length}");
             sb.AppendLine($"• Reach Multiplier: <b>x{handle.rangeModifier:F2}</b>");
             string speedSign = handle.speedModifier >= 0 ? "+" : "";
@@ -145,7 +150,7 @@ namespace ForjaGame.UI
             sb.AppendLine($"<b>Blade Purity:</b> {weapon.PurityPercentage}% [{weapon.qualityPrefix}]");
             sb.AppendLine($"<b>{weapon.composition.GetCompositionDescription()}</b>\n");
 
-            sb.AppendLine("<size=85%><color=#5C4632>Nota: En combate el filo disminuye gradualmente hasta un 40%, pero las armas nunca se rompen.</color></size>");
+            sb.AppendLine("<size=85%><color=#5C4632>Note: In combat, sharpness gradually decreases up to 40%, but weapons never break.</color></size>");
             SetRightDescription(sb.ToString());
         }
 

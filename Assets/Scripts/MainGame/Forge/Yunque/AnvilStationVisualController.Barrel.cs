@@ -12,13 +12,11 @@ namespace ForjaGame.Forge
     {
         private void BuildBarrelVisual()
         {
-            float groundY = ForgeStationModelSetup.GetGroundHeightAt(transform.position.x, transform.position.z) + 0.02f;
+            float groundY = ForgeStationModelSetup.GetGroundHeightAt(transform.position.x, transform.position.z);
             float localGroundY = transform.InverseTransformPoint(new Vector3(transform.position.x, groundY, transform.position.z)).y;
 
-            Vector3 waterBasinOffset = (_quench != null) ? _quench.WaterBasinOffset : new Vector3(1.85f, -0.12f, 0.15f);
-            float waterTargetLocalY = waterBasinOffset.y;
-            float barrelTopY = waterTargetLocalY + 0.045f;
-            float barrelHeight = Mathf.Max(0.72f, barrelTopY - localGroundY);
+            Vector3 waterBasinOffset = new Vector3(1.85f, localGroundY + 1.15f, 0.15f);
+            float barrelHeight = 1.20f;
 
             _barrelRoot = new GameObject("Barrel_QuenchBasin").transform;
             _barrelRoot.SetParent(_toolsRoot, false);
@@ -109,6 +107,9 @@ namespace ForjaGame.Forge
 
             var rotOverLife = ps.rotationOverLifetime;
             rotOverLife.enabled = true;
+            rotOverLife.separateAxes = false;
+            rotOverLife.x = new ParticleSystem.MinMaxCurve(0f, 0f);
+            rotOverLife.y = new ParticleSystem.MinMaxCurve(0f, 0f);
             rotOverLife.z = new ParticleSystem.MinMaxCurve(-0.6f, 0.6f);
 
             var colLife = ps.colorOverLifetime;

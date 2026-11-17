@@ -16,7 +16,15 @@ namespace ForjaGame.Forge
         private float _topInsertionCameraUntil = -1f;
 
         public FurnaceController Furnace => furnaceController;
-        public override string InteractionPrompt => "Horno de Fundición";
+        public override string InteractionPrompt
+        {
+            get
+            {
+                if (ForjaGame.UI.ForgeTutorialDirector.Instance != null && !ForjaGame.UI.ForgeTutorialDirector.Instance.CanInteractWithStation(this, out string msg))
+                    return msg;
+                return "Smelting Furnace";
+            }
+        }
 
         private void Awake()
         {

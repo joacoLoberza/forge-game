@@ -23,6 +23,7 @@ namespace ForjaGame.Forge
         private static GUIStyle _badgePendingStyle;
         private static GUIStyle _badgeFireStyle;
         private static GUIStyle _centerTextStyle;
+        private static GUIStyle _plainTextStyle;
 
         private static void EnsureUIStyles()
         {
@@ -38,17 +39,19 @@ namespace ForjaGame.Forge
                 fontSize = 13,
                 fontStyle = FontStyle.Normal,
                 richText = true,
+                wordWrap = true,
                 alignment = TextAnchor.UpperLeft
             };
 
             _goldBannerStyle = new GUIStyle
             {
-                normal = { background = _guiGoldPlaqueTex, textColor = new Color(0.99f, 0.90f, 0.64f) },
+                normal = { background = _guiGoldPlaqueTex, textColor = new Color(0.18f, 0.10f, 0.05f) },
                 border = new RectOffset(16, 16, 14, 14),
-                padding = new RectOffset(12, 12, 6, 6),
-                fontSize = 14,
-                fontStyle = FontStyle.Bold,
+                padding = new RectOffset(16, 16, 8, 8),
+                fontSize = 13,
+                fontStyle = FontStyle.Normal,
                 richText = true,
+                wordWrap = true,
                 alignment = TextAnchor.MiddleCenter
             };
 
@@ -109,6 +112,13 @@ namespace ForjaGame.Forge
                 fontSize = 13, fontStyle = FontStyle.Normal, richText = true, alignment = TextAnchor.MiddleCenter
             };
             MedievalTypographyProvider.ApplyToGUIStyle(_centerTextStyle);
+            _plainTextStyle = new GUIStyle
+            {
+                normal = { textColor = ForgeCanvasThemeStyler.DarkInk },
+                fontSize = 13, fontStyle = FontStyle.Normal, richText = true, wordWrap = true,
+                padding = new RectOffset(6, 6, 4, 4), alignment = TextAnchor.UpperLeft
+            };
+            MedievalTypographyProvider.ApplyToGUIStyle(_plainTextStyle);
             MedievalTypographyProvider.ApplyToGUIStyle(_badgeReadyStyle);
             MedievalTypographyProvider.ApplyToGUIStyle(_badgePendingStyle);
             MedievalTypographyProvider.ApplyToGUIStyle(_badgeFireStyle);
@@ -191,8 +201,8 @@ namespace ForjaGame.Forge
             if (_guiThermalBarTex != null)
                 GUI.DrawTexture(r, _guiThermalBarTex, ScaleMode.StretchToFill);
 
-            // Marcador vertical de la temperatura actual (25°C a 1300°C)
-            float frac = Mathf.Clamp01((currentTemp - 25f) / 1275f);
+            // Marcador vertical de la temperatura actual (25°C a 1400°C)
+            float frac = Mathf.Clamp01((currentTemp - 25f) / 1375f);
             float markerX = r.x + frac * (r.width - 4f);
             GUI.color = Color.white;
             GUI.DrawTexture(new Rect(markerX, r.y - 3f, 4f, r.height + 6f), Texture2D.whiteTexture);

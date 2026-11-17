@@ -57,13 +57,13 @@ namespace ForjaGame.Forge
             {
                 isValid = true,
                 tangLength = 0.18f,
-                statusMessage = "Mango Válido"
+                statusMessage = "Valid Handle"
             };
 
             if (columns == null || columns.Length < 6)
             {
                 res.isValid = false;
-                res.statusMessage = "Mango destruido o sin masa suficiente.";
+                res.statusMessage = "Handle destroyed or insufficient mass.";
                 return res;
             }
 
@@ -78,7 +78,7 @@ namespace ForjaGame.Forge
             if (totalLength < 0.35f)
             {
                 res.isValid = false;
-                res.statusMessage = "<color=#FF4444>¡MANGO DEMASIADO CORTO! Requiere al menos 40 cm de longitud.</color>";
+                res.statusMessage = "<color=#FF4444>HANDLE TOO SHORT! Requires at least 40 cm length.</color>";
                 return res;
             }
 
@@ -135,7 +135,7 @@ namespace ForjaGame.Forge
                 res.hasBrokenSection = true;
                 res.isValid = false;
                 res.breakX = (wStart + wEnd) * 0.5f;
-                res.statusMessage = "<color=#FF4444>¡MANGO QUEBRADO! Tramo excesivamente débil (< 1.0 cm) por más de 20 cm.</color>";
+                res.statusMessage = "<color=#FF4444>HANDLE BROKEN! Section excessively weak (< 1.0 cm) over 20 cm.</color>";
                 return res;
             }
 
@@ -143,17 +143,17 @@ namespace ForjaGame.Forge
             if (avgWidth > 0.065f)
             {
                 res.isValid = true; // Inicia como mango válido, pero se recalca afinarlo
-                res.statusMessage = $"<color=#FFCC00><b>TABLA EN BRUTO ({widthCm:F1} cm):</b> Afina los bordes cortando o lijando (ideal: 3.5 a 5.5 cm) para que deje de ser una tabla y tenga forma de mango.</color>";
+                res.statusMessage = $"<color=#FFCC00><b>RAW BOARD ({widthCm:F1} cm):</b> Trim edges by cutting or sanding (ideal: 3.5 to 5.5 cm) to shape an ergonomic handle.</color>";
             }
             else if (avgWidth >= 0.028f)
             {
                 res.isValid = true;
-                res.statusMessage = $"<color=#33FFAA><b>¡MANGO REFINADO ({widthCm:F1} cm)!</b> Ancho ergonómico ideal. Presiona [ESPACIO] para ensamblar.</color>";
+                res.statusMessage = $"<color=#33FFAA><b>REFINED HANDLE ({widthCm:F1} cm)!</b> Ideal ergonomic width. Press [SPACE] to assemble.</color>";
             }
             else
             {
                 res.isValid = avgWidth >= 0.018f;
-                res.statusMessage = $"<color=#FFAA33><b>MANGO MUY DELGADO ({widthCm:F1} cm):</b> Precaución: mango esbelto y frágil (mínimo recomendado: 3.0 cm).</color>";
+                res.statusMessage = $"<color=#FFAA33><b>SLENDER HANDLE ({widthCm:F1} cm):</b> Caution: slender and fragile handle (recommended min: 3.0 cm).</color>";
             }
 
             return res;

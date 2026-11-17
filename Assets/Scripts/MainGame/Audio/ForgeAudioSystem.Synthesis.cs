@@ -1,187 +1,154 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace ForjaGame.Audio
 {
+    internal sealed class ForgeButtonPointerHook : MonoBehaviour, IPointerDownHandler
+    {
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            var btn = GetComponent<Button>();
+            if (btn != null && !btn.interactable) return;
+            ForgeAudioSystem.PlayUIClick();
+        }
+    }
+
     /// <summary>
-    /// Procedural acoustic waveform synthesis for ForgeAudioSystem.
-    /// Generates filtered metallic, steam, parchment, impact, creature, and ambient AudioClips at runtime.
+    /// Enrutador de reproducción 2D/3D, clic original de UI y banco externo CC0 en Assets/Resources/Audio/.
     /// </summary>
     public partial class ForgeAudioSystem
     {
-        private const int SampleRate = 22050;
+        private AudioClip _procUiClick, _procUiTab, _procItemSelect, _procItemPickup, _procSwingPickaxe;
+        private AudioClip _procHammerGreat, _procHammerStrike, _procHammerPoor;
+        private AudioClip _procChiselCut, _procWoodCut, _procPolishScrape, _procQuenchSizzle, _procPressCrush, _procFurnaceStoke, _procCoalStoke;
+        private AudioClip _procSwingLight, _procSwingHeavy, _procHitFlesh, _procHitStone, _procWallWood, _procPickaxe;
+        private AudioClip _procSpiderAggro, _procSpiderAttack, _procSpiderHurt;
+        private AudioClip _procGolemAggro, _procGolemAttack, _procGolemHurt, _procGolemStone;
+        private AudioClip _procTitanAggro, _procTitanAggro2, _procTitanAttack, _procTitanAttack2, _procTitanHurt;
+        private AudioClip _procPlayerHurt, _procAltarChord;
+        private AudioClip _procFireLoop, _procCaveLoop, _procPageTurn;
+        private readonly AudioClip[] _extPageTurn = new AudioClip[3];
+        private readonly AudioSource[] _stationChannels = new AudioSource[4];
+        private int _poolCursor, _stationCursor, _lastUiFrame = -1, _pageTurnCursor;
 
-        private AudioClip _procUiClick;
-        private AudioClip _procUiTab;
-        private AudioClip _procHammerStrike;
-        private AudioClip _procChiselCut;
-        private AudioClip _procPolishScrape;
-        private AudioClip _procQuenchSizzle;
-        private AudioClip _procPressCrush;
-        private AudioClip _procFurnaceStoke;
-        private AudioClip _procSwingLight;
-        private AudioClip _procSwingHeavy;
-        private AudioClip _procHitFlesh;
-        private AudioClip _procHitStone;
-        private AudioClip _procPickaxe;
-        private AudioClip _procSpider;
-        private AudioClip _procGolem;
-        private AudioClip _procPlayerHurt;
-        private AudioClip _procAltarChord;
-        private AudioClip _procFireLoop;
-        private AudioClip _procCaveLoop;
-        private int _poolCursor;
+        private void EnsureStationChannels()
+        {
+            if (_stationChannels[0] != null) return;
+            for (int i = 0; i < _stationChannels.Length; i++)
+            {
+                var src = gameObject.AddComponent<AudioSource>();
+                src.playOnAwake = false;
+                src.spatialBlend = 0f;
+                src.ignoreListenerPause = true;
+                _stationChannels[i] = src;
+            }
+        }
 
         private void Play2D(AudioClip clip, float volume, float pitch)
         {
             if (clip == null || _uiSource == null) return;
             _uiSource.pitch = pitch;
-            _uiSource.PlayOneShot(clip, volume);
+            _uiSource.PlayOneShot(clip, Mathf.Clamp01(volume));
+        }
+
+        private void PlayStation2D(AudioClip clip, float volume, float pitch)
+        {
+            if (clip == null) { Debug.LogWarning("[ForgeAudio] PlayStation2D skipped: null AudioClip."); return; }
+            if (_uiSource != null)
+            {
+                _uiSource.pitch = pitch;
+                _uiSource.PlayOneShot(clip, Mathf.Clamp01(volume));
+                return;
+            }
+            EnsureStationChannels();
+            AudioSource src = _stationChannels[_stationCursor];
+            _stationCursor = (_stationCursor + 1) % _stationChannels.Length;
+            src.pitch = pitch;
+            src.PlayOneShot(clip, Mathf.Clamp01(volume));
         }
 
         private void Play3D(AudioClip clip, Vector3 pos, float volume, float pitch)
         {
             if (clip == null || _pool.Count == 0) return;
+            float dPl = ForjaGame.Core.PlayerMovement.LocalInstance != null
+                ? Vector3.Distance(ForjaGame.Core.PlayerMovement.LocalInstance.transform.position, pos) : 999f;
+            float dCam = Camera.main != null ? Vector3.Distance(Camera.main.transform.position, pos) : 999f;
+            float dist = Mathf.Min(dPl, dCam);
+            if (dist >= 900f) dist = 0f;
+            if (dist > 55f) return;
+            float atten = Mathf.Clamp01(1f - Mathf.Max(0f, dist - 9f) / 44f);
+            if (atten <= 0.02f) return;
+
             AudioSource src = _pool[_poolCursor];
             _poolCursor = (_poolCursor + 1) % _pool.Count;
             src.transform.position = pos;
-            src.spatialBlend = 0.65f;
-            src.minDistance = 2.5f;
-            src.maxDistance = 28f;
+            src.spatialBlend = 0f;
             src.pitch = pitch;
-            src.clip = clip;
-            src.volume = volume;
-            src.Play();
+            src.PlayOneShot(clip, Mathf.Clamp01(volume * atten));
         }
 
         private void BuildProceduralBank()
         {
             var rng = new System.Random(1337);
-            _procUiClick = MakeClip("Proc_UIClick", 0.055f, (t, d) =>
-                Mathf.Exp(-t * 68f) * (Mathf.Sin(t * 2f * Mathf.PI * 620f) * 0.55f + NextNoise(rng) * 0.35f));
-
+            _procUiClick = MakeClip("Proc_UIClick", 0.048f, (t, d) =>
+                Mathf.Exp(-t * 115f) * (Mathf.Sin(t * 2f * Mathf.PI * 245f) * 0.65f + Mathf.Sin(t * 2f * Mathf.PI * 490f) * 0.25f));
+            float lp = 0f;
             _procUiTab = MakeClip("Proc_UITab", 0.11f, (t, d) =>
-                Mathf.Sin(Mathf.PI * (t / d)) * LowPassNoise(rng, 0.35f) * 0.55f);
-
-            _procHammerStrike = MakeClip("Proc_Hammer", 0.42f, (t, d) =>
             {
-                float ring = Mathf.Sin(t * 2f * Mathf.PI * 1040f) * 0.42f
-                           + Mathf.Sin(t * 2f * Mathf.PI * 1580f) * 0.28f
-                           + Mathf.Sin(t * 2f * Mathf.PI * 2490f) * 0.15f;
-                float thud = Mathf.Sin(t * 2f * Mathf.PI * (150f - t * 180f)) * Mathf.Exp(-t * 32f) * 0.65f;
-                float click = NextNoise(rng) * Mathf.Exp(-t * 90f) * 0.4f;
-                return ring * Mathf.Exp(-t * 8.5f) + thud + click;
+                lp = Mathf.Lerp(lp, (float)rng.NextDouble() * 2f - 1f, 0.22f);
+                return Mathf.Sin(Mathf.PI * (t / d)) * (lp * 0.25f + Mathf.Sin(t * 2f * Mathf.PI * 340f) * Mathf.Exp(-t * 42f) * 0.55f);
             });
-
-            _procChiselCut = MakeClip("Proc_Chisel", 0.24f, (t, d) =>
-                Mathf.Exp(-t * 16f) * (Mathf.Sin(t * 2f * Mathf.PI * 1820f) * 0.45f + NextNoise(rng) * 0.45f));
-
-            _procPolishScrape = MakeClip("Proc_Polish", 0.20f, (t, d) =>
-                Mathf.Sin(Mathf.PI * (t / d)) * (LowPassNoise(rng, 0.45f) * 0.5f + Mathf.Sin(t * 2f * Mathf.PI * 2900f) * 0.08f));
-
-            _procQuenchSizzle = MakeClip("Proc_Quench", 0.85f, (t, d) =>
+            float pLp = 0f;
+            _procPageTurn = MakeClip("Proc_PageTurn", 0.24f, (t, d) =>
             {
-                float env = Mathf.Sin(Mathf.Min(1f, t / 0.08f) * Mathf.PI * 0.5f) * Mathf.Exp(-t * 2.8f);
-                float bubble = Mathf.Sin(t * 2f * Mathf.PI * (220f + Mathf.Sin(t * 38f) * 80f)) * 0.18f;
-                return env * (LowPassNoise(rng, 0.65f) * 0.72f + bubble);
+                pLp = Mathf.Lerp(pLp, (float)rng.NextDouble() * 2f - 1f, 0.14f);
+                return Mathf.Sin(Mathf.PI * (t / d)) * pLp * 0.42f;
             });
-
-            _procPressCrush = MakeClip("Proc_Press", 0.55f, (t, d) =>
-                Mathf.Exp(-t * 5.5f) * (Mathf.Sin(t * 2f * Mathf.PI * 78f) * 0.7f + LowPassNoise(rng, 0.2f) * 0.4f));
-
-            _procFurnaceStoke = MakeClip("Proc_Furnace", 0.45f, (t, d) =>
-                Mathf.Sin(Mathf.PI * (t / d)) * LowPassNoise(rng, 0.22f) * 0.85f);
-
-            _procSwingLight = MakeClip("Proc_Swing1H", 0.20f, (t, d) =>
-                Mathf.Sin(Mathf.PI * (t / d)) * (LowPassNoise(rng, 0.35f) * 0.65f + Mathf.Sin(t * 2f * Mathf.PI * (520f - t * 1100f)) * 0.2f));
-
-            _procSwingHeavy = MakeClip("Proc_Swing2H", 0.32f, (t, d) =>
-                Mathf.Sin(Mathf.PI * (t / d)) * (LowPassNoise(rng, 0.18f) * 0.85f + Mathf.Sin(t * 2f * Mathf.PI * (240f - t * 380f)) * 0.35f));
-
-            _procHitFlesh = MakeClip("Proc_HitFlesh", 0.18f, (t, d) =>
-                Mathf.Exp(-t * 22f) * (Mathf.Sin(t * 2f * Mathf.PI * (135f - t * 260f)) * 0.75f + LowPassNoise(rng, 0.3f) * 0.45f));
-
-            _procHitStone = MakeClip("Proc_HitStone", 0.25f, (t, d) =>
-                Mathf.Exp(-t * 15f) * (Mathf.Sin(t * 2f * Mathf.PI * 195f) * 0.55f + Mathf.Sin(t * 2f * Mathf.PI * 880f) * 0.28f + NextNoise(rng) * 0.35f));
-
-            _procPickaxe = MakeClip("Proc_Pickaxe", 0.30f, (t, d) =>
-                Mathf.Exp(-t * 12f) * (Mathf.Sin(t * 2f * Mathf.PI * 1320f) * 0.5f + Mathf.Sin(t * 2f * Mathf.PI * 2120f) * 0.25f + NextNoise(rng) * 0.35f));
-
-            _procSpider = MakeClip("Proc_Spider", 0.28f, (t, d) =>
-            {
-                float mod = Mathf.Sin(t * 2f * Mathf.PI * 42f);
-                return Mathf.Sin(Mathf.PI * (t / d)) * (Mathf.Sin(t * 2f * Mathf.PI * (760f + mod * 240f)) * 0.35f + LowPassNoise(rng, 0.5f) * 0.55f);
-            });
-
-            _procGolem = MakeClip("Proc_Golem", 0.55f, (t, d) =>
-            {
-                float rumble = Mathf.Sin(t * 2f * Mathf.PI * (68f + Mathf.Sin(t * 18f) * 14f)) * 0.7f;
-                return Mathf.Sin(Mathf.PI * (t / d)) * (rumble + LowPassNoise(rng, 0.16f) * 0.45f);
-            });
-
-            _procPlayerHurt = MakeClip("Proc_PlayerHurt", 0.22f, (t, d) =>
-                Mathf.Exp(-t * 14f) * (Mathf.Sin(t * 2f * Mathf.PI * (190f - t * 240f)) * 0.7f + LowPassNoise(rng, 0.25f) * 0.35f));
-
-            _procAltarChord = MakeClip("Proc_Altar", 1.4f, (t, d) =>
-            {
-                float env = Mathf.Sin(Mathf.Min(1f, t / 0.12f) * Mathf.PI * 0.5f) * Mathf.Exp(-t * 1.6f);
-                return env * (Mathf.Sin(t * 2f * Mathf.PI * 293.66f) * 0.35f
-                            + Mathf.Sin(t * 2f * Mathf.PI * 440.00f) * 0.30f
-                            + Mathf.Sin(t * 2f * Mathf.PI * 587.33f) * 0.22f);
-            });
-
-            _procFireLoop = MakeLoopClip("Proc_FireLoop", 2.5f, rng, true);
-            _procCaveLoop = MakeLoopClip("Proc_CaveLoop", 3.0f, rng, false);
+            LoadPageTurnBank();
+            TryLoadResourcesAudioBank();
         }
 
-        private float _lpState;
-
-        private float NextNoise(System.Random rng) => (float)(rng.NextDouble() * 2.0 - 1.0);
-
-        private float LowPassNoise(System.Random rng, float alpha)
+        private void LoadPageTurnBank()
         {
-            _lpState += alpha * (NextNoise(rng) - _lpState);
-            return _lpState;
+            _extPageTurn[0] = UnityEngine.Resources.Load<AudioClip>("Audio/PageTurn") ?? _extPageTurn[0];
+            _extPageTurn[1] = UnityEngine.Resources.Load<AudioClip>("Audio/PageTurn2") ?? _extPageTurn[1];
+            _extPageTurn[2] = UnityEngine.Resources.Load<AudioClip>("Audio/PageTurn3") ?? _extPageTurn[2];
         }
 
-        private AudioClip MakeClip(string clipName, float duration, System.Func<float, float, float> gen)
+        private System.Collections.IEnumerator LoadDiskPageTurnFallbacks()
         {
-            _lpState = 0f;
-            int samples = Mathf.Max(64, Mathf.RoundToInt(SampleRate * duration));
-            float[] data = new float[samples];
-            for (int i = 0; i < samples; i++)
+            string[] fNames = { "PageTurn.ogg", "PageTurn2.ogg", "PageTurn3.ogg" };
+            for (int i = 0; i < fNames.Length; i++)
             {
-                float t = (float)i / SampleRate;
-                data[i] = Mathf.Clamp(gen(t, duration), -0.95f, 0.95f);
+                if (_extPageTurn[i] != null) continue;
+                int idx = i;
+                yield return TryLoadDiskAudio(fNames[idx], AudioType.OGGVORBIS, c => _extPageTurn[idx] = c);
             }
-            var clip = AudioClip.Create(clipName, samples, 1, SampleRate, false);
-            clip.SetData(data, 0);
-            return clip;
         }
 
-        private AudioClip MakeLoopClip(string clipName, float duration, System.Random rng, bool isFire)
+        private void PlayPageTurnInternal()
         {
-            _lpState = 0f;
-            int samples = Mathf.RoundToInt(SampleRate * duration);
-            float[] data = new float[samples];
-            for (int i = 0; i < samples; i++)
+            if (Time.frameCount == _lastUiFrame) return;
+            _lastUiFrame = Time.frameCount;
+            AudioClip clip = null;
+            for (int k = 0; k < _extPageTurn.Length; k++)
             {
-                float t = (float)i / SampleRate;
-                float s = LowPassNoise(rng, isFire ? 0.08f : 0.03f) * 0.55f;
-                if (isFire && rng.NextDouble() < 0.0025) s += NextNoise(rng) * 0.65f;
-                if (!isFire) s += Mathf.Sin(t * 2f * Mathf.PI * 58f) * 0.14f;
-                data[i] = Mathf.Clamp(s, -0.85f, 0.85f);
+                int idx = (_pageTurnCursor + k) % _extPageTurn.Length;
+                if (_extPageTurn[idx] != null) { clip = _extPageTurn[idx]; _pageTurnCursor = (idx + 1) % _extPageTurn.Length; break; }
             }
-            // Crossfade loop seam (last 512 samples)
-            int fade = Mathf.Min(512, samples / 8);
-            for (int i = 0; i < fade; i++)
-            {
-                float w = (float)i / fade;
-                data[samples - fade + i] = Mathf.Lerp(data[samples - fade + i], data[i], w);
-            }
-            var clip = AudioClip.Create(clipName, samples, 1, SampleRate, false);
+            Play2D(clip ?? _procPageTurn, 0.92f, Random.Range(0.95f, 1.05f));
+        }
+
+        private static AudioClip MakeClip(string clipName, float duration, System.Func<float, float, float> sampleFn)
+        {
+            const int sr = 44100;
+            int n = Mathf.Max(64, Mathf.RoundToInt(duration * sr));
+            float[] data = new float[n];
+            for (int i = 0; i < n; i++) data[i] = Mathf.Clamp(sampleFn(i / (float)sr, duration), -0.95f, 0.95f);
+            var clip = AudioClip.Create(clipName, n, 1, sr, false);
             clip.SetData(data, 0);
             return clip;
         }
     }
 }
-

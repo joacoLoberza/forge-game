@@ -69,10 +69,7 @@ namespace ForjaGame.Forge
                     var vfx = Instantiate(steamVFXPrefab, worldWaterPoint, Quaternion.identity);
                     Destroy(vfx.gameObject, 4.5f);
                 }
-                if (audioSource != null && sound != null)
-                    audioSource.PlayOneShot(sound);
-                else
-                    ForjaGame.Audio.ForgeAudioSystem.PlayQuenchSizzle(worldWaterPoint, 1.0f);
+                ForjaGame.Audio.ForgeAudioSystem.PlayQuenchSizzle(worldWaterPoint, 1.0f);
 
                 // Enfriamiento dinámico inmerso en agua: mínimo 4.5 segundos garantizados con vapor y siseo
                 float minImmersionTime = 4.5f;
@@ -89,13 +86,18 @@ namespace ForjaGame.Forge
                     {
                         float tRatio = Mathf.Clamp01(elapsed / minImmersionTime);
                         _anvil.ThermalController.SetTemperature(Mathf.Lerp(startTemp, targetTemp, tRatio));
+                        ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzTempladoGradiente(tRatio);
                     }
                     steamTimer += dt;
-                    if (steamTimer >= 0.75f && steamVFXPrefab != null)
+                    if (steamTimer >= 0.95f)
                     {
                         steamTimer = 0f;
-                        var puff = Instantiate(steamVFXPrefab, worldWaterPoint, Quaternion.identity);
-                        Destroy(puff.gameObject, 3.0f);
+                        if (steamVFXPrefab != null)
+                        {
+                            var puff = Instantiate(steamVFXPrefab, worldWaterPoint, Quaternion.identity);
+                            Destroy(puff.gameObject, 3.0f);
+                        }
+                        ForjaGame.Audio.ForgeAudioSystem.PlayQuenchSizzle(worldWaterPoint, Mathf.Lerp(0.85f, 0.30f, elapsed / minImmersionTime));
                     }
                     yield return null;
                 }

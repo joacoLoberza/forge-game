@@ -90,6 +90,9 @@ namespace ForjaGame.Input
                 return;
             }
 
+            if (GameStateController.IsForging || IsAnyStationOccupied())
+                return;
+
             CloseOtherPanels(_inventoryPanel);
             _inventoryPanel.Open();
             gameStateController?.TryChangeState(GameState.Inventory);

@@ -33,6 +33,10 @@ namespace ForjaGame.Forge
             }
         }
 
+        public const float InitialHandleBoardLength = 1.60f;
+        public static HandleLength ClassifyHandleLength(float shaftLengthMeters) =>
+            shaftLengthMeters <= 0.70f ? HandleLength.Short : (shaftLengthMeters <= 1.20f ? HandleLength.Medium : HandleLength.Long);
+
         public bool PlaceHandleBoard(bool animateSlide = false, AudioSource audioSource = null, AudioClip landSound = null)
         {
             if (activeIngotMeshFilter == null) return false;
@@ -47,8 +51,8 @@ namespace ForjaGame.Forge
             isQuenched = false;
             IsCarvingHandle = true;
 
-            // Dimensiones de la pieza de mango: 1.60m de largo, 7cm espesor, 14cm ancho
-            handleBoardSize = new Vector3(1.60f, 0.07f, 0.14f);
+            // Dimensiones completas del tablero base de madera: 1.60m de largo, 7cm espesor, 14cm ancho
+            handleBoardSize = new Vector3(InitialHandleBoardLength, 0.07f, 0.14f);
             int cols = 41, rows = 15;
 
             _currentBaseSize = handleBoardSize;
@@ -103,15 +107,11 @@ namespace ForjaGame.Forge
         {
             if (audioSource != null && strikeClip != null) audioSource.PlayOneShot(strikeClip);
 
-            if (sparkPrefab != null && IngotTransform != null)
+            if (IngotTransform != null)
             {
                 float halfL = handleBoardSize.x * 0.5f;
                 for (float sx = -halfL; sx <= halfL; sx += 0.32f)
-                {
-                    Vector3 worldP = IngotTransform.TransformPoint(new Vector3(sx, 0.05f, 0f));
-                    var fx = Instantiate(sparkPrefab, worldP, Quaternion.identity);
-                    Destroy(fx.gameObject, 1.2f);
-                }
+                    ThermalController?.TriggerSawdustBurst(IngotTransform.TransformPoint(new Vector3(sx, 0.05f, 0f)), 10);
             }
 
             if (_deformableMesh != null && activeIngotMeshRenderer != null)
@@ -218,6 +218,25 @@ namespace ForjaGame.Forge
             IsCarvingHandle = false;
             // Se mantiene isForging activo mientras se desarrolla la fase interactiva de ensamblaje
             return true;
+        }
+
+        public void ResumeHandleCarvingFromAssembly(Vector3 handleRestPos)
+        {
+            isForging = true;
+            isQuenched = false;
+            IsCarvingHandle = true;
+            if (IngotTransform != null)
+            {
+                IngotTransform.localPosition = _hasHandleRestPos ? _handleRestLocalPos : handleRestPos;
+                IngotTransform.localRotation = Quaternion.identity;
+            }
+            if (activeIngotMeshFilter != null && _deformableMesh != null)
+            {
+                activeIngotMeshFilter.sharedMesh = _deformableMesh;
+                activeIngotMeshFilter.gameObject.SetActive(true);
+            }
+            ApplyWoodHandleMaterial();
+            RefreshCollider();
         }
     }
 }

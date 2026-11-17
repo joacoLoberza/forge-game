@@ -1,5 +1,5 @@
 ﻿=== LISTA DE ANIMACIONES DISPONIBLES EN EL PROYECTO ===
-Total AnimationClips encontrados: 116
+Total AnimationClips encontrados: 120
 [CLIP] mixamo.com | FileID: -203655887218126122 | GUID: fa6be11adee9b1e49b2f0a4172c17d13 | Length: 9,92s | Path: Assets/Animations/Character/Breathing Idle.fbx
 [CLIP] __preview__mixamo.com | FileID: 110800000 | GUID: fa6be11adee9b1e49b2f0a4172c17d13 | Length: 9,92s | Path: Assets/Animations/Character/Breathing Idle.fbx
 [CLIP] mixamo.com | FileID: -203655887218126122 | GUID: 06aad0fcd918b9f4d82e7b1393c81dc5 | Length: 0,63s | Path: Assets/Animations/Character/Running.fbx
@@ -240,6 +240,152 @@ Total AnimationClips encontrados: 116
 [CLIP] attack7 | FileID: 4342637282929612191 | GUID: b81688250e187c444921387abac85b59 | Length: 1,20s | Path: Assets/Models/Character/golem-animation/source/Model.fbx
 [CLIP] attack6 | FileID: 5073180247372090931 | GUID: b81688250e187c444921387abac85b59 | Length: 1,20s | Path: Assets/Models/Character/golem-animation/source/Model.fbx
 [CLIP] attack3 | FileID: 5332256259459953303 | GUID: b81688250e187c444921387abac85b59 | Length: 1,40s | Path: Assets/Models/Character/golem-animation/source/Model.fbx
+[CLIP] WalkCycle | FileID: -7939422232465117443 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 8,17s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] Die | FileID: -4630339522487117836 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] StandIdle | FileID: -2871288894429806390 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 6,70s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] GetHit2 | FileID: -2782555753214167210 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 1,67s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] AttackHard | FileID: -1667009505975346419 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] GetHit1 | FileID: -169314307207694538 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 1,67s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] __preview__StandIdle | FileID: 110800000 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 6,70s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] __preview__AttackHard | FileID: 110800002 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] __preview__Attack1 | FileID: 110800004 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] __preview__Attack2 | FileID: 110800006 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] __preview__Die | FileID: 110800008 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] __preview__GetHit1 | FileID: 110800010 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 1,67s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] __preview__GetHit2 | FileID: 110800012 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 1,67s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] __preview__WalkCycle | FileID: 110800014 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 8,17s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] Attack1 | FileID: 7572344613039948371 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] Attack2 | FileID: 8114531597553069840 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] Melee_1H_Attack_Slice_Horizontal | FileID: -8653722278162725603 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,37s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] T-Pose | FileID: -8312538846858333772 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 0,03s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Dualwield_Attack_Stab | FileID: -4620666395454361804 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,60s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_2H_Attack_Chop | FileID: -3183232228448455838 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,63s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Block_Attack | FileID: -2762736084733417904 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Unarmed_Attack_Punch_A | FileID: -1789925693099948884 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,17s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_2H_Idle | FileID: -1623133897597549358 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_1H_Attack_Stab | FileID: -929289162156707164 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,60s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_2H_Attack_Spin | FileID: -302032850544529770 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 2,40s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Unarmed_Idle | FileID: -252589354938087612 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__T-Pose | FileID: 110800000 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,00s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_1H_Attack_Chop | FileID: 110800002 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_1H_Attack_Jump_Chop | FileID: 110800004 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,33s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_1H_Attack_Slice_Diagonal | FileID: 110800006 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,00s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_1H_Attack_Slice_Horizontal | FileID: 110800008 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,37s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_1H_Attack_Stab | FileID: 110800010 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,60s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_2H_Attack_Chop | FileID: 110800012 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,63s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_2H_Attack_Slice | FileID: 110800014 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,10s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_2H_Attack_Spin | FileID: 110800016 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 2,40s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_2H_Attack_Spinning | FileID: 110800018 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,00s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_2H_Attack_Stab | FileID: 110800020 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,60s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_2H_Idle | FileID: 110800022 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Block | FileID: 110800024 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Block_Attack | FileID: 110800026 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Block_Hit | FileID: 110800028 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Blocking | FileID: 110800030 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Dualwield_Attack_Chop | FileID: 110800032 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,27s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Dualwield_Attack_Slice | FileID: 110800034 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,17s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Dualwield_Attack_Stab | FileID: 110800036 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,60s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Unarmed_Attack_Kick | FileID: 110800038 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,00s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Unarmed_Attack_Punch_A | FileID: 110800040 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,17s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] __preview__Melee_Unarmed_Idle | FileID: 110800042 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Dualwield_Attack_Slice | FileID: 1231959210303231270 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,17s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_1H_Attack_Chop | FileID: 4043807988371827432 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Unarmed_Attack_Kick | FileID: 4422042881024832256 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 0,93s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_2H_Attack_Spinning | FileID: 4710205103915999847 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 0,67s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_1H_Attack_Jump_Chop | FileID: 4995259511414573042 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,33s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_2H_Attack_Stab | FileID: 5005478036900451222 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,60s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_1H_Attack_Slice_Diagonal | FileID: 5034251128425565466 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,00s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Block | FileID: 5428728673001133709 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_2H_Attack_Slice | FileID: 6561345739285688216 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,10s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Blocking | FileID: 6824622970789808875 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Dualwield_Attack_Chop | FileID: 7499313430951911929 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,27s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Melee_Block_Hit | FileID: 7887112853433613186 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] Armature|Jog_Fwd_Loop | FileID: -8815886378510225334 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Hit_Head | FileID: -8534173349268677819 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,43s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Crouch_Idle_Loop | FileID: -7993625790543202706 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Idle_Torch_Loop | FileID: -7342238307180667810 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,27s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Punch_Jab | FileID: -7321412271681594418 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,87s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Walk_Loop | FileID: -7003542030617561338 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Sitting_Idle_Loop | FileID: -6676812269523803463 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Driving_Loop | FileID: -6540212038565268958 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Spell_Simple_Enter | FileID: -5346644375087571879 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,53s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Spell_Simple_Shoot | FileID: -5255406209399062677 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,50s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Pistol_Aim_Down | FileID: -5068084590534580200 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,17s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Sprint_Loop | FileID: -4950333804767787469 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Pistol_Idle_Loop | FileID: -4708846537797790282 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Spell_Simple_Exit | FileID: -4636811812070406142 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,43s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Pistol_Reload | FileID: -4628965742493065687 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Jump_Loop | FileID: -3659967873887649963 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,50s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Pistol_Aim_Up | FileID: -3042448386402017758 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,17s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Sword_Attack | FileID: -2807887025256620907 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,53s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Interact | FileID: -2328835098782832033 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Jump_Start | FileID: -1862932125039169580 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Pistol_Aim_Neutral | FileID: -718454725414175808 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,17s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Hit_Chest | FileID: -245273357908900549 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|A_TPose | FileID: 110800000 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,50s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Crouch_Fwd_Loop | FileID: 110800002 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Crouch_Idle_Loop | FileID: 110800004 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Dance_Loop | FileID: 110800006 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Death01 | FileID: 110800008 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,40s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Driving_Loop | FileID: 110800010 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Fixing_Kneeling | FileID: 110800012 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 5,20s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Hit_Chest | FileID: 110800014 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Hit_Head | FileID: 110800016 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Idle_Loop | FileID: 110800018 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,50s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Idle_Talking_Loop | FileID: 110800020 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Idle_Torch_Loop | FileID: 110800022 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,27s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Interact | FileID: 110800024 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Jog_Fwd_Loop | FileID: 110800026 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Jump_Land | FileID: 110800028 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,27s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Jump_Loop | FileID: 110800030 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,50s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Jump_Start | FileID: 110800032 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|PickUp_Table | FileID: 110800034 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Pistol_Aim_Down | FileID: 110800036 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Pistol_Aim_Neutral | FileID: 110800038 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Pistol_Aim_Up | FileID: 110800040 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Pistol_Idle_Loop | FileID: 110800042 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Pistol_Reload | FileID: 110800044 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Pistol_Shoot | FileID: 110800046 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Punch_Cross | FileID: 110800048 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Punch_Jab | FileID: 110800050 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Push_Loop | FileID: 110800052 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Roll | FileID: 110800054 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,47s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Sitting_Enter | FileID: 110800056 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,30s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Sitting_Exit | FileID: 110800058 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,07s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Sitting_Idle_Loop | FileID: 110800060 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Sitting_Talking_Loop | FileID: 110800062 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Spell_Simple_Enter | FileID: 110800064 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Spell_Simple_Exit | FileID: 110800066 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Spell_Simple_Idle_Loop | FileID: 110800068 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,10s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Spell_Simple_Shoot | FileID: 110800070 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Sprint_Loop | FileID: 110800072 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Swim_Fwd_Loop | FileID: 110800074 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Swim_Idle_Loop | FileID: 110800076 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 3,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Sword_Attack | FileID: 110800078 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,53s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Sword_Idle | FileID: 110800080 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Walk_Formal_Loop | FileID: 110800082 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] __preview__Armature|Walk_Loop | FileID: 110800084 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Sitting_Exit | FileID: 497093190674883199 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,03s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Swim_Idle_Loop | FileID: 1532177651469301551 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 3,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Punch_Cross | FileID: 1705686167135224321 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Pistol_Shoot | FileID: 2564068224262579217 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,63s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|PickUp_Table | FileID: 2857599376137209812 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,83s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Push_Loop | FileID: 2931362099718132477 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Roll | FileID: 3031411921458128146 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,47s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Death01 | FileID: 3532616527226485280 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,40s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Fixing_Kneeling | FileID: 3659977189094709723 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 5,20s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Spell_Simple_Idle_Loop | FileID: 3732886095724451988 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,10s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Crouch_Fwd_Loop | FileID: 4366774653929184976 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Sitting_Talking_Loop | FileID: 4525242936183261023 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Jump_Land | FileID: 4832780573735333345 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,27s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|A_TPose | FileID: 4996995007976980875 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,50s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Swim_Fwd_Loop | FileID: 5539243244057379418 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Walk_Formal_Loop | FileID: 6426452042675443912 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,33s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Idle_Talking_Loop | FileID: 6476497563760123848 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Sitting_Enter | FileID: 7860179187555574969 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,30s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Idle_Loop | FileID: 7994627924475153551 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,50s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Sword_Idle | FileID: 8324860437086164814 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,67s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
+[CLIP] Armature|Dance_Loop | FileID: 8800687838965813479 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 1,00s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
 [CLIP] attack4 | FileID: -6588316505826729248 | GUID: 1c9e8f4114078a540b6c512d1ed1ecb1 | Length: 1,70s | Path: Assets/Resources/Models/GolemModel.fbx
 [CLIP] idle | FileID: -5252816984213320552 | GUID: 1c9e8f4114078a540b6c512d1ed1ecb1 | Length: 2,03s | Path: Assets/Resources/Models/GolemModel.fbx
 [CLIP] __preview__idle | FileID: 110800000 | GUID: 1c9e8f4114078a540b6c512d1ed1ecb1 | Length: 2,03s | Path: Assets/Resources/Models/GolemModel.fbx
@@ -268,6 +414,22 @@ Total AnimationClips encontrados: 116
 [CLIP] __preview__Armature|walk tight | FileID: 110800012 | GUID: f4ef5c38001d59b4f9ecc59c14ee8cfd | Length: 1,00s | Path: Assets/Resources/Models/SpiderModel.fbx
 [CLIP] Armature|walk tight | FileID: 705771960236433546 | GUID: f4ef5c38001d59b4f9ecc59c14ee8cfd | Length: 0,83s | Path: Assets/Resources/Models/SpiderModel.fbx
 [CLIP] Armature|run | FileID: 1303299601406483602 | GUID: f4ef5c38001d59b4f9ecc59c14ee8cfd | Length: 0,42s | Path: Assets/Resources/Models/SpiderModel.fbx
+[CLIP] WalkCycle | FileID: -7939422232465117443 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 8,17s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] Die | FileID: -4630339522487117836 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 2,50s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] StandIdle | FileID: -2871288894429806390 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 6,70s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] GetHit2 | FileID: -2782555753214167210 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 1,67s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] AttackHard | FileID: -1667009505975346419 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 2,50s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] GetHit1 | FileID: -169314307207694538 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 1,67s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] __preview__StandIdle | FileID: 110800000 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 6,70s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] __preview__AttackHard | FileID: 110800002 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 2,50s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] __preview__Attack1 | FileID: 110800004 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 2,50s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] __preview__Attack2 | FileID: 110800006 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 2,50s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] __preview__Die | FileID: 110800008 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 2,50s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] __preview__GetHit1 | FileID: 110800010 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 1,67s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] __preview__GetHit2 | FileID: 110800012 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 1,67s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] __preview__WalkCycle | FileID: 110800014 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 8,17s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] Attack1 | FileID: 7572344613039948371 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 2,50s | Path: Assets/Resources/Models/TitanModel.fbx
+[CLIP] Attack2 | FileID: 8114531597553069840 | GUID: 506c52c28d0fce44fa908c684a343525 | Length: 2,50s | Path: Assets/Resources/Models/TitanModel.fbx
 [CLIP] Armature|Zombie_Idle_Loop | FileID: -9126102581851218018 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 1,33s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
 [CLIP] Armature|Melee_Hook | FileID: -8061687084165900903 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 0,47s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
 [CLIP] Armature|OverhandThrow | FileID: -7816163768055700239 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 1,33s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
@@ -345,7 +507,7 @@ Total AnimationClips encontrados: 116
 [CLIP] Armature|Idle_Lantern_Loop | FileID: 4980751744999542695 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 2,50s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
 [CLIP] Armature|A_TPose | FileID: 4996995007976980875 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 2,50s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
 [CLIP] Armature|Idle_No_Loop | FileID: 5000254507835852519 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 2,50s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
-[CLIP] Armature|Sword_Block | FileID: 5047704512850479675 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 1,23s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
+[CLIP] Sword_Block | FileID: 5047704512850479675 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 1,23s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
 [CLIP] Armature|Sword_Dash | FileID: 5177481599410670366 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 1,57s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
 [CLIP] Armature|Slide_Loop | FileID: 5337448645578394443 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 2,00s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx
 [CLIP] Armature|Chest_Open | FileID: 6621786791131625799 | GUID: 05a22b2e97bf0f3448310595b8138a2b | Length: 1,37s | Path: Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx

@@ -37,7 +37,7 @@ namespace ForjaGame.Combat
         private bool _isResting;
         private Vector3 _patrolTarget;
         private float _patrolWaitUntil;
-        private bool _isPatrolMoving;
+        private bool _isPatrolMoving, _isHuntingActive;
         private float _nextFeedFinishTime = -1f;
 
         public bool IsActivelyFeeding => Time.time < _nextFeedFinishTime;
@@ -113,24 +113,31 @@ namespace ForjaGame.Combat
             }
 
             bool hasPlayer = player != null;
-            float distPlayer = hasPlayer ? Vector3.Distance(pos, player.position) : 999f;
-            float playerDistAnchor = hasPlayer ? Vector3.Distance(_nestAnchor, player.position) : 999f;
+            float dy = hasPlayer ? Mathf.Abs(player.position.y - pos.y) : 0f;
+            float distPlayer = hasPlayer ? Vector3.Distance(pos, player.position) + (dy > 2.2f ? dy * 3.5f : 0f) : 999f;
+            float playerDistAnchor = hasPlayer ? Vector3.Distance(_nestAnchor, player.position) + (dy > 2.2f ? dy * 3.5f : 0f) : 999f;
 
             return _role == CreatureEcologyRole.VeinGuardianGolem
-                ? EvaluateGolem(pos, hasPlayer, distPlayer, playerDistAnchor)
+                ? EvaluateGolem(pos, hpRatio, hasPlayer, distPlayer, playerDistAnchor)
                 : EvaluateSpider(pos, hpRatio, hasPlayer, distPlayer, playerDistAnchor);
         }
 
-        private EcologicalIntent EvaluateGolem(Vector3 pos, bool hasPlayer, float distPlayer, float playerDistAnchor)
+        private EcologicalIntent EvaluateGolem(Vector3 pos, float hpRatio, bool hasPlayer, float distPlayer, float playerDistAnchor)
         {
-            if (hasPlayer && (Time.time < _lastDamagedTime + 11f || Time.time < _forcedHostileUntil) && distPlayer <= _leashRadius + 6f)
+            if (hasPlayer && hpRatio <= 0.28f)
+                return EcologicalIntent.CriticalFlee;
+
+            bool struckByPlayer = Time.time < _lastDamagedTime + 32f || Time.time < _forcedHostileUntil;
+            bool veinDisturbed = Time.time < _veinAlertUntil;
+            if (hasPlayer && struckByPlayer && distPlayer <= _leashRadius + 24f)
                 return EcologicalIntent.SelfDefense;
 
-            if (hasPlayer && Time.time < _veinAlertUntil && (distPlayer <= _leashRadius || playerDistAnchor <= _leashRadius))
-                return EcologicalIntent.TerritorialDefense;
-
-            if (hasPlayer && (distPlayer <= 5.6f || playerDistAnchor <= 5.2f) && !_isResting)
-                return EcologicalIntent.WatchfulVigil;
+            float homeDist = _homeVein != null ? Vector3.Distance(_homeVein.transform.position, pos) : 999f;
+            float triggerDist = 6.2f;
+            bool closeToGolemOrSpawnVein = distPlayer <= triggerDist || playerDistAnchor <= triggerDist || (homeDist < 900f && playerDistAnchor <= 6.8f);
+            bool withinTerritorialChase = distPlayer <= 12.0f && playerDistAnchor <= 13.5f;
+            if (hasPlayer && (closeToGolemOrSpawnVein || (veinDisturbed && withinTerritorialChase)) && withinTerritorialChase)
+                return veinDisturbed ? EcologicalIntent.TerritorialDefense : EcologicalIntent.SelfDefense;
 
             if (IsActivelyFeeding) return EcologicalIntent.FeedingOnVein;
             if (_hunger >= 72f)
@@ -146,28 +153,29 @@ namespace ForjaGame.Combat
 
         private EcologicalIntent EvaluateSpider(Vector3 pos, float hpRatio, bool hasPlayer, float distPlayer, float playerDistAnchor)
         {
-            bool broodThreat = Time.time < _broodAlertUntil || (hasPlayer && playerDistAnchor <= 6.2f);
-            if (hasPlayer && broodThreat && distPlayer <= _leashRadius + 5f)
-                return EcologicalIntent.DefendBrood;
+            if (hasPlayer && hpRatio <= 0.32f) { _isHuntingActive = false; return EcologicalIntent.CriticalFlee; }
 
-            float huntRadius = _senseRadius + (_hunger >= 60f ? 3.2f : 0f);
-            bool provoked = Time.time < _lastDamagedTime + 10f || Time.time < _forcedHostileUntil;
-            if (hasPlayer && (provoked || distPlayer <= huntRadius) && distPlayer <= _leashRadius + 4f)
+            bool broodThreat = Time.time < _broodAlertUntil || (hasPlayer && playerDistAnchor <= 8.5f);
+            if (hasPlayer && broodThreat) { _isHuntingActive = true; return EcologicalIntent.DefendBrood; }
+
+            float huntRadius = _senseRadius + (_hunger >= 58f ? 8.5f : 0f);
+            bool provoked = Time.time < _lastDamagedTime + 22f || Time.time < _forcedHostileUntil;
+            if (hasPlayer && (provoked || distPlayer <= huntRadius || _isHuntingActive))
             {
-                if (hpRatio <= 0.22f && playerDistAnchor > 6.5f && Time.time >= _forcedHostileUntil)
-                    return EcologicalIntent.CriticalFlee;
+                _isHuntingActive = true;
                 return EcologicalIntent.HuntLivingPrey;
             }
+            _isHuntingActive = false;
 
             if (_isResting) return EcologicalIntent.Resting;
-            if (_hunger >= 66f)
+            if (_hunger >= 62f)
             {
-                UpdatePatrolState(pos, 5.5f, 12.5f, 1.0f, 2.2f);
-                if (!_isPatrolMoving) _hunger = 34f;
+                UpdatePatrolState(pos, 7.5f, 16.5f, 0.9f, 2.0f);
+                if (!_isPatrolMoving) _hunger = 32f;
                 return EcologicalIntent.ForagingProwl;
             }
 
-            UpdatePatrolState(pos, 1.8f, 5.6f, 2.2f, 4.4f);
+            UpdatePatrolState(pos, 0.7f, 2.8f, 2.5f, 4.8f);
             return EcologicalIntent.CalmPatrol;
         }
 
@@ -177,7 +185,7 @@ namespace ForjaGame.Combat
             var vein = TargetVein;
             if (vein == null || !vein.IsAlive) { _hunger = 25f; return false; }
             Vector2 diff = new Vector2(vein.transform.position.x - creaturePos.x, vein.transform.position.z - creaturePos.z);
-            if (diff.sqrMagnitude > 6.0f) return false;
+            if (diff.sqrMagnitude > 16.0f) return false;
 
             if (!IsActivelyFeeding)
             {
@@ -189,20 +197,30 @@ namespace ForjaGame.Combat
             return true;
         }
 
-        public static Vector3 ComputeSafeFleeDirection(Vector3 creaturePos, Vector3 playerPos, Vector3 homeAnchor)
+        public static Vector3 ComputeSafeFleeDirection(
+            Vector3 creaturePos, Vector3 playerPos, Vector3 homeAnchor,
+            float zoneMinZ = 0f, float zoneMaxZ = 600f)
         {
-            Vector2 toHome = new Vector2(homeAnchor.x - creaturePos.x, homeAnchor.z - creaturePos.z);
-            if (toHome.sqrMagnitude > 9f) return CaveCreatureBase.ComputeCaveGuidedDirection(creaturePos, homeAnchor);
-
-            Vector3 away = new Vector3(creaturePos.x - playerPos.x, 0f, creaturePos.z - playerPos.z);
-            if (away.sqrMagnitude < 0.01f) away = Vector3.forward;
+            Vector3 away = creaturePos - playerPos;
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.001f) away = Vector3.forward;
             away.Normalize();
-            float targetZ = Mathf.Clamp(creaturePos.z + Mathf.Sign(away.z == 0f ? 1f : away.z) * 5.5f,
-                CaveDungeonBuilder.CaveEntranceZ + 2f, CaveDungeonBuilder.CaveEndZ - 2.5f);
+
+            float dirZ = Mathf.Sign(away.z);
+            if (Mathf.Abs(away.z) < 0.15f)
+                dirZ = (creaturePos.z < (zoneMinZ + zoneMaxZ) * 0.5f) ? 1f : -1f;
+
+            float targetZ = creaturePos.z + dirZ * 12.0f;
+            if (targetZ > zoneMaxZ - 2.5f) targetZ = creaturePos.z - 12.0f;
+            else if (targetZ < zoneMinZ + 2.5f) targetZ = creaturePos.z + 12.0f;
+            targetZ = Mathf.Clamp(targetZ, zoneMinZ + 1.5f, zoneMaxZ - 1.5f);
+
             float sx = CaveDungeonBuilder.GetSpineX(targetZ);
-            float maxOff = Mathf.Max(2.0f, CaveDungeonBuilder.GetHalfWidthAtZ(targetZ) - 2.2f);
-            float safeX = Mathf.Clamp(creaturePos.x + away.x * 3.8f, sx - maxOff, sx + maxOff);
-            return CaveCreatureBase.ComputeCaveGuidedDirection(creaturePos, new Vector3(safeX, creaturePos.y, targetZ));
+            CaveDungeonBuilder.GetWallWidthsAtZ(targetZ, out float lw, out float rw);
+            float awayX = Mathf.Sign(away.x == 0f ? 1f : away.x);
+            float targetX = Mathf.Clamp(creaturePos.x + awayX * 4.5f, sx - Mathf.Max(1.8f, lw - 2.0f), sx + Mathf.Max(1.8f, rw - 2.0f));
+
+            return CaveCreatureBase.ComputeCaveGuidedDirection(creaturePos, new Vector3(targetX, creaturePos.y, targetZ));
         }
 
         private void UpdatePatrolState(Vector3 pos, float minR, float maxR, float waitMin, float waitMax)
@@ -210,7 +228,7 @@ namespace ForjaGame.Combat
             if (_isPatrolMoving)
             {
                 Vector2 flat = new Vector2(_patrolTarget.x - pos.x, _patrolTarget.z - pos.z);
-                if (flat.sqrMagnitude <= 0.9f || Time.time >= _patrolWaitUntil)
+                if (flat.sqrMagnitude <= 2.25f || Time.time >= _patrolWaitUntil)
                 {
                     _isPatrolMoving = false;
                     _patrolWaitUntil = Time.time + Random.Range(waitMin, waitMax);
@@ -225,8 +243,7 @@ namespace ForjaGame.Combat
                 CaveDungeonBuilder.GetWallWidthsAtZ(z, out float lw, out float rw);
                 float x = Mathf.Clamp(_nestAnchor.x + Mathf.Cos(ang) * rad, sx - Mathf.Max(1.8f, lw - 2.0f), sx + Mathf.Max(1.8f, rw - 2.0f));
                 _patrolTarget = new Vector3(x, CaveDungeonBuilder.GetFloorY(x, z), z);
-                _isPatrolMoving = true;
-                _patrolWaitUntil = Time.time + 5.5f;
+                _isPatrolMoving = true; _patrolWaitUntil = Time.time + 5.5f;
             }
         }
     }

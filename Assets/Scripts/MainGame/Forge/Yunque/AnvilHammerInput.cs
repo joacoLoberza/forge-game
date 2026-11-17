@@ -14,21 +14,14 @@ namespace ForjaGame.Forge
 
     public partial class AnvilHammerInput : MonoBehaviour
     {
-        [Header("References")]
+        [Header("References & Audio")]
         [SerializeField] private AnvilController anvilController;
         [SerializeField] private AnvilStationController stationController;
         [SerializeField] private Camera interactionCamera;
-
-        [Header("Audio and VFX")]
         [SerializeField] private ParticleSystem sparkVFXPrefab;
         [SerializeField] private AudioSource hammerAudioSource;
-        [SerializeField] private AudioClip strikeSound;
-        [SerializeField] private AudioClip quenchSound;
-
-        [Header("Camera Settings")]
+        [SerializeField] private AudioClip strikeSound, quenchSound;
         [SerializeField] private Vector3 cameraOffset = new Vector3(0f, 0.98f, -0.34f);
-
-        [Header("Striking Configuration")]
         [SerializeField] private float strikeCooldown = 0.50f;
 
         private AnvilToolMode _toolMode = AnvilToolMode.Hammer;
@@ -50,6 +43,7 @@ namespace ForjaGame.Forge
 
         private void Update()
         {
+            if (ForjaGame.UI.PauseMenuPanel.IsGamePaused) { UpdateInteractiveGuides(false, true); return; }
             if (!IsStationActive) { UpdateInteractiveGuides(false, true); return; }
             if (Cursor.lockState != CursorLockMode.None) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
 
@@ -57,12 +51,12 @@ namespace ForjaGame.Forge
             bool isAsm = asm != null && asm.IsAssembling;
 
             if (!isAsm && Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame && HandleSpacebarPress()) return;
-            if (!isAsm && Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame)
-                if (anvilController?.ThermalController != null && !anvilController.IsCarvingHandle)
-                {
-                    anvilController.ThermalController.ToggleReheat();
-                    ForjaGame.Audio.ForgeAudioSystem.PlayFurnaceStoke(transform.position);
-                }
+            if (anvilController != null && anvilController.IsIngotRuinedTooSmall) { UpdateInteractiveGuides(false, true); anvilController.ThermalController?.UpdateHammerHover(Vector3.zero, false); return; }
+            if (!isAsm && Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame && anvilController?.ThermalController != null && !anvilController.IsCarvingHandle)
+            {
+                anvilController.ThermalController.ToggleReheat();
+                ForjaGame.Audio.ForgeAudioSystem.PlayUITab();
+            }
 
             if (!isAsm) HandleToolModeHotkeys();
             bool isBusy = (anvilController.QuenchDifferential != null && anvilController.QuenchDifferential.IsQuenching)
@@ -77,6 +71,7 @@ namespace ForjaGame.Forge
                 else if (_toolMode == AnvilToolMode.Polish) HandlePolishAction();
                 else if (anvilController == null || !anvilController.IsCarvingHandle) HandleHammerAction();
             }
+            else anvilController.ThermalController?.UpdateHammerHover(Vector3.zero, false);
         }
 
         public bool IsMouseOverUI()
@@ -91,9 +86,15 @@ namespace ForjaGame.Forge
 
         private void HandleHammerAction()
         {
-            if (Mouse.current == null || (anvilController != null && anvilController.IsCarvingHandle) || IsMouseOverUI()) return;
+            if (Mouse.current == null || (anvilController != null && anvilController.IsCarvingHandle) || IsMouseOverUI())
+            {
+                anvilController?.ThermalController?.UpdateHammerHover(Vector3.zero, false);
+                return;
+            }
+            bool hasHit = RaycastIngotHorizontalPlane(out _, out Vector3 hoverWorld);
+            anvilController?.ThermalController?.UpdateHammerHover(hoverWorld, hasHit);
             bool isStriking = Mouse.current.leftButton.wasPressedThisFrame || Mouse.current.leftButton.isPressed;
-            if (isStriking && Time.time - _lastStrikeTime >= strikeCooldown)
+            if (hasHit && isStriking && Time.time - _lastStrikeTime >= strikeCooldown)
             {
                 _lastStrikeTime = Time.time;
                 PerformHammerStrike();
@@ -108,8 +109,15 @@ namespace ForjaGame.Forge
             {
                 if (sparkVFXPrefab != null) Instantiate(sparkVFXPrefab, hitPoint, Quaternion.identity);
                 float tempNorm = anvilController.ThermalController != null ? Mathf.Clamp01((anvilController.ThermalController.CurrentTemperature - 250f) / 950f) : 0.7f;
-                if (hammerAudioSource != null && strikeSound != null) hammerAudioSource.PlayOneShot(strikeSound);
-                else ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(hitPoint, timingQuality, tempNorm);
+                float effQual = (anvilController.WasLastHitDulling || tempNorm < 0.22f) ? 0.18f : timingQuality;
+                anvilController.ThermalController?.TriggerHammerStrikeAndSparks(hitPoint, effQual, false);
+                ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(hitPoint, effQual, tempNorm);
+                float tempC = anvilController.ThermalController != null ? anvilController.ThermalController.CurrentTemperature : 850f;
+                ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzGolpeForjaTemperatura(tempC, effQual);
+            }
+            else
+            {
+                ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(hitPoint, 0.15f, 0.10f);
             }
         }
 
@@ -184,37 +192,45 @@ namespace ForjaGame.Forge
         private void ExitOrPauseForging()
         {
             RestoreCamera();
-            if (anvilController != null)
-                anvilController.PauseForgingAndLeaveOnTable();
-            if (stationController != null) stationController.ReleaseStation();
+            anvilController?.PauseForgingAndLeaveOnTable();
+            stationController?.ReleaseStation();
             ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
         }
 
         private void ReturnIngotAndReopenSelection()
         {
-            var inv = GetStationInteractorInventory();
             if (anvilController != null && anvilController.CanRetrieveIngot)
             {
                 var r = anvilController.CancelAndRetrieveIngot();
-                if (r != null) inv?.AddIngot(r);
+                if (r != null) GetStationInteractorInventory()?.AddIngot(r);
             }
+            FindFirstObjectByType<UI.AnvilPanel>(FindObjectsInactive.Include)?.OpenToIngotSelection();
+        }
+
+        private void DiscardRuinedIngotAndReopenSelection()
+        {
+            ResetCutState(true); anvilController?.ClearAnvilSurface();
+            ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
             FindFirstObjectByType<UI.AnvilPanel>(FindObjectsInactive.Include)?.OpenToIngotSelection();
         }
 
         private void OnGUI()
         {
-            if (anvilController == null || !anvilController.IsForging) return;
+            if (ForjaGame.UI.PauseMenuPanel.IsGamePaused || anvilController == null || !anvilController.IsForging) return;
             var asm = anvilController.GetComponent<AnvilAssemblyController>();
             if (asm != null && asm.IsAssembling) return;
             InitStylesIfNeeded();
 
+            if (anvilController.IsIngotRuinedTooSmall) { DrawIngotTooSmallWarningGUI(); return; }
+
             if (anvilController.CanRetrieveIngot)
             {
-                Rect r = new Rect(25f, 20f, 170f, 38f);
+                Rect r = new Rect(18f, 112f, 186f, 38f);
                 Vector2 mp = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
                 bool over = r.Contains(new Vector2(mp.x, Screen.height - mp.y));
-                if (GUI.Button(r, "← Cambiar Lingote", _btnInactiveStyle) || (over && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
+                if (GUI.Button(r, "← Change Ingot", _btnInactiveStyle) || (over && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
                 {
+                    ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
                     ReturnIngotAndReopenSelection();
                     return;
                 }

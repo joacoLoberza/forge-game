@@ -170,22 +170,8 @@ namespace ForjaGame.Multiplayer
 
         private Mesh GetRemoteBladeMesh(WeaponType weaponType, Vector3 baseSize)
         {
-            string prefabPath = weaponType switch
-            {
-                WeaponType.Sword => "Weapons/Human_Sword",
-                WeaponType.Hammer => "Weapons/Human_Mace",
-                WeaponType.Axe => "Weapons/Human_Greatsword",
-                _ => "Weapons/Human_Sword"
-            };
-
-            var prefab = UnityEngine.Resources.Load<GameObject>(prefabPath);
-            if (prefab != null)
-            {
-                var mf = prefab.GetComponentInChildren<MeshFilter>();
-                if (mf != null && mf.sharedMesh != null)
-                    return mf.sharedMesh;
-            }
-
+            Mesh head = ForjaGame.Combat.WeaponVisualBuilder.GenerateArchetypeHead(weaponType);
+            if (head != null) return head;
             return SubdividedIngotMeshGenerator.CreateSubdividedBillet(29, 9, baseSize, out _, out _);
         }
     }

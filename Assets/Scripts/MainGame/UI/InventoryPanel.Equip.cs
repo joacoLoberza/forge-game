@@ -34,13 +34,31 @@ namespace ForjaGame.UI
 
             if (isEquipped)
             {
-                if (equipButtonText != null) equipButtonText.text = "[EQUIPADA] DESEQUIPAR";
-                if (_equipButtonImage != null) _equipButtonImage.color = new Color(0.18f, 0.62f, 0.35f, 0.95f); // Verde Esmeralda
+                if (equipButtonText != null)
+                {
+                    equipButtonText.text = "[EQUIPPED] UNEQUIP";
+                    equipButtonText.color = ForgeCanvasThemeStyler.DarkInk;
+                }
+                if (_equipButtonImage != null)
+                {
+                    _equipButtonImage.sprite = BookTextureBuilder.GetParchmentBannerSprite();
+                    _equipButtonImage.type = Image.Type.Sliced;
+                    _equipButtonImage.color = new Color(0.84f, 0.94f, 0.80f, 1f);
+                }
             }
             else
             {
-                if (equipButtonText != null) equipButtonText.text = "EQUIPAR EN MANO";
-                if (_equipButtonImage != null) _equipButtonImage.color = new Color(0.85f, 0.55f, 0.15f, 0.95f); // Dorado Ámbar
+                if (equipButtonText != null)
+                {
+                    equipButtonText.text = "EQUIP IN HAND";
+                    equipButtonText.color = ForgeCanvasThemeStyler.GoldTitleInk;
+                }
+                if (_equipButtonImage != null)
+                {
+                    _equipButtonImage.sprite = BookTextureBuilder.GetPrimaryActionButtonSprite();
+                    _equipButtonImage.type = Image.Type.Sliced;
+                    _equipButtonImage.color = Color.white;
+                }
             }
 
             equipButton.onClick.RemoveAllListeners();
@@ -49,7 +67,8 @@ namespace ForjaGame.UI
                 EnsureEquipmentController();
                 if (_equipmentController == null) return;
 
-                if (isEquipped)
+                bool currentlyEquipped = _equipmentController.IsEquipped(weapon);
+                if (currentlyEquipped)
                 {
                     _equipmentController.UnequipWeapon();
                 }
@@ -59,6 +78,7 @@ namespace ForjaGame.UI
                 }
 
                 UpdateEquipButtonUI(weapon);
+                PopulateLeftPage();
             });
         }
 

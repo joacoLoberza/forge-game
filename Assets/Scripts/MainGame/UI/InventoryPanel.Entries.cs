@@ -37,7 +37,7 @@ namespace ForjaGame.UI
                 slotRt.anchorMin = new Vector2(0, 0.5f);
                 slotRt.anchorMax = new Vector2(0, 0.5f);
                 slotRt.pivot = new Vector2(0, 0.5f);
-                slotRt.anchoredPosition = new Vector2(22, 0);
+                slotRt.anchoredPosition = new Vector2(10, 0);
                 slotRt.sizeDelta = new Vector2(34, 34);
 
                 var slotImg = slotObj.GetComponent<Image>();
@@ -65,13 +65,13 @@ namespace ForjaGame.UI
                 var textRt = textObj.GetComponent<RectTransform>();
                 textRt.anchorMin = Vector2.zero;
                 textRt.anchorMax = Vector2.one;
-                textRt.offsetMin = new Vector2(62, 0);
-                textRt.offsetMax = new Vector2(-8, 0);
+                textRt.offsetMin = new Vector2(54, 2);
+                textRt.offsetMax = new Vector2(-10, -2);
 
                 var tmp = textObj.GetComponent<TextMeshProUGUI>();
                 tmp.fontSize = 15;
                 tmp.fontStyle = FontStyles.Bold;
-                tmp.color = new Color(0.92f, 0.90f, 0.86f, 1f);
+                tmp.color = ForgeCanvasThemeStyler.DarkInk;
                 tmp.alignment = TextAlignmentOptions.MidlineLeft;
                 tmp.textWrappingMode = TextWrappingModes.NoWrap;
                 tmp.enableAutoSizing = true;
@@ -82,7 +82,7 @@ namespace ForjaGame.UI
 
             var entryUI = entryObj.GetComponent<InventoryItemEntryUI>();
             if (entryUI == null) entryUI = entryObj.AddComponent<InventoryItemEntryUI>();
-            bool isSelected = _selectedItem == itemData;
+            bool isSelected = IsSameItem(_selectedItem, itemData);
             entryUI.Setup(title, onClick, isSelected, icon, iconColor);
             _activeEntries.Add((itemData, entryUI));
         }
@@ -102,13 +102,50 @@ namespace ForjaGame.UI
 
         private void SelectItem(object item)
         {
+            ForjaGame.Audio.ForgeAudioSystem.PlayItemSelect();
             _selectedItem = item;
             for (int i = 0; i < _activeEntries.Count; i++)
             {
-                _activeEntries[i].ui.SetSelected(_activeEntries[i].item == item);
+                _activeEntries[i].ui.SetSelected(IsSameItem(_activeEntries[i].item, item));
             }
             RenderRightPage(item);
             if (rightScrollRect != null) rightScrollRect.verticalNormalizedPosition = 1f;
+        }
+
+        private void EnsureSceneReferencesFallback()
+        {
+            if (tabMineralsButton == null || tabBloomsButton == null || tabIngotsButton == null || tabHandlesButton == null || tabWeaponsButton == null || closeButton == null)
+            {
+                foreach (var b in GetComponentsInChildren<Button>(true))
+                {
+                    string n = b.name.ToLowerInvariant();
+                    if (tabMineralsButton == null && (n.Contains("mineral") || n.Contains("raw"))) tabMineralsButton = b;
+                    else if (tabBloomsButton == null && n.Contains("bloom")) tabBloomsButton = b;
+                    else if (tabIngotsButton == null && n.Contains("ingot")) tabIngotsButton = b;
+                    else if (tabHandlesButton == null && n.Contains("handle")) tabHandlesButton = b;
+                    else if (tabWeaponsButton == null && n.Contains("weapon")) tabWeaponsButton = b;
+                    else if (closeButton == null && (n.Contains("close") || n.Contains("cerrar"))) closeButton = b;
+                }
+            }
+            if (leftItemsContainer == null || leftScrollRect == null || rightScrollRect == null)
+            {
+                Transform lp = transform.Find("LeftPage"), rp = transform.Find("RightPage");
+                if (leftScrollRect == null && lp != null) leftScrollRect = lp.GetComponentInChildren<ScrollRect>(true);
+                if (leftItemsContainer == null && leftScrollRect != null) leftItemsContainer = leftScrollRect.content;
+                if (rightScrollRect == null && rp != null) rightScrollRect = rp.GetComponentInChildren<ScrollRect>(true);
+            }
+            if (rightItemTitleText == null || rightItemCategoryText == null || rightItemDescriptionText == null || leftPageTitleText == null)
+            {
+                foreach (var t in GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (t.GetComponentInParent<Button>(true) != null) continue;
+                    string n = t.name.ToLowerInvariant();
+                    if (leftPageTitleText == null && n.Contains("left") && n.Contains("title")) leftPageTitleText = t;
+                    else if (rightItemTitleText == null && (n.Contains("itemtitle") || (n.Contains("right") && n.Contains("title")))) rightItemTitleText = t;
+                    else if (rightItemCategoryText == null && n.Contains("category")) rightItemCategoryText = t;
+                    else if (rightItemDescriptionText == null && n.Contains("desc")) rightItemDescriptionText = t;
+                }
+            }
         }
     }
 }

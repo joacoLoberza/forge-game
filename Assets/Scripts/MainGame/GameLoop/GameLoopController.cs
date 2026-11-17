@@ -50,74 +50,69 @@ namespace ForjaGame.Core
             if (victoryPanel != null) victoryPanel.SetActive(false);
             if (defeatPanel != null) defeatPanel.SetActive(false);
             ForjaGame.UI.ForgeCanvasThemeStyler.StyleEndScreensAndMainMenu();
+            ForjaGame.Environment.GreenPlateauTerrainController.EnsurePlateauInvisibleBoundaries();
         }
 
         private void OnDestroy()
         {
-            if (Instance == this) { Instance = null; IsEndScreenOpen = false; Time.timeScale = 1f; }
+            if (Instance == this) { Instance = null; IsEndScreenOpen = false; Time.timeScale = 1f; ForjaGame.UI.VictoryCreditsOverlay.HideAll(); }
         }
 
         private void ResolveEndPanelsAndButtons()
         {
-            if (victoryPanel == null || defeatPanel == null)
+            if (victoryPanel != null && defeatPanel != null) return;
+            foreach (var c in FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
-                var canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-                foreach (var c in canvases)
+                foreach (var tr in c.GetComponentsInChildren<Transform>(true))
                 {
-                    foreach (var tr in c.GetComponentsInChildren<Transform>(true))
-                    {
-                        if (victoryPanel == null && (tr.name == "PanelVictory" || tr.name == "VictoryPanel"))
-                            victoryPanel = tr.gameObject;
-                        else if (defeatPanel == null && (tr.name == "PanelDefeat" || tr.name == "DefeatPanel"))
-                            defeatPanel = tr.gameObject;
-                    }
+                    if (victoryPanel == null && (tr.name == "PanelVictory" || tr.name == "VictoryPanel")) victoryPanel = tr.gameObject;
+                    else if (defeatPanel == null && (tr.name == "PanelDefeat" || tr.name == "DefeatPanel")) defeatPanel = tr.gameObject;
                 }
             }
-
-            EnsureButtonCallsMethod(victoryPanel, nameof(AcceptVictory), AcceptVictory);
-            EnsureButtonCallsMethod(defeatPanel, nameof(AcceptDefeat), AcceptDefeat);
         }
 
-        private void EnsureButtonCallsMethod(GameObject panel, string methodName, UnityAction action)
+        public void TriggerVictory() => Multiplayer.PlayerNetworkBridge.BroadcastPartyVictoryFromLocal();
+
+        public void ReceiveNetworkVictory()
         {
-            if (panel == null) return;
-            var btn = panel.GetComponentInChildren<Button>(true);
-            if (btn == null) return;
+            if (IsEndScreenOpen && GameStateController.State == GameState.Victory) return;
+            if (defeatPanel != null) defeatPanel.SetActive(false);
+            foreach (var p in Combat.PlayerHealthController.AllPlayers) if (p != null) p.RestoreHealthFull();
 
-            bool hasPersistentBinding = false;
-            int count = btn.onClick.GetPersistentEventCount();
-            for (int i = 0; i < count; i++)
-            {
-                if (btn.onClick.GetPersistentTarget(i) == this && btn.onClick.GetPersistentMethodName(i) == methodName)
-                {
-                    hasPersistentBinding = true;
-                    break;
-                }
-            }
-
-            btn.onClick.RemoveListener(action);
-            if (!hasPersistentBinding) btn.onClick.AddListener(action);
-        }
-
-        public void TriggerVictory()
-        {
-            if (IsEndScreenOpen) return;
+            ForjaGame.Speedrun.DelveRunTimerHUD.Instance?.StopAndRecordRun();
+            ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzVictoriaVerde();
+            ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzVictoriaAltar();
             ReleaseAllOccupiedStations();
             ResolveEndPanelsAndButtons();
 
             var inv = Inventory.InventoryController.Instance;
-            LastOutcomeSummary = inv != null ? inv.ClaimDeepAltarReward() : string.Empty;
+            if (inv != null && string.IsNullOrEmpty(LastOutcomeSummary)) LastOutcomeSummary = inv.ClaimDeepAltarReward();
             ForgeAudioSystem.PlayAltarConsecrate();
 
             IsEndScreenOpen = true;
             GameStateController.ChangeState(GameState.Victory);
             ForjaGame.UI.ForgeCanvasThemeStyler.StyleEndScreensAndMainMenu();
-            if (victoryPanel != null) victoryPanel.SetActive(true);
-            onVictory?.Invoke();
+            if (victoryPanel != null) victoryPanel.SetActive(false);
 
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-            Time.timeScale = 0f;
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true; Time.timeScale = 0f;
+            ForjaGame.UI.VictoryCreditsOverlay.BeginCredits(ShowVictoryOptionsAfterCredits);
+        }
+
+        private void ShowVictoryOptionsAfterCredits()
+        {
+            if (GameStateController.State != GameState.Victory || !IsEndScreenOpen) return;
+            if (victoryPanel != null)
+            {
+                victoryPanel.SetActive(true);
+                if (!victoryPanel.TryGetComponent<Canvas>(out var subCanvas) || subCanvas == null)
+                    subCanvas = victoryPanel.AddComponent<Canvas>();
+                subCanvas.overrideSorting = true; subCanvas.sortingOrder = 960;
+                if (!victoryPanel.TryGetComponent<GraphicRaycaster>(out var ray) || ray == null)
+                    victoryPanel.AddComponent<GraphicRaycaster>();
+                Canvas.ForceUpdateCanvases();
+            }
+            onVictory?.Invoke();
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
         }
 
         public void TriggerDefeat()
@@ -143,16 +138,33 @@ namespace ForjaGame.Core
         public void AcceptVictory() => CompleteEndScreenAndTeleportToInitialSpawn();
         public void AcceptDefeat() => CompleteEndScreenAndTeleportToInitialSpawn();
 
+        public void ReturnToMainMenu()
+        {
+            Time.timeScale = 1f; IsEndScreenOpen = false;
+            ForjaGame.UI.VictoryCreditsOverlay.HideAll();
+            ForjaGame.Speedrun.LANLeaderboardBroadcaster.Instance?.BroadcastLeaderboard();
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsListening)
+                Unity.Netcode.NetworkManager.Singleton.Shutdown();
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+        }
+
         private void CompleteEndScreenAndTeleportToInitialSpawn()
         {
             Time.timeScale = 1f;
             IsEndScreenOpen = false;
+            ForjaGame.UI.VictoryCreditsOverlay.HideAll();
 
             if (victoryPanel != null) victoryPanel.SetActive(false);
             if (defeatPanel != null) defeatPanel.SetActive(false);
 
             GameStateController.ChangeState(GameState.Exploration);
+            ReleaseAllOccupiedStations();
+            ForjaGame.Interaction.InteractionController.ResetAllInteractionControllers();
+            ForjaGame.UI.Core.UIPanelBase.CloseAllPanels();
+
             TeleportAllActivePlayersToMapOrigin();
+            Environment.ConsecrationAltarInteractable.LockAndHideSanctumAltar();
             ForjaGame.Resources.MineSpawnerController.Instance?.ResetAndRespawnCaveEnemies();
 
             if (!ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen)
@@ -190,8 +202,7 @@ namespace ForjaGame.Core
 
                 if (p.TryGetComponent<Rigidbody>(out var rb))
                 {
-                    rb.linearVelocity = Vector3.zero;
-                    rb.angularVelocity = Vector3.zero;
+                    if (!rb.isKinematic) { rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero; }
                     rb.position = targetPos;
                     rb.rotation = targetRot;
                 }

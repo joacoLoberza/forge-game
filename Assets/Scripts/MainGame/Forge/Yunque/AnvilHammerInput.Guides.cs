@@ -30,12 +30,14 @@ namespace ForjaGame.Forge
                 SetGuidesVisible(false, false);
                 return;
             }
-            if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame)
+            if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame
+                && (ForjaGame.UI.ForgeTutorialDirector.Instance == null || !ForjaGame.UI.ForgeTutorialDirector.Instance.IsTutorialActive))
             {
                 ForjaGame.Core.TutorialSettings.Toggle();
                 ForgeAudioSystem.PlayUITab();
             }
-            _showBlueprint = ForjaGame.Core.TutorialSettings.IsTutorialEnabled;
+            _showBlueprint = (ForjaGame.UI.ForgeTutorialDirector.Instance != null && ForjaGame.UI.ForgeTutorialDirector.Instance.IsTutorialActive)
+                || ForjaGame.Core.TutorialSettings.IsTutorialEnabled;
             _forceCursor = Mathf.PingPong(Time.time * 1.55f, 1.0f);
             bool showReticle = !isBusy && (_toolMode == AnvilToolMode.Hammer || _toolMode == AnvilToolMode.Polish) && !IsMouseOverUI();
             UpdateImpactReticle3D(showReticle);
@@ -47,19 +49,19 @@ namespace ForjaGame.Forge
             if (_forceCursor >= 0.68f && _forceCursor <= 0.88f)
             {
                 timingQuality = 1.0f;
-                _lastTimingFeedback = "<color=#FFE066><b>[GOLPE MAESTRO x1.32]</b></color>";
+                _lastTimingFeedback = "<color=#FFE066><b>[MASTER STRIKE x1.32]</b></color>";
                 _lastTimingFeedbackUntil = Time.time + 1.2f;
                 return 1.32f;
             }
             if (_forceCursor >= 0.38f && _forceCursor <= 0.94f)
             {
                 timingQuality = 0.72f;
-                _lastTimingFeedback = "<color=#66F09A><b>Golpe Firme (x1.00)</b></color>";
+                _lastTimingFeedback = "<color=#66F09A><b>Solid Strike (x1.00)</b></color>";
                 _lastTimingFeedbackUntil = Time.time + 0.95f;
                 return 1.00f;
             }
             timingQuality = 0.35f;
-            _lastTimingFeedback = "<color=#F09B59>Golpe Débil (x0.64)</color>";
+            _lastTimingFeedback = "<color=#F09B59>Weak Strike (x0.64)</color>";
             _lastTimingFeedbackUntil = Time.time + 0.95f;
             return 0.64f;
         }
@@ -69,7 +71,7 @@ namespace ForjaGame.Forge
             EnsureUIStyles(); EnsureLineTexture();
             float barCardW = 540f, barCardH = 40f, cx = hudX + (hudW - barCardW) * 0.5f, cy = hudY - barCardH - 8f;
             GUI.Box(new Rect(cx, cy, barCardW, barCardH), GUIContent.none, _tabInactiveStyle);
-            GUI.Label(new Rect(cx + 12f, cy + 8f, 118f, 24f), "<b><color=#F5E4C3>FUERZA [Click]</color></b>", _tabInactiveStyle);
+            GUI.Label(new Rect(cx + 12f, cy + 8f, 118f, 24f), "<b><color=#F5E4C3>POWER [Click]</color></b>", _tabInactiveStyle);
 
             Rect meter = new Rect(cx + 132f, cy + 12f, 220f, 16f);
             GUI.color = new Color(0.12f, 0.08f, 0.06f, 0.95f); GUI.DrawTexture(meter, _lineTexture);
@@ -77,7 +79,7 @@ namespace ForjaGame.Forge
             GUI.color = new Color(0.96f, 0.78f, 0.20f, 0.96f); GUI.DrawTexture(new Rect(meter.x + meter.width * 0.68f, meter.y + 1f, meter.width * 0.20f, meter.height - 2f), _lineTexture);
             GUI.color = Color.white; GUI.DrawTexture(new Rect(meter.x + _forceCursor * (meter.width - 4f), meter.y - 3f, 4f, meter.height + 6f), _lineTexture);
 
-            string rightStatus = Time.time < _lastTimingFeedbackUntil ? _lastTimingFeedback : $"<color=#D8C8AE>[G] Guía: {(_showBlueprint ? "ON" : "OFF")}</color>";
+            string rightStatus = Time.time < _lastTimingFeedbackUntil ? _lastTimingFeedback : $"<color=#D8C8AE>[G] Guide: {(_showBlueprint ? "ON" : "OFF")}</color>";
             GUI.Label(new Rect(cx + 360f, cy + 8f, 172f, 24f), rightStatus, _tabInactiveStyle);
         }
 

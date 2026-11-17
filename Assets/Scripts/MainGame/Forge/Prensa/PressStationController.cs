@@ -15,7 +15,24 @@ namespace ForjaGame.Forge
         private PressMechanicalVisual _pressVisual;
 
         public PressController Press => pressController;
-        public override string InteractionPrompt => "Operar Prensa";
+        public override string InteractionPrompt
+        {
+            get
+            {
+                if (ForjaGame.Core.TutorialSettings.IsTutorialEnabled)
+                {
+                    var tut = ForjaGame.UI.ForgeTutorialDirector.Instance;
+                    if (tut != null && tut.IsTutorialActive)
+                    {
+                        if (!tut.CanInteractWithStation(this, out string tutMsg)) return tutMsg;
+                        var inv = ForjaGame.Inventory.InventoryController.LocalInstance;
+                        bool hasBloom = (pressController != null && pressController.HasBloom) || (inv != null && inv.Blooms != null && inv.Blooms.Count > 0);
+                        if (!hasBloom) return "WARNING! You have no Bloom. Return to the Furnace";
+                    }
+                }
+                return "Operate Mechanical Press";
+            }
+        }
 
         private void Awake()
         {

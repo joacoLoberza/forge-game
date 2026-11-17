@@ -157,7 +157,21 @@ namespace ForjaGame.UI
             Color gold = new Color(0.85f, 0.68f, 0.22f);
             Color wood = new Color(0.50f, 0.32f, 0.16f);
 
-            if (id.Contains("axe") || id.Contains("hacha"))
+            if (id.Contains("pick") || id.Contains("pico"))
+            {
+                // Mango diagonal de pico
+                for (int t = 12; t <= 50; t++) SetThickDot(px, t, t, wood, 1);
+                // Cabeza curva arqueada con puntas afiladas
+                for (int a = -14; a <= 14; a++)
+                {
+                    int hx = 43 - a;
+                    int hy = 43 + a - (a * a) / 14;
+                    int r = Mathf.Abs(a) >= 11 ? 0 : (Mathf.Abs(a) <= 4 ? 2 : 1);
+                    SetThickDot(px, hx, hy, Mathf.Abs(a) >= 10 ? steel : darkSteel, r);
+                }
+                SetThickDot(px, 43, 43, steel, 2);
+            }
+            else if (id.Contains("axe") || id.Contains("hacha"))
             {
                 // Mango diagonal
                 for (int t = 14; t <= 50; t++) SetThickDot(px, t, t, wood, 1);
@@ -173,16 +187,6 @@ namespace ForjaGame.UI
                 for (int y = 38; y <= 52; y++)
                     for (int x = 26; x <= 48; x++)
                         if (Mathf.Abs((x - 37) - (y - 45)) <= 6) SetDot(px, x, y, steel);
-            }
-            else if (id.Contains("pick") || id.Contains("pico"))
-            {
-                for (int t = 14; t <= 50; t++) SetThickDot(px, t, t, wood, 1);
-                // Cabeza curva de pico
-                for (int a = -10; a <= 10; a++)
-                {
-                    int hx = 42 - a, hy = 42 + a - (a * a) / 14;
-                    SetThickDot(px, hx, hy, steel, 1);
-                }
             }
             else // Espada o Daga por defecto
             {

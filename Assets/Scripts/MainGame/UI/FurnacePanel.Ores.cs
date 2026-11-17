@@ -17,9 +17,9 @@ namespace ForjaGame.UI
             Transform targetContent = ForgeScrollViewStyler.ResolveContentContainer(oresContainer);
             ForgeScrollViewStyler.ConfigureFixedScrollView(targetContent);
 
-            foreach (Transform child in targetContent)
-                Destroy(child.gameObject);
+            foreach (Transform child in targetContent) Destroy(child.gameObject);
 
+            if (emptyOresNotice != null) ForgeScrollViewStyler.StyleEmptyNotice(emptyOresNotice, "No ores in inventory.\nExplore the mine to extract ore veins!");
             InventoryController inventory = GetCurrentPlayerInventory();
             if (inventory == null || inventory.RawMaterials == null || inventory.RawMaterials.Count == 0)
             {
@@ -59,27 +59,28 @@ namespace ForjaGame.UI
 
             if (furnaceController.IsSmeltInProgress || furnaceController.SmeltProgress > 0f)
             {
-                SetStatus("No puedes seleccionar minerales mientras la fundición está en curso.");
+                SetStatus("Cannot select ores while smelting is in progress.");
                 return;
             }
 
             if (furnaceController.UnclaimedBloom != null || _readyBloom != null)
             {
-                SetStatus("¡Primero debes sacar la Lupa de la parte inferior del horno!");
+                SetStatus("You must extract the Bloom from the furnace bottom first!");
                 return;
             }
 
             int combinedTotal = furnaceController.GetTotalOreCount() + _stagedOres.Count;
-            int available = 9 - combinedTotal;
+            bool inTut = ForgeTutorialDirector.Instance != null && ForgeTutorialDirector.Instance.IsTutorialActive;
+            int available = (inTut ? 3 : 9) - combinedTotal;
             if (available <= 0)
             {
-                SetStatus("Límite máximo de 9 minerales alcanzado. Pulsa 'Ingresar minerales'.");
+                SetStatus(inTut ? "3 ores staged! Click 'Insert Ores' to load the crucible." : "Maximum 9 ores reached. Click 'Insert Ores'.");
                 return;
             }
 
             if (!HasMetalInCombinedSet(metal) && CountCombinedDistinctMetals() >= 3)
             {
-                SetStatus("Límite de aleación: máximo 3 tipos distintos de mineral.");
+                SetStatus("Alloy limit: maximum 3 distinct ore types.");
                 return;
             }
 
@@ -95,20 +96,21 @@ namespace ForjaGame.UI
 
             if (inventory == null || !inventory.HasItem(mineralId, count))
             {
-                SetStatus($"No tienes suficiente {RawMaterialCatalog.GetDisplayName(mineralId)}.");
+                SetStatus($"Not enough {RawMaterialCatalog.GetDisplayName(mineralId)}.");
                 return;
             }
 
             if (inventory.RemoveItem(mineralId, count))
             {
                 for (int i = 0; i < count; i++) _stagedOres.Add(metal);
+                ForjaGame.Audio.ForgeAudioSystem.PlayItemSelect();
                 _visualController?.UpdateStagedOresPreview(_stagedOres);
 
                 int newTotal = furnaceController.GetTotalOreCount() + _stagedOres.Count;
                 string hint = (newTotal % 3 == 0)
-                    ? $"¡Múltiplo de {newTotal} listo! Pulsa 'Ingresar minerales'."
-                    : $"Faltan {3 - (newTotal % 3)} para múltiplo de 3 (3, 6 o 9).";
-                SetStatus($"Seleccionado {RawMaterialCatalog.GetDisplayName(mineralId)} (+{count}). {hint}");
+                    ? $"{newTotal} ores ready! Click 'Insert Ores'."
+                    : $"Need {3 - (newTotal % 3)} more to reach a multiple of 3 (3, 6 or 9).";
+                SetStatus($"Selected {RawMaterialCatalog.GetDisplayName(mineralId)} (+{count}). {hint}");
 
                 _lastDisplayedOreHash = int.MinValue;
                 UpdateDisplay();
@@ -121,13 +123,13 @@ namespace ForjaGame.UI
             if (furnaceController == null) return;
             if (_stagedOres.Count == 0)
             {
-                SetStatus("Selecciona 3, 6 o 9 minerales primero para ingresarlos por arriba.");
+                SetStatus("Select 3, 6 or 9 ores first to insert into the crucible.");
                 return;
             }
 
             if (furnaceController.IsSmeltInProgress || furnaceController.UnclaimedBloom != null)
             {
-                SetStatus("Espera a que termine el proceso o saca la Lupa inferior.");
+                SetStatus("Wait for smelting to complete or extract the bottom Bloom.");
                 return;
             }
 
@@ -135,7 +137,7 @@ namespace ForjaGame.UI
             if (combined < 3 || (combined % 3) != 0)
             {
                 int missing = 3 - (combined % 3);
-                SetStatus($"Solo puedes ingresar minerales en múltiplos de 3 (3, 6 o 9). Faltan {missing}.");
+                SetStatus($"Ores must be inserted in multiples of 3 (3, 6, 9). Need {missing} more.");
                 return;
             }
 
@@ -154,12 +156,13 @@ namespace ForjaGame.UI
             _stagedOres.Clear();
             if (committed.Count > 0)
             {
+                ForjaGame.Audio.ForgeAudioSystem.PlayCoalAction(transform.position);
                 _visualController?.PlayInsertOresTopAnimation(committed);
                 stationController?.NotifyTopOreInsertion(1.35f);
                 int total = furnaceController.GetTotalOreCount();
                 string sizeHint = (total % 3 == 0)
-                    ? $"¡{total} minerales en el crisol! Añade Carbón [Shift] para calentar."
-                    : $"Ingresados {committed.Count} minerales ({total}/9). Añade {3 - (total % 3)} más para fundir.";
+                    ? $"{total} ores in crucible! Add Coal [Shift] to heat."
+                    : $"Inserted {committed.Count} ores ({total}/9). Add {3 - (total % 3)} more to smelt.";
                 SetStatus(sizeHint);
             }
 
@@ -170,15 +173,16 @@ namespace ForjaGame.UI
 
         private void OnExtractLastOreClicked()
         {
-            if (furnaceController == null) return;
+            if (furnaceController == null || (ForgeTutorialDirector.Instance != null && ForgeTutorialDirector.Instance.IsTutorialActive)) return;
 
             if (_stagedOres.Count > 0)
             {
                 MetalType removed = _stagedOres[_stagedOres.Count - 1];
                 _stagedOres.RemoveAt(_stagedOres.Count - 1);
                 GetCurrentPlayerInventory()?.AddItem(removed.ToString(), 1);
+                ForjaGame.Audio.ForgeAudioSystem.PlayCoalAction(transform.position);
                 _visualController?.UpdateStagedOresPreview(_stagedOres);
-                SetStatus($"Quitado {RawMaterialCatalog.GetDisplayName(removed.ToString())} de la selección.");
+                SetStatus($"Removed {RawMaterialCatalog.GetDisplayName(removed.ToString())} from staging.");
                 _lastDisplayedOreHash = int.MinValue;
                 UpdateDisplay();
                 RefreshOresList();
@@ -187,7 +191,7 @@ namespace ForjaGame.UI
 
             if (furnaceController.IsSmeltInProgress || furnaceController.SmeltProgress > 0f)
             {
-                SetStatus("No se pueden retirar minerales con la fundición iniciada.");
+                SetStatus("Cannot remove ores while smelting is in progress.");
                 return;
             }
 
@@ -195,14 +199,15 @@ namespace ForjaGame.UI
             if (extracted.HasValue)
             {
                 GetCurrentPlayerInventory()?.AddItem(extracted.Value.ToString(), 1);
-                SetStatus($"Retirado 1 {RawMaterialCatalog.GetDisplayName(extracted.Value.ToString())} al inventario.");
+                ForjaGame.Audio.ForgeAudioSystem.PlayCoalAction(transform.position);
+                SetStatus($"Returned 1 {RawMaterialCatalog.GetDisplayName(extracted.Value.ToString())} to inventory.");
                 _lastDisplayedOreHash = int.MinValue;
                 UpdateDisplay();
                 RefreshOresList();
             }
             else
             {
-                SetStatus("No hay minerales seleccionados ni dentro del horno.");
+                SetStatus("No ores staged or inside furnace.");
             }
         }
 
@@ -216,18 +221,13 @@ namespace ForjaGame.UI
             _visualController?.UpdateStagedOresPreview(_stagedOres);
         }
 
-        private bool HasMetalInCombinedSet(MetalType metal)
-        {
-            if (furnaceController != null && furnaceController.InsertedOres.TryGetValue(metal, out int c) && c > 0) return true;
-            return _stagedOres.Contains(metal);
-        }
+        private bool HasMetalInCombinedSet(MetalType metal) =>
+            (furnaceController != null && furnaceController.InsertedOres.TryGetValue(metal, out int c) && c > 0) || _stagedOres.Contains(metal);
 
         private int CountCombinedDistinctMetals()
         {
             HashSet<MetalType> set = new();
-            if (furnaceController != null)
-                foreach (var kvp in furnaceController.InsertedOres)
-                    if (kvp.Value > 0) set.Add(kvp.Key);
+            if (furnaceController != null) foreach (var kvp in furnaceController.InsertedOres) if (kvp.Value > 0) set.Add(kvp.Key);
             for (int i = 0; i < _stagedOres.Count; i++) set.Add(_stagedOres[i]);
             return set.Count;
         }

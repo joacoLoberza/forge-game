@@ -76,6 +76,7 @@ namespace ForjaGame.EditorTools
             root.AddComponent<InventoryController>();
             root.AddComponent<PlayerHealthController>();
             var move = root.AddComponent<PlayerMovement>();
+            root.AddComponent<PlayerRollController>();
             var attack = root.AddComponent<AttackController>();
             var equip = root.AddComponent<PlayerEquipmentController>();
             root.AddComponent<InteractionController>();

@@ -102,6 +102,7 @@ namespace ForjaGame.Interaction
 
         public void Interact()
         {
+            if (ForjaGame.UI.PauseMenuPanel.IsGamePaused) return;
             // Solo procesar si fue invocado desde un punto de entrada validado
             if (!_validatedInteract && _playerInput == null)
             {
@@ -116,10 +117,12 @@ namespace ForjaGame.Interaction
             _lastInteractFrame = Time.frameCount;
             _lastInteractTime = Time.unscaledTime;
 
-            // Si el jugador ya está ocupando una estación de forja, presionar nuevamente la tecla la cierra
+            // Si el jugador ya está ocupando una estación de forja, presionar nuevamente la tecla la cierra (salvo bloqueo guiado del tutorial)
             var occupiedStation = ForjaGame.Forge.BaseForgeStationController.GetStationOccupiedBy(gameObject);
             if (occupiedStation != null)
             {
+                if (ForjaGame.UI.ForgeTutorialDirector.Instance != null && !ForjaGame.UI.ForgeTutorialDirector.Instance.CanReleaseOccupiedStation(occupiedStation))
+                    return;
                 occupiedStation.ReleaseStation();
                 return;
             }
@@ -182,12 +185,26 @@ namespace ForjaGame.Interaction
             return best;
         }
 
+        public void ResetInteractionState()
+        {
+            _triggerInteractables.Clear();
+            _currentTarget = null;
+            _lastInteractTime = -1f;
+            _lastInteractFrame = -1;
+        }
+
+        public static void ResetAllInteractionControllers()
+        {
+            foreach (var ic in FindObjectsByType<InteractionController>(FindObjectsSortMode.None))
+                ic.ResetInteractionState();
+        }
+
         private void OnGUI()
         {
             var netObj = GetComponent<Unity.Netcode.NetworkObject>();
             if (netObj != null && !netObj.IsOwner) return;
 
-            if (_currentTarget == null || Cursor.lockState == CursorLockMode.None) return;
+            if (_currentTarget == null || !_currentTarget.CanInteract(gameObject) || ForjaGame.Core.GameLoopController.IsEndScreenOpen || Cursor.lockState == CursorLockMode.None) return;
 
             if (_promptStyle == null)
             {

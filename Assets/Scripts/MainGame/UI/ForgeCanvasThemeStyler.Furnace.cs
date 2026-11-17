@@ -15,66 +15,50 @@ namespace ForjaGame.UI
             var rootImg = root.GetComponent<Image>();
             if (rootImg != null) rootImg.enabled = false;
 
-            CreateOrGetTitleBanner(root, "FurnaceTopTitlePlaque", "HORNO DE FUNDICIÓN",
+            ScrollRect oreScroll = panel.GetComponentInChildren<ScrollRect>(true);
+            Slider tempSlider = panel.TemperatureSlider, progSlider = panel.ProgressSlider;
+            if (tempSlider == null || progSlider == null)
+                foreach (var s in panel.GetComponentsInChildren<Slider>(true))
+                    if (s.name.ToLowerInvariant().Contains("temp")) tempSlider = s; else progSlider = s;
+
+            CreateOrGetTitleBanner(root, "FurnaceTopTitlePlaque", "SMELTING FURNACE",
                 new Vector2(0f, -14f), new Vector2(440f, 52f), fontSize: 22f, topAnchored: true);
 
             RectTransform leftBody = CreateOrGetParchmentCard(root, "LeftFurnaceCard", new Vector2(-665f, -32f), new Vector2(480f, 820f));
             RectTransform rightBody = CreateOrGetParchmentCard(root, "RightFurnaceCard", new Vector2(665f, -32f), new Vector2(480f, 820f));
 
-            CreateOrGetTitleBanner(leftBody, "LeftFurnaceHeader", "MINERALES EN BRUTO",
+            CreateOrGetTitleBanner(leftBody, "LeftFurnaceHeader", "RAW ORES",
                 new Vector2(0f, 355f), new Vector2(400f, 42f), fontSize: 17f);
 
-            CreateOrGetTitleBanner(rightBody, "RightFurnaceHeader", "CONTROL TÉRMICO Y FUSIÓN",
+            CreateOrGetTitleBanner(rightBody, "RightFurnaceHeader", "THERMAL CONTROL & SMELTING",
                 new Vector2(0f, 355f), new Vector2(400f, 42f), fontSize: 17f);
 
-            ScrollRect oreScroll = panel.GetComponentInChildren<ScrollRect>(true);
             if (oreScroll != null)
             {
-                Transform selSection = oreScroll.transform.parent != root && oreScroll.transform.parent != leftBody
-                    ? oreScroll.transform.parent : oreScroll.transform;
-                selSection.SetParent(leftBody, false);
-                var secRt = selSection.GetComponent<RectTransform>();
-                if (secRt != null)
-                {
-                    secRt.localRotation = Quaternion.identity; secRt.localScale = Vector3.one;
-                    secRt.anchorMin = secRt.anchorMax = secRt.pivot = new Vector2(0.5f, 0.5f);
-                    secRt.anchoredPosition = new Vector2(0f, 160f);
-                    secRt.sizeDelta = new Vector2(400f, 300f);
-                }
-
+                oreScroll.gameObject.SetActive(true);
+                oreScroll.transform.SetParent(leftBody, false);
                 var sRt = oreScroll.GetComponent<RectTransform>();
                 sRt.localRotation = Quaternion.identity; sRt.localScale = Vector3.one;
                 sRt.anchorMin = sRt.anchorMax = sRt.pivot = new Vector2(0.5f, 0.5f);
-                sRt.anchoredPosition = Vector2.zero;
+                sRt.anchoredPosition = new Vector2(0f, 160f);
                 sRt.sizeDelta = new Vector2(400f, 300f);
 
                 var sImg = oreScroll.GetComponent<Image>() ?? oreScroll.gameObject.AddComponent<Image>();
                 sImg.sprite = BookTextureBuilder.GetParchmentBannerSprite();
                 sImg.type = Image.Type.Sliced;
                 sImg.color = new Color(0.91f, 0.86f, 0.77f, 0.95f);
-            }
-
-            // Limpieza estricta de notas duplicadas heredadas en la jerarquía izquierda
-            foreach (var hint in leftBody.GetComponentsInChildren<Transform>(true))
-            {
-                if (hint != null && hint != leftBody && hint.name == "LeftControlsHint" && hint.parent != leftBody)
-                {
-                    if (Application.isPlaying) Object.Destroy(hint.gameObject);
-                    else Object.DestroyImmediate(hint.gameObject);
-                }
+                ForgeScrollViewStyler.StyleScrollRectVisuals(oreScroll);
             }
 
             if (panel.OreCountText != null)
                 PlaceBodyText(panel.OreCountText, leftBody, new Vector2(0f, -14f), new Vector2(400f, 34f), 14f, TextAlignmentOptions.Center, DarkInk, bold: true);
-
             if (panel.InsertOresButton != null)
                 StyleForgeButton(panel.InsertOresButton, primary: true, leftBody, new Vector2(0f, -62f), new Vector2(400f, 44f));
-
             if (panel.ExtractOreButton != null)
                 StyleForgeButton(panel.ExtractOreButton, primary: false, leftBody, new Vector2(0f, -114f), new Vector2(400f, 40f));
 
             EnsureHelperNote(leftBody, "LeftControlsHint",
-                "• Clic: seleccionar mineral  |  Shift+Clic: lote x3",
+                "• Click: select ore  |  Shift+Click: batch x3",
                 new Vector2(0f, -345f), new Vector2(400f, 34f));
 
             // Tarjeta Derecha: Temperatura + Rango objetivo perfectamente separados
@@ -83,16 +67,6 @@ namespace ForjaGame.UI
 
             if (panel.TargetRangeText != null)
                 PlaceBodyText(panel.TargetRangeText, rightBody, new Vector2(82f, 304f), new Vector2(236f, 40f), 13.5f, TextAlignmentOptions.Right, SubInk, bold: true);
-
-            Slider tempSlider = panel.TemperatureSlider, progSlider = panel.ProgressSlider;
-            if (tempSlider == null || progSlider == null)
-            {
-                foreach (var s in panel.GetComponentsInChildren<Slider>(true))
-                {
-                    if (s.name.ToLowerInvariant().Contains("temp")) tempSlider = s;
-                    else progSlider = s;
-                }
-            }
 
             if (tempSlider != null)
             {
@@ -115,10 +89,10 @@ namespace ForjaGame.UI
                 StyleForgeButton(panel.AddCoalButton, primary: true, rightBody, new Vector2(0f, 158f), new Vector2(400f, 48f));
 
             EnsureHelperNote(rightBody, "RightVentHint",
-                "Timing: [Shift] Sube calor rápido  |  [Espacio] Fuelle baja aún más rápido",
+                "Timing: [Shift] Heat up quickly  |  [Space] Bellows cool down rapidly",
                 new Vector2(0f, 102f), new Vector2(400f, 48f));
 
-            CreateOrGetTitleBanner(rightBody, "ProgressSubHeader", "PROGRESO DE FUNDICIÓN",
+            CreateOrGetTitleBanner(rightBody, "ProgressSubHeader", "SMELTING PROGRESS",
                 new Vector2(0f, 38f), new Vector2(390f, 36f), fontSize: 15f);
 
             if (progSlider != null)
@@ -136,10 +110,41 @@ namespace ForjaGame.UI
                 PlaceInsetStatusBox(panel.StatusText, rightBody, new Vector2(0f, -108f), new Vector2(400f, 82f));
 
             if (panel.ExtractBloomButton != null)
+            {
                 StyleForgeButton(panel.ExtractBloomButton, primary: true, rightBody, new Vector2(0f, -208f), new Vector2(400f, 50f));
+                SetButtonText(panel.ExtractBloomButton, "Extract Bloom");
+            }
 
             if (panel.CloseButton != null)
-                StyleForgeButton(panel.CloseButton, primary: false, rightBody, new Vector2(0f, -335f), new Vector2(240f, 42f));
+            {
+                StyleCloseButton(panel.CloseButton, rightBody, new Vector2(0f, -335f), topRightCorner: false, label: "Close");
+            }
+            SetButtonText(panel.InsertOresButton, "Insert Ores");
+            SetButtonText(panel.ExtractOreButton, "Remove Ore");
+            panel.UpdateThermalButton();
+
+            RemoveLegacyNodeIfUnused(root.Find("RightStationCard"), oreScroll, tempSlider, progSlider);
+            RemoveLegacyNodeIfUnused(root.Find("LeftStationCard"), oreScroll, tempSlider, progSlider);
+            RemoveLegacyNodeIfUnused(leftBody.Find("ParchmentBody"), oreScroll, tempSlider, progSlider);
+            RemoveLegacyNodeIfUnused(rightBody.Find("ParchmentBody"), oreScroll, tempSlider, progSlider);
+            foreach (var tr in root.GetComponentsInChildren<Transform>(true))
+                if (tr != null && tr.parent == root && tr.name != "FurnaceTopTitlePlaque" && tr.name != "LeftFurnaceCard" && tr.name != "RightFurnaceCard" && tr.GetComponent<TMP_Text>() != null)
+                    tr.gameObject.SetActive(false);
+        }
+
+        private static void SetButtonText(Button btn, string label)
+        {
+            var t = btn != null ? btn.GetComponentInChildren<TMP_Text>(true) : null;
+            if (t != null) t.text = label;
+        }
+
+        private static void RemoveLegacyNodeIfUnused(Transform t, ScrollRect oreScroll, Slider s1, Slider s2)
+        {
+            if (t == null) return;
+            if ((oreScroll != null && oreScroll.transform.IsChildOf(t)) || (s1 != null && s1.transform.IsChildOf(t)) || (s2 != null && s2.transform.IsChildOf(t))) return;
+            t.gameObject.SetActive(false);
+            if (Application.isPlaying) Object.Destroy(t.gameObject);
+            else Object.DestroyImmediate(t.gameObject);
         }
 
         private static void PlaceBodyText(TMP_Text t, Transform parent, Vector2 pos, Vector2 size, float fontSize, TextAlignmentOptions align, Color color, bool bold = false)

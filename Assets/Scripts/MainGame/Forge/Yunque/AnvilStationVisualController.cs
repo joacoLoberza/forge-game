@@ -37,6 +37,13 @@ namespace ForjaGame.Forge
         {
             Instance = this;
             ResolveReferences();
+            Transform existing = transform.Find("AnvilTools3D_Visual");
+            if (existing != null)
+            {
+                existing.gameObject.SetActive(false);
+                if (Application.isPlaying) Destroy(existing.gameObject);
+                else DestroyImmediate(existing.gameObject);
+            }
         }
 
         private void Start() => EnsureBuilt();
@@ -62,6 +69,7 @@ namespace ForjaGame.Forge
                 Transform existing = transform.Find("AnvilTools3D_Visual");
                 if (existing != null)
                 {
+                    existing.gameObject.SetActive(false);
                     if (Application.isPlaying) Destroy(existing.gameObject);
                     else DestroyImmediate(existing.gameObject);
                 }

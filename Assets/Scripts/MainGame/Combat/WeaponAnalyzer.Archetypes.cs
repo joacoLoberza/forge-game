@@ -16,7 +16,7 @@ namespace ForjaGame.Combat
                 if (type == WeaponType.Axe || mass >= 2.6f) caps |= WeaponCapabilities.CanChop;
             }
 
-            if (headType == HeadType.Point || (type == WeaponType.Sword && headLen >= 0.35f))
+            if (headType == HeadType.Point || type == WeaponType.Sword)
                 caps |= WeaponCapabilities.CanThrust;
 
             if (headType == HeadType.Blunt || type == WeaponType.Hammer || mass >= 3.2f)
@@ -34,19 +34,30 @@ namespace ForjaGame.Combat
         private static WeaponArchetype DetermineArchetype(
             WeaponStats weapon, float totalMass, float handleLen, float totalLen, WeaponCapabilities caps)
         {
-            if (weapon == null) return WeaponArchetype.Sword1H;
-            if (weapon.weaponType == WeaponType.Pickaxe) return WeaponArchetype.Hammer1H;
-
-            // Sincronizar estrictamente el arquetipo de combo con el estilo morfológico 1H / 2H / Polearm
-            WeaponAnimationStyle style = weapon.GetAnimationStyle();
-            return style switch
+            if (weapon == null) return WeaponArchetype.SwordMed;
+            if (weapon.weaponType == WeaponType.Pickaxe) return WeaponArchetype.Pickaxe;
+            bool heavyLarge = weapon.ingotSize == ItemSize.Large && weapon.handleLength != HandleLength.Short;
+            return weapon.weaponType switch
             {
-                WeaponAnimationStyle.Polearm => WeaponArchetype.Polearm,
-                WeaponAnimationStyle.Heavy2H => WeaponArchetype.Heavy2H,
-                WeaponAnimationStyle.Dagger1H => WeaponArchetype.Dagger,
-                WeaponAnimationStyle.Axe1H => WeaponArchetype.Axe1H,
-                WeaponAnimationStyle.Hammer1H => WeaponArchetype.Hammer1H,
-                _ => WeaponArchetype.Sword1H
+                WeaponType.Sword => weapon.handleLength switch
+                {
+                    HandleLength.Short => WeaponArchetype.SwordShort,
+                    HandleLength.Long => WeaponArchetype.SwordLong,
+                    _ => heavyLarge ? WeaponArchetype.SwordLong : WeaponArchetype.SwordMed
+                },
+                WeaponType.Axe => weapon.handleLength switch
+                {
+                    HandleLength.Short => WeaponArchetype.AxeShort,
+                    HandleLength.Long => WeaponArchetype.AxeLong,
+                    _ => heavyLarge ? WeaponArchetype.AxeLong : WeaponArchetype.AxeMed
+                },
+                WeaponType.Hammer => weapon.handleLength switch
+                {
+                    HandleLength.Short => WeaponArchetype.HammerShort,
+                    HandleLength.Long => WeaponArchetype.HammerLong,
+                    _ => heavyLarge ? WeaponArchetype.HammerLong : WeaponArchetype.HammerMed
+                },
+                _ => WeaponArchetype.SwordMed
             };
         }
 

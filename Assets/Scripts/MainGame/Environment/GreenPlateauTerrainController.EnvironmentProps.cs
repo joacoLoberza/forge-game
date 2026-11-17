@@ -11,7 +11,7 @@ namespace ForjaGame.Environment
     /// </summary>
     public partial class GreenPlateauTerrainController
     {
-        private const string PlateauDetailsVersionTag = "PlateauMountainMassif_V3";
+        private const string PlateauDetailsVersionTag = "PlateauMountainMassif_V5";
         private static Texture2D _mountainGraniteTex;
 
         public static void CleanPreviousEnvironmentProps()
@@ -88,8 +88,8 @@ namespace ForjaGame.Environment
 
         private static void BuildContinuousMountainMassif(Transform root, Shader lit)
         {
-            const int xSteps = 76, zSteps = 84;
-            const float xHalf = 94.0f, zStart = CaveDungeonBuilder.CaveEntranceZ, zEnd = 242.0f;
+            const int xSteps = 76, zSteps = 34;
+            const float xHalf = 112.0f, zStart = CaveDungeonBuilder.CaveEntranceZ, zEnd = 88.0f;
 
             Vector3[,] grid = new Vector3[zSteps + 1, xSteps + 1];
             for (int iz = 0; iz <= zSteps; iz++)
@@ -101,12 +101,8 @@ namespace ForjaGame.Environment
                 {
                     float tx = ix / (float)xSteps;
                     float x = Mathf.Lerp(-xHalf, xHalf, tx);
-                    float z = iz == 0 && Mathf.Abs(x) > 6.3f
-                        ? zBase - Mathf.Sin(Mathf.Abs(x) * 0.12f) * 2.2f * Mathf.Clamp01((Mathf.Abs(x) - 6.3f) / 10f)
-                        : zBase;
-
-                    float y = SampleMountainElevation(x, z, iz, zSteps, xHalf);
-                    grid[iz, ix] = new Vector3(x, y, z);
+                    float y = SampleMountainElevation(x, zBase, iz, zSteps, xHalf);
+                    grid[iz, ix] = new Vector3(x, y, zBase);
                 }
             }
 
@@ -131,7 +127,7 @@ namespace ForjaGame.Environment
                 }
             }
 
-            Mesh m = new Mesh { name = "AlpineMountainMassif_V3", indexFormat = IndexFormat.UInt32 };
+            Mesh m = new Mesh { name = "AlpineMountainMassif_V4", indexFormat = IndexFormat.UInt32 };
             m.vertices = verts; m.uv = uvs; m.colors = cols; m.triangles = tris;
             m.RecalculateNormals(); m.RecalculateBounds();
 
@@ -145,32 +141,32 @@ namespace ForjaGame.Environment
         private static float SampleMountainElevation(float x, float z, int iz, int zSteps, float xHalf)
         {
             float absX = Mathf.Abs(x);
-            // Borde frontal exacto en Z = 28: traza el arco exterior de la cueva dejando 100% libre el acceso
+            // 1. Fusión frontal exacta en Z = 28m con el piso de pasto y la boca de la cueva
             if (iz == 0)
             {
-                if (absX <= 6.22f)
+                if (absX <= 4.45f)
                 {
-                    float u = Mathf.Clamp01(absX / 6.22f);
-                    return 0.08f + Mathf.Sqrt(Mathf.Max(0f, 1f - u * u)) * 6.82f;
+                    float u = Mathf.Clamp01(absX / 4.45f);
+                    return 0.045f + Mathf.Sqrt(Mathf.Max(0f, 1f - u * u)) * 5.40f;
                 }
-                return -2.2f;
+                return GetSimpleHeight(x, 28.0f, 3.6f) - 0.05f;
             }
-            if (iz == zSteps || absX >= xHalf - 0.5f) return -2.4f;
+            if (absX >= xHalf - 0.5f) return GetSimpleHeight(x, z, 3.6f) - 0.14f;
 
-            // Ruido multifractal de aristas rocosas reales (crestas agudas, no semicírculos)
+            // 2. Ruido multifractal de crestas rocosas
             float r1 = 1f - Mathf.Abs(Mathf.PerlinNoise(x * 0.026f + 13.4f, z * 0.022f + 7.1f) * 2f - 1f);
             float r2 = 1f - Mathf.Abs(Mathf.PerlinNoise(x * 0.064f + 31.2f, z * 0.058f + 19.8f) * 2f - 1f);
             float r3 = Mathf.PerlinNoise(x * 0.14f + 5.5f, z * 0.14f + 41.0f);
-            float ridge = r1 * r1 * 24.0f + r2 * 9.5f + r3 * 3.4f;
+            float ridge = r1 * r1 * 26.0f + r2 * 10.5f + r3 * 3.6f;
 
-            float frontRise = Mathf.SmoothStep(0f, 1f, (z - CaveDungeonBuilder.CaveEntranceZ) / 22.0f);
-            float backFall = 1f - Mathf.SmoothStep(0f, 1f, (z - 216f) / 26.0f);
-            float sideFall = 1f - Mathf.SmoothStep(0f, 1f, (absX - 42f) / (xHalf - 42f));
-            float envelope = frontRise * backFall * sideFall;
+            float frontRise = Mathf.SmoothStep(0f, 1f, (z - CaveDungeonBuilder.CaveEntranceZ) / 14.0f);
+            float sideFall = 1f - Mathf.SmoothStep(0f, 1f, (absX - 48f) / (xHalf - 48f));
+            float envelope = frontRise * sideFall;
 
-            float rawH = -2.0f + (12.5f + ridge) * envelope;
+            float baseH = GetSimpleHeight(x, 28.0f, 3.6f);
+            float rawH = baseH + (16.0f + ridge) * envelope;
 
-            // Garantizar espesor de roca maciza sobre toda la bóveda de la cueva
+            // 3. Garantizar espesor de roca maciza sobre la bóveda inicial de la cueva
             if (z <= CaveDungeonBuilder.CaveEndZ + 4f)
             {
                 float sx = CaveDungeonBuilder.GetSpineX(z);
@@ -178,8 +174,8 @@ namespace ForjaGame.Environment
                 float overCave = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Max(0f, Mathf.Abs(x - sx) - hw) / 10f);
                 if (overCave > 0.001f)
                 {
-                    float minRoof = CaveDungeonBuilder.GetSpineFloorY(z) + CaveDungeonBuilder.GetCeilingHeightAtZ(z) + 3.2f;
-                    rawH = Mathf.Max(rawH, Mathf.Lerp(-1.5f, minRoof + r2 * 5.5f, overCave));
+                    float minRoof = CaveDungeonBuilder.GetSpineFloorY(z) + CaveDungeonBuilder.GetCeilingHeightAtZ(z) + 6.5f;
+                    rawH = Mathf.Max(rawH, Mathf.Lerp(baseH, minRoof + 2.5f + r2 * 4.0f, overCave));
                 }
             }
             return rawH;

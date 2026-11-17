@@ -37,13 +37,20 @@ namespace ForjaGame.Forge
         public bool IsAnimatingTopDrop { get; private set; }
         public bool HasBottomBloomVisible => _activeBloomObj != null;
 
-        private void Awake() { Instance = this; ResolveControllers(); }
+        private void Awake()
+        {
+            Instance = this;
+            ResolveControllers();
+            _isBuilt = false;
+            _fxRoot = null;
+            UnitySafeUtility.DestroyChildrenNamed(transform, "Furnace3D_FX");
+            EnsureBuilt();
+        }
         private void Start() => EnsureBuilt();
 
         private void OnEnable()
         {
-            Instance = this;
-            ResolveControllers();
+            Instance = this; ResolveControllers();
             if (furnaceController != null) furnaceController.SmeltCompleted += OnFurnaceSmeltCompleted;
         }
 
@@ -56,6 +63,8 @@ namespace ForjaGame.Forge
         {
             if (furnaceController == null) furnaceController = GetComponent<FurnaceController>() ?? GetComponentInChildren<FurnaceController>();
             if (stationController == null) stationController = GetComponent<FurnaceStationController>() ?? GetComponentInParent<FurnaceStationController>();
+            if (furnaceController == null && stationController != null) furnaceController = stationController.Furnace;
+            if (furnaceController == null) furnaceController = FindFirstObjectByType<FurnaceController>(FindObjectsInactive.Include);
         }
 
         public void EnsureBuilt()
@@ -80,6 +89,7 @@ namespace ForjaGame.Forge
             }
 
             BindInteriorSubmeshMaterials();
+            UpdateInternalFireFromHeat();
             _isBuilt = true;
         }
 
@@ -93,6 +103,7 @@ namespace ForjaGame.Forge
 
         private void MeasureFurnaceBaseY()
         {
+            float groundY = ForgeStationModelSetup.GetGroundHeightAt(transform.position.x, transform.position.z) + 0.02f;
             Transform modelRoot = transform.Find("VisualModel_Horno");
             if (modelRoot != null)
             {
@@ -101,11 +112,11 @@ namespace ForjaGame.Forge
                 {
                     Bounds b = renderers[0].bounds;
                     for (int i = 1; i < renderers.Length; i++) b.Encapsulate(renderers[i].bounds);
-                    _furnaceBaseY = b.min.y;
+                    _furnaceBaseY = Mathf.Min(b.min.y, groundY);
                     return;
                 }
             }
-            _furnaceBaseY = ForgeStationModelSetup.GetGroundHeightAt(transform.position.x, transform.position.z) + 0.02f;
+            _furnaceBaseY = groundY;
         }
 
         private void BindInteriorSubmeshMaterials()
@@ -117,18 +128,12 @@ namespace ForjaGame.Forge
 
             Shader lit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             var mats = mr.sharedMaterials;
-            _interiorFireboxMat = new Material(lit) { name = "Mat_HornoInteriorFogon" };
-            _interiorFireboxMat.color = new Color(0.11f, 0.09f, 0.08f);
-            if (_interiorFireboxMat.HasProperty("_BaseColor")) _interiorFireboxMat.SetColor("_BaseColor", new Color(0.11f, 0.09f, 0.08f));
+            _interiorFireboxMat = new Material(lit) { name = "Mat_HornoInteriorFogon", color = new Color(0.11f, 0.09f, 0.08f) };
+            if (_interiorFireboxMat.HasProperty("_BaseColor")) _interiorFireboxMat.SetColor("_BaseColor", _interiorFireboxMat.color);
             if (_interiorFireboxMat.HasProperty("_Smoothness")) _interiorFireboxMat.SetFloat("_Smoothness", 0.12f);
             _interiorFireboxMat.EnableKeyword("_EMISSION");
-
             mats[3] = _interiorFireboxMat;
-            if (mats.Length >= 5)
-            {
-                _interiorCrucibleMat = new Material(_interiorFireboxMat) { name = "Mat_HornoInteriorFusion" };
-                mats[4] = _interiorCrucibleMat;
-            }
+            if (mats.Length >= 5) mats[4] = _interiorCrucibleMat = new Material(_interiorFireboxMat) { name = "Mat_HornoInteriorFusion" };
             mr.sharedMaterials = mats;
         }
 
@@ -158,22 +163,21 @@ namespace ForjaGame.Forge
 
             _hearthFlamePs = CreateFireParticleSystem("HearthFlames", new Vector3(0f, 0.14f, -0.24f), isChimney: false);
             _chimneySparksPs = CreateFireParticleSystem("ChimneyHeatPlume", new Vector3(0f, 2.16f, 0f), isChimney: true);
+            _hearthFlamePs.Play(); _chimneySparksPs.Play();
 
             var lObj = new GameObject("HearthFireLight", typeof(Light));
             lObj.transform.SetParent(_fxRoot, false);
             lObj.transform.localPosition = new Vector3(0f, 0.44f, -0.34f);
             _hearthLight = lObj.GetComponent<Light>();
-            _hearthLight.type = LightType.Point;
-            _hearthLight.range = 4.6f;
-            _hearthLight.intensity = 0f;
+            _hearthLight.type = LightType.Point; _hearthLight.range = 4.6f;
+            _hearthLight.color = new Color(1.0f, 0.52f, 0.12f); _hearthLight.intensity = 2.4f;
 
             var cObj = new GameObject("TopCrucibleLight", typeof(Light));
             cObj.transform.SetParent(_fxRoot, false);
             cObj.transform.localPosition = new Vector3(0f, 2.05f, 0f);
             _crucibleLight = cObj.GetComponent<Light>();
-            _crucibleLight.type = LightType.Point;
-            _crucibleLight.range = 2.4f;
-            _crucibleLight.intensity = 0f;
+            _crucibleLight.type = LightType.Point; _crucibleLight.range = 2.4f;
+            _crucibleLight.color = new Color(1.0f, 0.58f, 0.16f); _crucibleLight.intensity = 0.9f;
         }
 
         private ParticleSystem CreateFireParticleSystem(string name, Vector3 localPos, bool isChimney)
@@ -209,7 +213,7 @@ namespace ForjaGame.Forge
             shape.rotation = new Vector3(-90f, 0f, 0f);
 
             var emission = ps.emission;
-            emission.rateOverTime = 0f;
+            emission.rateOverTime = isChimney ? 6f : 18f;
 
             var colLife = ps.colorOverLifetime;
             colLife.enabled = true;
@@ -218,6 +222,7 @@ namespace ForjaGame.Forge
                 new[] { new GradientColorKey(new Color(1f, 0.86f, 0.32f), 0f), new GradientColorKey(new Color(1f, 0.38f, 0.06f), 0.55f), new GradientColorKey(new Color(0.35f, 0.08f, 0.02f), 1f) },
                 new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.88f, 0.18f), new GradientAlphaKey(0f, 1f) });
             colLife.color = grad;
+            ps.Play();
             return ps;
         }
 

@@ -112,6 +112,29 @@ namespace ForjaGame.Forge
             }
             return m;
         }
+
+        public static ParticleSystem CreateBurstSystem(Transform parent, bool isSawdust)
+        {
+            var go = new GameObject(isSawdust ? "AnvilSawdustVFX" : "AnvilHitSparksVFX");
+            go.transform.SetParent(parent, false);
+            var ps = go.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.playOnAwake = false; main.loop = false; main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startLifetime = isSawdust ? new ParticleSystem.MinMaxCurve(0.28f, 0.62f) : new ParticleSystem.MinMaxCurve(0.22f, 0.52f);
+            main.startSpeed = isSawdust ? new ParticleSystem.MinMaxCurve(0.85f, 2.3f) : new ParticleSystem.MinMaxCurve(2.2f, 5.8f);
+            main.startSize = isSawdust ? new ParticleSystem.MinMaxCurve(0.016f, 0.036f) : new ParticleSystem.MinMaxCurve(0.014f, 0.032f);
+            main.gravityModifier = isSawdust ? 0.95f : 1.65f;
+            main.startColor = isSawdust
+                ? new ParticleSystem.MinMaxGradient(new Color(0.84f, 0.66f, 0.38f, 0.96f), new Color(0.55f, 0.35f, 0.16f, 0.92f))
+                : new ParticleSystem.MinMaxGradient(new Color(1f, 0.92f, 0.38f, 1f), new Color(1f, 0.42f, 0.06f, 1f));
+            var emission = ps.emission; emission.enabled = false;
+            var shape = ps.shape; shape.shapeType = ParticleSystemShapeType.Hemisphere; shape.radius = 0.035f;
+            var psr = go.GetComponent<ParticleSystemRenderer>();
+            psr.renderMode = isSawdust ? ParticleSystemRenderMode.Billboard : ParticleSystemRenderMode.Stretch;
+            if (!isSawdust) { psr.velocityScale = 0.06f; psr.lengthScale = 2.4f; }
+            psr.sharedMaterial = CreateParticleMaterial(isSawdust ? "Mat_WoodSawdust" : "Mat_AnvilHitSparks", !isSawdust);
+            return ps;
+        }
     }
 }
 

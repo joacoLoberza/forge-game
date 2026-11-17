@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enciclopedia Maestra de C# y Código Fuente - Crónicas de la Fragua</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>
+  <style>
+    body {
+      box-sizing: border-box;
+      min-width: 200px;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 45px;
+      background-color: #0d1117;
+      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    }
+    .markdown-body {
+      background-color: transparent !important;
+      color: #c9d1d9 !important;
+    }
+    .markdown-body pre {
+      background-color: #161b22 !important;
+      border: 1px solid #30363d !important;
+    }
+    .markdown-body table tr {
+      background-color: #0d1117 !important;
+      border-top: 1px solid #21262d !important;
+    }
+    .markdown-body table tr:nth-child(2n) {
+      background-color: #161b22 !important;
+    }
+    .markdown-body table td, .markdown-body table th {
+      border: 1px solid #30363d !important;
+      padding: 10px 14px;
+    }
+    .badge-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      background: #21262d;
+      border: 1px solid #30363d;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      color: #58a6ff;
+      font-weight: 600;
+    }
+    .toc-box {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 22px;
+      margin: 25px 0;
+    }
+    .toc-box ul {
+      margin-bottom: 0;
+    }
+    .highlight-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 18px;
+      margin: 16px 0;
+    }
+    .code-callout {
+      background: #161b22;
+      border-left: 4px solid #58a6ff;
+      padding: 14px 18px;
+      margin: 16px 0;
+      border-radius: 0 6px 6px 0;
+    }
+    details {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: #58a6ff;
+      user-select: none;
+    }
+    summary:hover {
+      color: #79c0ff;
+    }
+  </style>
+</head>
+<body class="markdown-body">
+
+  <div class="badge-bar">
+    <span class="badge">⚔️ Crónicas de la Fragua</span>
+    <span class="badge">📖 Enciclopedia Maestra Completa</span>
+    <span class="badge">📦 183 Archivos Catalogados</span>
+    <span class="badge">🌐 Estaciones • Online • IA • Mallas y UI Profunda</span>
+  </div>
+
+  <h1>📖 Enciclopedia Maestra de Arquitectura, C# y Código Fuente: <i>Crónicas de la Fragua</i></h1>
+
+  <div class="toc-box">
+    <h3>📑 Índice General de la Enciclopedia</h3>
+    <ul>
+      <li><a href="#sec1" style="color: #58a6ff;"><b>1. El Hilo Conductor del Juego:</b> Ciclo de Vida del Mineral al Altar</a></li>
+      <li><a href="#sec2" style="color: #58a6ff;"><b>2. La Anatomía de una Línea de Código:</b> Modificadores, Ciclo de Vida de Unity y Operadores C#</a></li>
+      <li><a href="#sec3" style="color: #58a6ff;"><b>3. Matemáticas y Físicas 3D:</b> Vectores, sqrMagnitude, TransformDirection, Lerp y Raycasting</a></li>
+      <li><a href="#sec4" style="color: #58a6ff;"><b>4. SISTEMA 1: Las Estaciones de Forja en Profundidad:</b> Horno, Prensa, Yunque y Deformación 3D</a></li>
+      <li><a href="#sec5" style="color: #58a6ff;"><b>5. SISTEMA 2: El Multijugador Online LAN en Profundidad:</b> Netcode (NGO), RPCs y Sincronización de Vértices</a></li>
+      <li><a href="#sec6" style="color: #58a6ff;"><b>6. SISTEMA 3: El Ecosistema de Monstruos y la IA Ecológica:</b> Árbol de decisiones, Golems, Arañas y Nidos</a></li>
+      <li><a href="#sec7" style="color: #58a6ff;"><b>7. SISTEMA 4: Modelos Procedurales y Animaciones:</b> Mallas en código, Rig Humanoid y UAL2</a></li>
+      <li><a href="#sec8" style="color: #58a6ff;"><b>8. SISTEMA 5: La Interfaz de Usuario (UI), Viewports, Texturas y Tipografías:</b> ScrollRect, RectMask2D, 9-Slicing y SDF</a></li>
+      <li><a href="#sec9" style="color: #58a6ff;"><b>9. Catálogo Exhaustivo de los 183 Archivos del Proyecto:</b> Tablas completas por carpeta</a></li>
+      <li><a href="#sec10" style="color: #58a6ff;"><b>10. Índice de Búsqueda Rápida:</b> "¿A dónde voy si quiero cambiar X?"</a></li>
+    </ul>
+  </div>
+
+  <hr>
+
+  <h2 id="sec1">1. El Hilo Conductor del Juego: Ciclo de Vida del Mineral al Altar</h2>
+  <pre class="mermaid">
+flowchart LR
+    A["⛏️ Mena en la caverna\n(ResourceNodeController)"] -->|"Pico / Drops"| B["🎒 Mineral en inventario\n(InventoryController)"]
+    B -->|"Calor y Carbón"| C["🔥 Horno: Lupa\n(FurnaceController)"]
+    C -->|"Prensa Hidráulica"| D["🧱 Lingote sólido\n(PressController)"]
+    D -->|"Martillado, Corte y Pulido"| E["⚔️ Hoja forjada\n(AnvilController)"]
+    E -->|"+ Mango tallado"| F["🗡️ Arma final\n(WeaponAssemblyController)"]
+    F -->|"Clasificación de peso"| G["🥋 Arquetipo y Combo\n(WeaponAnalyzer / ComboCatalog)"]
+    G -->|"Combate activo"| H["👾 Criaturas en la Cueva\n(EcologicalCaveBrain / Golem)"]
+    H -->|"Ofrenda en Altar"| I["✨ Victoria Consagrada\n(GameLoopController)"]
+  </pre>
+
+  <hr>
+
+  <h2 id="sec2">2. La Anatomía de una Línea de Código en C# y Unity</h2>
+  <pre class="mermaid">
+flowchart LR
+    A["Modificador de Acceso\n(public, private, protected)"] --> B["Palabras Clave\n(static, virtual, override, partial)"]
+    B --> C["Tipo de Retorno / Dato\n(void, float, Vector3, bool)"]
+    C --> D["Nombre del Identificador\n(CalcularDano, _temperatura)"]
+    D --> E["Parámetros / Operación\n(in, out, ref, asignación)"]
+  </pre>
+
+  <h3>2.1 Modificadores de Acceso</h3>
+  <ul>
+    <li><code>public</code>: Visible y modificable por cualquier otro script del proyecto y expuesto en el Inspector de Unity.</li>
+    <li><code>private</code>: Solo puede ser leído o llamado dentro del mismo archivo o clase.</li>
+    <li><code>protected</code>: Accesible por las clases hijas que heredan de ella (ej. <code>BaseForgeStationController</code>).</li>
+    <li><code>internal</code>: Accesible por cualquier script dentro del ensamblado <code>Assembly-CSharp</code>.</li>
+  </ul>
+
+  <h3>2.2 Palabras Clave de Comportamiento Especial</h3>
+  <ul>
+    <li><b><code>partial class</code>:</b> Permite dividir una misma clase en múltiples archivos de menos de 250 líneas (ej. <code>AnvilController.cs</code>, <code>AnvilController.Deformation.cs</code>, etc.).</li>
+    <li><b><code>static</code>:</b> Miembro que pertenece a la clase en sí y no a un objeto instanciado. Permite crear Singletons (<code>GameStateController.Instance</code>) y listas activas sin recolección de basura.</li>
+    <li><b><code>virtual</code> vs <code>override</code>:</b> <code>virtual</code> permite que un método de la clase padre sea modificado por las clases hijas con <code>override</code>.</li>
+  </ul>
+
+  <h3>2.3 El Ciclo de Vida de Unity en el Código</h3>
+  <table>
+    <thead>
+      <tr><th>Método</th><th>Momento de Ejecución</th><th>Uso en este Proyecto</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>Awake()</code></td><td>Al instanciarse en memoria.</td><td>Inicializar variables y registrar Singletons (<code>Instance = this</code>).</td></tr>
+      <tr><td><code>OnEnable() / OnDisable()</code></td><td>Al activarse o desactivarse.</td><td>Suscribir y desuscribir eventos para evitar fugas de memoria.</td></tr>
+      <tr><td><code>Start()</code></td><td>En el primer frame, antes del Update.</td><td>Conectar referencias entre scripts que despertaron en <code>Awake</code>.</td></tr>
+      <tr><td><code>FixedUpdate()</code></td><td>A 50 Hz fijo independiente de los FPS.</td><td>Físicas de <code>Rigidbody</code>, chequeo de suelo y gravedad en <code>PlayerMovement.Physics.cs</code>.</td></tr>
+      <tr><td><code>Update()</code></td><td>En cada fotograma dibujado.</td><td>Leer teclas, clics del mouse, temporizadores y oscilaciones.</td></tr>
+      <tr><td><code>LateUpdate()</code></td><td>Después de todos los Update.</td><td>Cámaras cinemáticas y orbitales (<code>PlayerCameraFollow.cs</code>) para evitar tirones.</td></tr>
+      <tr><td><code>OnGUI()</code></td><td>Inmediato píxel a píxel.</td><td>El HUD de corazones de vida (<code>PlayerHealthController.cs</code>) y el medidor del yunque.</td></tr>
+      <tr><td><code>OnTriggerEnter()</code></td><td>Al entrar en volumen trigger.</td><td>Recoger minerales del suelo o cruzar puertas en la caverna.</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2 id="sec3">3. Matemáticas y Físicas 3D en el Código</h2>
+  <ul>
+    <li><b>Resta de Vectores:</b> <code>Vector3 dir = targetPos - playerPos;</code> (Destino - Origen = Dirección hacia el objetivo).</li>
+    <li><b>Distancia rápida sin raíz cuadrada (<code>sqrMagnitude</code>):</b> <code>if ((targetPos - myPos).sqrMagnitude &lt; 25f)</code> (Comprueba si está a menos de 5 metros con costo computacional mínimo).</li>
+    <li><b>Conversión Local a Global (<code>TransformDirection</code>):</b> <code>Vector3 worldPos = focusPoint + transform.TransformDirection(camOffset);</code> (Adapta la cámara a la rotación de cualquier estación).</li>
+    <li><b><code>Mathf.Lerp(min, max, t)</code>:</b> Interpola suavemente según un porcentaje de 0.0 a 1.0 (transiciones de cámara, barras de UI).</li>
+    <li><b><code>Mathf.InverseLerp(a, b, val)</code>:</b> Dado un valor real, calcula su porcentaje normalizado (longitud del mango a porcentaje de riesgo).</li>
+    <li><b><code>Mathf.Clamp(val, min, max)</code>:</b> Enclaustra un valor entre límites seguros (temperatura entre 20°C y 1500°C).</li>
+    <li><b><code>Mathf.PingPong(t, max)</code>:</b> Péndulo oscilante entre 0 y <code>max</code> (aguja de fuerza del martillo).</li>
+    <li><b><code>Physics.Raycast(ray, out hit, dist)</code>:</b> Rayo láser invisible para detectar interacción con <code>[E]</code> o clics del martillo sobre el lingote.</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="sec4">4. SISTEMA 1: Las Estaciones de Forja en Profundidad</h2>
+  
+  <h3>4.1 Horno de Fundición (FurnaceController)</h3>
+  <ul>
+    <li><b>Termodinámica (<code>FurnaceController.Thermal.cs</code>):</b> Cada carbón suma combustible y eleva <code>targetTemperature</code>. La temperatura real sube progresivamente con <code>Mathf.MoveTowards</code> hasta 1500°C. Si se acaba el carbón, decae a 20°C. El fuelle (<code>Espacio</code>) regula el pico térmico.</li>
+    <li><b>Química de Aleaciones (<code>AlloyComposition.cs</code>):</b> Promedia ponderadamente los metales del crisol (3, 6 o 9 minerales) para calcular dureza, fusión y filo, bautizándolo con <code>AlloyNameRegistry.cs</code>.</li>
+    <li><b>Resultado:</b> Produce una <b>Lupa</b> porosa incandescente (<code>BloomData</code>).</li>
+  </ul>
+
+  <h3>4.2 Prensa Hidráulica (PressController)</h3>
+  <ul>
+    <li>La lupa se coloca en la matriz de prensado. Al bajar el pistón (<code>PressMechanicalVisual.cs</code>), expulsa impurezas y escorias, compactando el metal en un <b>Lingote</b> sólido y denso (<code>IngotData</code>).</li>
+  </ul>
+
+  <h3>4.3 Yunque y Forja Procedural (AnvilController)</h3>
+  <ul>
+    <li><b>Malla Subdividida:</b> El lingote es una grilla densa de cientos de vértices generada por código (<code>SubdividedIngotMeshGenerator.cs</code>).</li>
+    <li><b>Herramienta [1] Martillo:</b> Medidor oscilante de fuerza. Aplica deformación gaussiana: hunde el epicentro del golpe y ensancha los laterales conservando volumen.</li>
+    <li><b>Herramienta [2] Cincel:</b> Traza un plano de corte 3D (<code>Plane</code>). <code>AnvilMeshCutter.cs</code> corta triángulos, sella la cara interior y expulsa los recortes con rebote físico.</li>
+    <li><b>Herramienta [3] Pulidor:</b> Suaviza normales de luz y eleva el filo.</li>
+    <li><b>Templado [Espacio]:</b> Sumergir la hoja en agua genera vapor procedural, fijando dureza y templabilidad.</li>
+    <li><b>Ensamblaje:</b> <code>WeaponAssemblyController.cs</code> calcula daño, velocidad y alcance combinando la hoja forjada con el mango tallado.</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="sec5">5. SISTEMA 2: El Multijugador Online LAN en Profundidad</h2>
+  <ul>
+    <li><b>Netcode for GameObjects (NGO) y UTP:</b> <code>MultiplayerSetupTool.cs</code> configura en un clic el <code>NetworkManager_LAN</code> con transporte UDP (puerto 7777).</li>
+    <li><b>Autoridad (<code>PlayerNetworkBridge.cs</code>):</b> Si <code>IsOwner</code> es verdadero, activa cámara y controles WASD en tu avatar local. Si es falso (tu compañero), apaga controles locales para actuar como proxy de red.</li>
+    <li><b>RPCs de Combate (<code>PlayerNetworkBridge.Sync.cs</code>):</b> El cliente envía <code>ServerRpc</code> al atacar, y el host responde con <code>ClientRpc</code> para reproducir las animaciones de swing en las pantallas de los demás.</li>
+    <li><b>Sincronización de la Forja (<code>NetworkForgeStationBridge.AnvilVisual.cs</code>):</b> Las <code>NetworkVariable</code> sincronizan temperatura, color incandescente y los vértices deformados del lingote para que ambos jugadores vean la forja en tiempo real.</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="sec6">6. SISTEMA 3: El Ecosistema de Monstruos y la IA Ecológica</h2>
+  <ul>
+    <li><b>Zero-GC (<code>CaveCreatureBase.cs</code>):</b> Registro en listas estáticas <code>ActiveCreatures</code> sin usar <code>FindObjectsOfType</code>.</li>
+    <li><b>Árbol de Decisión Ecológico (<code>EcologicalCaveBrain.cs</code>):</b>
+      <ol>
+        <li><code>CriticalFlee</code>: Si la vida cae al &lt; 20%, huye aterrado.</li>
+        <li><code>SelfDefense</code>: Si es atacado por el jugador, contraataca.</li>
+        <li><code>TerritorialDefense</code>: Si el jugador pica una veta a &lt; 15 m, el Golem ruge, sus ojos brillan y embiste al minero. Si pasas sin picar, te ignora pacíficamente.</li>
+        <li><code>HuntLivingPrey</code>: Caza si tiene hambre &gt; 70%.</li>
+        <li><code>CalmPatrol</code>: Patrulla tranquila entre rocas.</li>
+      </ol>
+    </li>
+    <li><b>Arañas y Nidos (<code>SpiderEnemyController.cs</code> y <code>SpiderBroodNest.cs</code>):</b> Saltos balísticos parabólicos con físicas. Si atacas el nido de huevos, todas las arañas entran en modo <code>DefendBrood</code>.</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="sec7">7. SISTEMA 4: Modelos Procedurales y Animaciones</h2>
+  <ul>
+    <li><b>Mallas por Código (<code>Mesh</code>):</b> Construcción directa de arrays <code>vertices</code>, <code>triangles</code>, <code>normals</code> y <code>uv</code> en <code>PickaxeModelGenerator.cs</code> y <code>OreMeshGenerator.cs</code>.</li>
+    <li><b>Sistema de Animaciones (UAL2 + <code>ForgeCombatCompleteInstaller.cs</code>):</b>
+      <ul>
+        <li><code>Base Layer</code>: Locomoción 2D Blend Tree (Idle, Walk, Run).</li>
+        <li><code>UpperBody Layer</code>: Capa de combate enmascarada al torso que permite golpear o cargar ataques mientras las piernas siguen corriendo.</li>
+      </ul>
+    </li>
+    <li><b>Alineación Dinámica del Filo (<code>DynamicEdgeAligner.cs</code>):</b> Producto punto (<code>Vector3.Dot</code>) entre el filo forjado y el arco de swing: alineado = crítico cortante (+50% daño); plano = golpe contundente débil (-50% daño).</li>
+  </ul>
+
+  <hr>
+
+  <h2 id="sec8">8. SISTEMA 5: La Interfaz de Usuario (UI), Viewports, Texturas y Tipografías</h2>
+  <p>La interfaz del juego es un sistema híbrido que une Canvas de alta fidelidad estética con un <b>marco visual 3D transparente</b>.</p>
+
+  <pre class="mermaid">
+flowchart TD
+    Canvas["Canvas Central (UGUI)"] --> LP["Panel Izquierdo\n(Pergamino con Viewport y Scroll)"]
+    Canvas --> RP["Panel Derecho\n(Control térmico, sliders, fuelle)"]
+    Canvas --> Center["Hueco Central Transparente\n(Vista 3D real de crisol / yunque)"]
+    LP --> VM["Mecanismo Viewport\n(RectMask2D + Content desplazable)"]
+    LP --> Gen["Iconos y Texturas en Memoria\n(ProceduralItemIconProvider / 9-Slice)"]
+  </pre>
+
+  <h3>8.1 ¿Qué es Técnicamente un Viewport en Unity UI y Cómo Opera?</h3>
+  <p>Un <code>Viewport</code> es la <b>ventana de recorte físico (Masking Window)</b> de un <code>ScrollRect</code>:</p>
+  <ul>
+    <li><b>Componente <code>RectMask2D</code>:</b> A diferencia del <code>Mask</code> clásico de Unity que consume el <i>Stencil Buffer</i> de la GPU y rompe el batching, <code>RectMask2D</code> recorta matemáticamente en 2D en el fragment shader sin coste adicional de draw calls.</li>
+    <li><b>El Contenedor <code>Content</code>:</b> Aloja los elementos y se desplaza en X/Y. Todo lo que sobrepasa el rectángulo del Viewport se corta visualmente.</li>
+    <li><b>Anclaje Matemático en <code>ForgeScrollViewStyler.cs</code>:</b>
+      <pre><code class="language-csharp">scrollRect.viewport.anchorMin = Vector2.zero; // (0, 0)
+scrollRect.viewport.anchorMax = Vector2.one;  // (1, 1)
+scrollRect.viewport.offsetMin = Vector2.zero;
+scrollRect.viewport.offsetMax = Vector2.zero;
+scrollRect.viewport.pivot = new Vector2(0f, 1f);</code></pre>
+      Garantiza que el Viewport llene exactamente el 100% del área de la lista sin desbordes.
+    </li>
+  </ul>
+
+  <h3>8.2 Solución Matemática al Solapamiento del Texto en el Horno</h3>
+  <div class="code-callout">
+    <b>¿Por qué el texto entraba al Viewport?:</b> Si <code>OreCountText</code> se colocaba con un <code>anchoredPosition.y</code> dentro del rango vertical de la lista scrolleable (+310 a +10 px), los minerales se dibujaban por encima del texto o el texto quedaba atrapado en la máscara.<br>
+    <b>Solución (<code>ForgeCanvasThemeStyler.Furnace.cs</code>):</b> Se organizó una escala vertical estricta:<br>
+    • <code>oreScroll</code> en <code>Y = +160</code> (su borde inferior termina en <code>+10</code>).<br>
+    • <code>OreCountText</code> en <code>Y = -14</code> (altura 34 px: de <code>+3</code> a <code>-31</code>).<br>
+    • Botón Ingresar en <code>Y = -62</code> y Extraer en <code>Y = -114</code>.<br>
+    • Notas de ayuda en <code>Y = -345</code>.<br>
+    Existe un colchón de 24 píxeles limpios entre la lista y el texto; nada entra al Viewport.
+  </div>
+
+  <h3>8.3 Viewport 2D vs La Previsualización 3D Real</h3>
+  <p><b>El Secreto del Hueco Central:</b> No se usan texturas virtuales (<code>RenderTexture</code>) costosas. Los paneles <code>leftBody</code> (X = -665 px) y <code>rightBody</code> (X = +665 px) forman un marco lateral dejando el tercio central (más de 850 px) transparente. La cámara principal del juego (<code>Camera.main</code>) enfoca directamente el crisol o yunque 3D real a resolución nativa.</p>
+
+  <h3>8.4 Texturas Procedurales en Memoria y 9-Slicing (BookTextureBuilder.cs)</h3>
+  <ul>
+    <li><b>Pergamino con Ruido Perlin:</b> Genera texturas en memoria RAM con <code>Texture2D.SetPixel()</code> aplicando sombras en bordes y ruido matemático para simular desgaste antiguo.</li>
+    <li><b>Técnica de 9-Slicing:</b> 
+      <pre><code class="language-csharp">Sprite.Create(tex, new Rect(0,0,w,h), new Vector2(0.5f, 0.5f), 100f, 0, 
+    SpriteMeshType.FullRect, new Vector4(12, 12, 12, 12));</code></pre>
+      El vector <code>(12, 12, 12, 12)</code> divide el sprite en 9 zonas (4 esquinas, 4 bordes y 1 centro). Al estirar la tarjeta a 480x820 px, Unity <b>no deforma las esquinas ornamentadas</b>; solo estira el centro y repite los bordes.
+    </li>
+    <li><b>Iconos 2D Procedurales (<code>ProceduralItemIconProvider.cs</code>):</b> Dibuja píxel a píxel siluetas nítidas de 64x64 de armas, mangos, lupas, lingotes y menas según el metal y su tamaño.</li>
+  </ul>
+
+  <h3>8.5 Tipografía Renacentista y Textos (MedievalTypographyProvider.cs)</h3>
+  <ul>
+    <li><b>Fuentes Históricas:</b> Utiliza <code>Georgia</code>, <code>Palatino Linotype</code>, <code>Constantia</code> y <code>Times New Roman</code> nativas de Windows para preservar la ambientación.</li>
+    <li><b>Signed Distance Field (SDF) en Runtime:</b> Crea activos TextMeshPro dinámicos (<code>TMP_FontAsset.CreateFontAsset</code>) que conservan nitidez vectorial perfecta a 1080p y 4K sin pixelado.</li>
+    <li><b>Paleta de Tintas Medievales:</b>
+      <ul>
+        <li><code>DarkInk</code> (<code>#2b1d0c</code>): Negro carbón sepia para títulos y nombres de piezas.</li>
+        <li><code>SubInk</code> (<code>#5c4a38</code>): Sepia atenuado para notas secundarias.</li>
+        <li><code>FireRed</code> (<code>Color(0.68f, 0.20f, 0.06f)</code>): Carmesí para calor y advertencias.</li>
+        <li><code>GoldAccent</code> (<code>#d4a017</code>): Reflejos dorados para marcos y placas.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <hr>
+
+  <h2 id="sec9">9. Catálogo Exhaustivo de los 183 Archivos del Proyecto</h2>
+  <p>Haz clic en cualquier carpeta para consultar sus archivos en detalle:</p>
+
+  <details>
+    <summary>📂 1. Núcleo, Menús e Input (Core, Input, GameLoop, AreaTrigger) [9 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>GameStateController.cs</code></td><td>Máquina de estados central y TutorialSettings.</td><td><code>public static bool IsForging => State == GameState.Forge;</code></td></tr>
+        <tr><td><code>IUIPanel.cs</code></td><td>Contrato de paneles UI.</td><td><code>void Open(); void Close(); bool IsOpen { get; }</code></td></tr>
+        <tr><td><code>UIPanelBase.cs</code></td><td>Base abstracta con control de CanvasGroup.</td><td><code>canvasGroup.alpha = visible ? 1f : 0f;</code></td></tr>
+        <tr><td><code>UnitySafeUtility.cs</code></td><td>Destrucción segura en editor y juego.</td><td><code>if (Application.isPlaying) Destroy(o); else DestroyImmediate(o);</code></td></tr>
+        <tr><td><code>GameLoopController.cs</code></td><td>Orquestador de muerte, respawn y victoria.</td><td><code>RespawnPlayerAtWorkshop(); ClearUnsavedLoot();</code></td></tr>
+        <tr><td><code>PlayerMenuInput.cs</code></td><td>Captura Tab, Escape, I y bloquea movimiento.</td><td><code>UpdateMovementAvailability();</code></td></tr>
+        <tr><td><code>MenuCommandRouter.cs</code></td><td>Traduce teclas en apertura de paneles.</td><td><code>router.ToggleInventory(); router.TogglePause();</code></td></tr>
+        <tr><td><code>IMenuCommandHandler.cs</code></td><td>Contrato para routers de interfaz.</td><td><code>void ExecuteCommand(MenuCommand cmd);</code></td></tr>
+        <tr><td><code>AreaTrigger.cs</code></td><td>Disparador de colisiones para zonas y puertas.</td><td><code>OnTriggerEnter(Collider other);</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 2. Jugador, Movimiento y Cámara (Movement, Interaction, Health) [8 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>PlayerMovement.cs</code></td><td>WASD, rotación hacia la cámara y animaciones.</td><td><code>transform.rotation = Quaternion.Slerp(..., targetRot);</code></td></tr>
+        <tr><td><code>PlayerMovement.Physics.cs</code></td><td>Rigidbody, chequeo de suelo y pendientes.</td><td><code>rb.AddForce(Vector3.down * gravityMultiplier, ForceMode.Acceleration);</code></td></tr>
+        <tr><td><code>PlayerCameraFollow.cs</code></td><td>Cámara orbital en 3ra persona con mouse.</td><td><code>currentDistance = Mathf.Clamp(targetDist, minCamDist, maxCamDist);</code></td></tr>
+        <tr><td><code>PlayerCameraFollow.Station.cs</code></td><td>Transición cinemática a estaciones.</td><td><code>SetStationView(camPos, targetRot, blendSpeed: 6f);</code></td></tr>
+        <tr><td><code>InteractionController.cs</code></td><td>Raycast frontal al pulsar [E].</td><td><code>if (Physics.Raycast(ray, out hit, maxDist)) target.Interact();</code></td></tr>
+        <tr><td><code>IInteractable.cs</code></td><td>Contrato para objetos usables con [E].</td><td><code>bool CanInteract(); void Interact(GameObject interactor);</code></td></tr>
+        <tr><td><code>IForgeOpener.cs</code></td><td>Apertura de interfaz de forja desde triggers.</td><td><code>void OpenForgeStation();</code></td></tr>
+        <tr><td><code>PlayerHealthController.cs</code></td><td>Salud del herrero, muerte y HUD de corazones.</td><td><code>GUI.Label(rect, "♥", heartStyle);</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 3. Datos, Metales e Inventario (Minerales, Inventory, ScriptableObjects) [13 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>ForgeDataModels.cs</code></td><td>Modelos BloomData, IngotData y HandleData.</td><td><code>public class IngotData : IForgeItem { ... }</code></td></tr>
+        <tr><td><code>MetalProperties.cs</code></td><td>Propiedades de metales (fusión, dureza, filo).</td><td><code>public float MeltingPoint => metalType switch { ... };</code></td></tr>
+        <tr><td><code>AlloyComposition.cs</code></td><td>Cálculo ponderado de aleaciones.</td><td><code>alloy.CalculateWeightedProperties();</code></td></tr>
+        <tr><td><code>AlloyNameRegistry.cs</code></td><td>Nombres según metal dominante.</td><td><code>return "Acero Templado Ancestral";</code></td></tr>
+        <tr><td><code>WeaponStats.cs</code></td><td>Estadísticas finales del arma forjada.</td><td><code>public float FinalDamage => baseDamage * massMultiplier;</code></td></tr>
+        <tr><td><code>IForgeItem.cs</code></td><td>Interfaz para piezas forjables.</td><td><code>AlloyComposition Composition { get; }</code></td></tr>
+        <tr><td><code>InventoryController.cs</code></td><td>Almacén de carbón, menas, lingotes y armas.</td><td><code>inventory.GetCount("Coal"); inventory.AddIngot(ingot);</code></td></tr>
+        <tr><td><code>InventoryController.Defaults.cs</code></td><td>Suministros iniciales (carbón doble y pico).</td><td><code>AddItem("Coal", 16);</code></td></tr>
+        <tr><td><code>IInventoryReceiver.cs</code></td><td>Recepción de ítems transferidos.</td><td><code>void ReceiveItem(string itemId, int quantity);</code></td></tr>
+        <tr><td><code>ItemDefinitionSO.cs</code></td><td>ScriptableObject de metadatos de ítems.</td><td><code>public string ItemId; public Sprite Icon;</code></td></tr>
+        <tr><td><code>WeaponRecipeSO.cs</code></td><td>Planos de recetas y siluetas para el yunque.</td><td><code>public WeaponType TargetWeapon; public int RequiredOres;</code></td></tr>
+        <tr><td><code>HandleDefinitionSO.cs</code></td><td>Definiciones de maderas para mangos.</td><td><code>public WoodHardness Hardness;</code></td></tr>
+        <tr><td><code>ForgeSpriteDatabase.cs</code></td><td>Sprites de respaldo para menús.</td><td><code>GetSprite(string key);</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 4. Estaciones Base y Ensamblaje (Estaciones, Ensamblaje) [6 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>BaseForgeStationController.cs</code></td><td>Base de estaciones y gestión de ocupación.</td><td><code>OnStationEntered(); OnStationExited();</code></td></tr>
+        <tr><td><code>BaseForgeStationController.Camera.cs</code></td><td>Encuadre cinemático de cámara en LateUpdate.</td><td><code>cam.SetStationView(camPos, targetRot, 6.0f);</code></td></tr>
+        <tr><td><code>ForgeStationController.cs</code></td><td>Wrapper de interacción legacy.</td><td><code>OnTriggerEnter(); OpenMenu();</code></td></tr>
+        <tr><td><code>ForgeController.cs</code></td><td>Orquestador integrador de pasos de forja.</td><td><code>ProcessForgeStep();</code></td></tr>
+        <tr><td><code>ForgeStationModelSetup.cs</code></td><td>Generador procedural de muebles 3D.</td><td><code>BuildStationMesh(); SetupColliders();</code></td></tr>
+        <tr><td><code>WeaponAssemblyController.cs</code></td><td>Calcula estadísticas combinando hoja y mango.</td><td><code>float finalDamage = alloyProps.baseDamage * typeDmgMult * mass;</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 5. Horno de Fundición (MainGame/Forge/Horno) [7 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>FurnaceStationController.cs</code></td><td>Estación física del horno con cámara y panel.</td><td><code>cam.SetStationView(focusPoint, targetRot);</code></td></tr>
+        <tr><td><code>FurnaceController.cs</code></td><td>Cerebro central del proceso de fundición.</td><td><code>UpdateSmelting(); CheckThermalThresholds();</code></td></tr>
+        <tr><td><code>FurnaceController.Thermal.cs</code></td><td>Quema de carbón, inercia de calor y fuelle.</td><td><code>currentTemperature = Mathf.Clamp(temp + heatRate, 20f, 1500f);</code></td></tr>
+        <tr><td><code>FurnaceController.Ores.cs</code></td><td>Carga del crisol con 3, 6 o 9 minerales.</td><td><code>bool isFull = loadedOres.Count >= maxCapacity;</code></td></tr>
+        <tr><td><code>FurnaceController.Smelting.cs</code></td><td>Progreso de fusión y condensación de BloomData.</td><td><code>if (meltProgress >= 1f) GenerateBloom();</code></td></tr>
+        <tr><td><code>FurnaceVisualController.cs</code></td><td>Render de fuego, brasas y luz dinámica.</td><td><code>fireLight.intensity = Mathf.Lerp(minLight, maxLight, heatRatio);</code></td></tr>
+        <tr><td><code>FurnaceVisualController.OresAndBloom.cs</code></td><td>Mallas de minerales derritiéndose en el crisol.</td><td><code>meshRenderer.material.color = glowColor;</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 6. Prensa Hidráulica (MainGame/Forge/Prensa) [4 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>PressStationController.cs</code></td><td>Estación física de la prensa interactiva.</td><td><code>pressPanel.Open();</code></td></tr>
+        <tr><td><code>PressController.cs</code></td><td>Compacta la lupa en un lingote sólido (IngotData).</td><td><code>IngotData ingot = new IngotData(bloom.composition, bloom.size);</code></td></tr>
+        <tr><td><code>PressController.Blooms.cs</code></td><td>Validación de selección y temperatura de lupas.</td><td><code>if (selectedBloom.isCold) return false;</code></td></tr>
+        <tr><td><code>PressMechanicalVisual.cs</code></td><td>Animación física del pistón y chispas.</td><td><code>pistonTransform.localPosition = Vector3.Lerp(topPos, bottomPos, t);</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 7. Yunque, Corte y Deformación 3D (MainGame/Forge/Yunque) [28 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>AnvilStationController.cs</code></td><td>Estación interactiva del yunque.</td><td><code>anvilHammerInput.enabled = true;</code></td></tr>
+        <tr><td><code>AnvilController.cs</code></td><td>Sostiene el lingote activo en la mesa.</td><td><code>public IngotData ActiveIngot => _currentIngot;</code></td></tr>
+        <tr><td><code>AnvilController.Deformation.cs</code></td><td>Deformación gaussiana de vértices por golpe.</td><td><code>vertices[i] += strikeDirection * gaussianForce;</code></td></tr>
+        <tr><td><code>AnvilController.Polish.cs</code></td><td>Pulido de normales y aumento de filo.</td><td><code>mesh.RecalculateNormals(); currentSharpness += 0.05f;</code></td></tr>
+        <tr><td><code>AnvilController.Handle.cs</code></td><td>Tallado de mangos de madera en el yunque.</td><td><code>carvedHandle.massRatio = currentHandleMass;</code></td></tr>
+        <tr><td><code>AnvilHammerInput.cs</code></td><td>Medidor de fuerza oscilante (PingPong).</td><td><code>float strikeForce = Mathf.PingPong(Time.time * speed, 1f);</code></td></tr>
+        <tr><td><code>AnvilHammerInput.Cut.cs</code></td><td>Herramienta [2] Cincel para planos de corte.</td><td><code>cutter.CutMesh(cuttingPlane);</code></td></tr>
+        <tr><td><code>AnvilHammerInput.Guides.cs</code></td><td>Silueta guía semi-transparente del tutorial.</td><td><code>if (TutorialSettings.BlueprintOutlinesEnabled) DrawSilhouette();</code></td></tr>
+        <tr><td><code>AnvilHammerInput.GUI.cs</code></td><td>Dibuja barra de fuerza, calor y botones 1/2/3.</td><td><code>GUI.Box(meterRect, "", meterBackgroundStyle);</code></td></tr>
+        <tr><td><code>AnvilThermalController.cs</code></td><td>Enfriamiento progresivo y recalentado con [H].</td><td><code>currentHeat = Mathf.Max(ambientTemp, currentHeat - decayRate * dt);</code></td></tr>
+        <tr><td><code>AnvilQuenchDifferential.cs</code></td><td>Templado en agua [Espacio] y cálculo de dureza.</td><td><code>bladeHardness = CalculateHardness(quenchSpeed);</code></td></tr>
+        <tr><td><code>AnvilMeshCutter.cs</code></td><td>Corte de mallas en vivo según plano.</td><td><code>SplitMeshByPlane(plane, out bladeMesh, out offcutMesh);</code></td></tr>
+        <tr><td><code>SubdividedIngotMeshGenerator.cs</code></td><td>Genera el lingote denso de cientos de vértices.</td><td><code>mesh.SetVertices(subdividedGrid);</code></td></tr>
+        <tr><td><code>AnvilOffcutSpawner.cs</code></td><td>Expulsa recortes de metal con rebote físico.</td><td><code>offcutRb.AddExplosionForce(force, cutPoint, radius);</code></td></tr>
+        <tr><td><code>AnvilAssemblyController.cs</code></td><td>Ensambla hoja forjada con mango tallado.</td><td><code>AssembleCompleteWeapon(blade, handle);</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 8. Entorno, Terreno y Mazmorra (MainGame/Environment) [9 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>GreenPlateauTerrainController.cs</code></td><td>Generador de pradera exterior y taller.</td><td><code>BuildPlateauGeometry();</code></td></tr>
+        <tr><td><code>GreenPlateauTerrainController.Relief.cs</code></td><td>Rampa suave de entrada a la cueva.</td><td><code>smoothDescentHeight = Mathf.SmoothStep(surfaceY, caveFloorY, t);</code></td></tr>
+        <tr><td><code>GreenPlateauTerrainController.StoneWorkshop.cs</code></td><td>Mampostería, muros y arcos del taller.</td><td><code>BuildWorkshopWalls();</code></td></tr>
+        <tr><td><code>CaveDungeonBuilder.cs</code></td><td>Generador procedural de 3 zonas de cueva (Z: 28-226m).</td><td><code>BuildChamber(chamberIndex, startZ, endZ);</code></td></tr>
+        <tr><td><code>CaveDungeonBuilder.Props.cs</code></td><td>Estalagmitas, cristales y luces de caverna.</td><td><code>InstantiateCrystalLight(pos, crystalColor);</code></td></tr>
+        <tr><td><code>CaveZoneGateController.cs</code></td><td>Barrera de paso entre zonas subterráneas.</td><td><code>gateCollider.enabled = isGateLocked;</code></td></tr>
+        <tr><td><code>ConsecrationAltarInteractable.cs</code></td><td>Altar final para ofrendar el arma y ganar.</td><td><code>GameLoopController.Instance.TriggerVictory();</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 9. Recursos, Menas y Spawners (MainGame/Resources) [9 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>MineSpawnerController.cs</code></td><td>Distribución de vetas minerales en túneles.</td><td><code>SpawnMineralVein(metalType, chamberPos);</code></td></tr>
+        <tr><td><code>MineSpawnerController.Enemies.cs</code></td><td>Asigna monstruos guardianes a vetas ricas.</td><td><code>AssignGuardianToVein(golem, veinNode);</code></td></tr>
+        <tr><td><code>ResourceNodeController.cs</code></td><td>Veta individual que recibe golpes y alerta fauna.</td><td><code>NotifyNearbyFauna(minerPos); SpawnDropItem();</code></td></tr>
+        <tr><td><code>DroppedItemController.cs</code></td><td>Mineral flotante en el suelo recogible.</td><td><code>inventory.AddItem(itemId, amount); Destroy(gameObject);</code></td></tr>
+        <tr><td><code>CaveCreatureGenerator.cs</code></td><td>Spawner periódico biológico de la cueva.</td><td><code>if (activeCreatures.Count < maxDensity) SpawnCreature();</code></td></tr>
+        <tr><td><code>OreMeshGenerator.cs</code></td><td>Mallas facetadas procedurales para menas.</td><td><code>GenerateIrregularRockMesh();</code></td></tr>
+        <tr><td><code>ResourceVisualBuilder.cs</code></td><td>Materiales y shaders brillantes para vetas.</td><td><code>mat.SetColor("_EmissionColor", metalGlowColor);</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 10. Combate, Armas y Criaturas (MainGame/Combat) [33 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>WeaponAnalyzer.cs</code></td><td>Clasifica proporciones y asigna arquetipo.</td><td><code>WeaponProfile profile = Analyze(weaponStats);</code></td></tr>
+        <tr><td><code>PlayerEquipmentController.cs</code></td><td>Equipa pico o arma forjada en la mano.</td><td><code>rightHandSocket.Attach(weaponObject);</code></td></tr>
+        <tr><td><code>AttackController.cs</code></td><td>Lee clics de combate y lanza ataques.</td><td><code>if (Input.GetMouseButtonDown(0)) TryTriggerAttack();</code></td></tr>
+        <tr><td><code>AttackController.Combo.cs</code></td><td>Encadenamiento fluido del combo de 5 golpes.</td><td><code>comboStep = (comboStep + 1) % 5;</code></td></tr>
+        <tr><td><code>AttackController.HitDetection.cs</code></td><td>Traza volumen de colisión y aplica daño.</td><td><code>target.TakeDamage(calculatedDamage);</code></td></tr>
+        <tr><td><code>DynamicEdgeAligner.cs</code></td><td>Compara filo con dirección de swing (+50% o -50%).</td><td><code>float alignment = Vector3.Dot(bladeEdgeNormal, swingDir);</code></td></tr>
+        <tr><td><code>IDamageable.cs</code></td><td>Interfaz universal de vida y muerte.</td><td><code>void TakeDamage(DamageInfo info); bool IsDead { get; }</code></td></tr>
+        <tr><td><code>CaveCreatureBase.cs</code></td><td>Base de monstruos con lista estática ActiveCreatures.</td><td><code>public static readonly List<CaveCreatureBase> Active = new();</code></td></tr>
+        <tr><td><code>EcologicalCaveBrain.cs</code></td><td>Árbol ecológico: vida, autodefensa, veta picada.</td><td><code>if (threatLevel > 0.8f) return EcologicalIntent.SelfDefense;</code></td></tr>
+        <tr><td><code>GolemEnemyController.cs</code></td><td>Mole de roca: defiende vetas minerales.</td><td><code>agent.speed = isEnraged ? runSpeed : patrolSpeed;</code></td></tr>
+        <tr><td><code>SpiderEnemyController.cs</code></td><td>Araña veloz: emboscadas y saltos parabólicos.</td><td><code>ExecuteLeapAttack(playerTransform.position);</code></td></tr>
+        <tr><td><code>SpiderBroodNest.cs</code></td><td>Nido de huevos: avisa a las arañas al atacarlo.</td><td><code>AlertSurroundingSpiders(attacker);</code></td></tr>
+        <tr><td><code>HitboxDebugManager.cs</code></td><td>Visualizador de cajas de impacto con F3.</td><td><code>if (Input.GetKeyDown(KeyCode.F3)) ToggleDebugGizmos();</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 11. Interfaz de Usuario y Menús (UI, MainMenu) [35 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>FurnacePanel.cs</code></td><td>Ventana del horno: fuelle y carbón en inventario.</td><td><code>coalCountText.text = $"+ Carbón ({inventory.GetCount(\"Coal\")})";</code></td></tr>
+        <tr><td><code>PressPanel.cs</code></td><td>Ventana de la prensa de lupas a lingotes.</td><td><code>pressButton.onClick.AddListener(OnPressClicked);</code></td></tr>
+        <tr><td><code>AnvilPanel.cs</code></td><td>Ventana del yunque para elegir lingote.</td><td><code>SelectIngotToForge(ingot);</code></td></tr>
+        <tr><td><code>InventoryPanel.cs</code></td><td>Códice medieval de inventario ([Tab] o [I]).</td><td><code>RefreshInventorySlots();</code></td></tr>
+        <tr><td><code>InventoryPanel.Entries.cs</code></td><td>Apila ítems idénticos para no saturar la vista.</td><td><code>GroupIdenticalItems();</code></td></tr>
+        <tr><td><code>PauseMenuPanel.cs</code></td><td>Menú de pausa: volumen, tutorial y reanudar.</td><td><code>Time.timeScale = isPaused ? 0f : 1f;</code></td></tr>
+        <tr><td><code>BookJournalStyler.cs</code></td><td>Pinta los paneles con textura de libro de cuero.</td><td><code>ApplyParchmentSkin();</code></td></tr>
+        <tr><td><code>BookJournalStyler.Pause.cs</code></td><td>Botón de alternar Tutorial (siluetas en yunque).</td><td><code>btnTutorial.onClick.AddListener(ToggleTutorial);</code></td></tr>
+        <tr><td><code>MedievalTypographyProvider.cs</code></td><td>Fuentes renacentistas seguras (Georgia, Palatino).</td><td><code>MedievalTypographyProvider.ApplyToTMP(textComponent);</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 12. Audio y Multijugador (Audio, Multiplayer) [9 archivos]</summary>
+    <table>
+      <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Línea / Método Clave</th></tr></thead>
+      <tbody>
+        <tr><td><code>ForgeAudioSystem.cs</code></td><td>Gestor central de audio: martillazos, fuego y vapor.</td><td><code>audioSource.PlayOneShot(hammerClips[idx]);</code></td></tr>
+        <tr><td><code>ForgeAudioSystem.Synthesis.cs</code></td><td>Síntesis acústica de audio en memoria sin WAVs.</td><td><code>float sample = Mathf.Sin(2 * Mathf.PI * freq * t);</code></td></tr>
+        <tr><td><code>LANNetworkManagerUI.cs</code></td><td>Interfaz para iniciar Host o unirse a LAN.</td><td><code>NetworkManager.Singleton.StartHost();</code></td></tr>
+        <tr><td><code>NetworkForgeStationBridge.cs</code></td><td>Sincroniza calor y estado de mesas por red.</td><td><code>SyncStationHeatServerRpc(currentHeat);</code></td></tr>
+        <tr><td><code>NetworkForgeStationBridge.AnvilVisual.cs</code></td><td>Sincroniza los vértices deformados en tiempo real.</td><td><code>SyncDeformedVerticesClientRpc(vertices);</code></td></tr>
+        <tr><td><code>PlayerNetworkBridge.cs</code></td><td>Autoridad de movimiento IsOwner vs Proxy remoto.</td><td><code>if (IsOwner) SetupLocal(); else SetupRemote();</code></td></tr>
+        <tr><td><code>PlayerNetworkBridge.Sync.cs</code></td><td>Sincroniza animaciones y swings de ataque.</td><td><code>TriggerAttackServerRpc(comboStep);</code></td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>📂 13. Herramientas de Editor (Assets/Scripts/Editor) [14 archivos]</summary>
+    <ul>
+      <li><code>ForgeCombatCompleteInstaller*.cs</code>: Construye el AnimatorController con capas de locomoción y combate 1H/2H.</li>
+      <li><code>MultiplayerSetupTool.cs</code>: Configura la arquitectura de red LAN con un solo clic en Unity.</li>
+      <li><code>BuildNetworkPlayerPrefab.cs</code>: Genera el prefab NetworkPlayer con componentes de red.</li>
+      <li><code>NetcodeInstaller.cs</code>: Asistente para verificar dependencias de Unity Netcode.</li>
+      <li><code>CaveMapSetupTool.cs</code> & <code>TerrainFloorSetupTool.cs</code>: Calibran suelos y colisiones en la escena.</li>
+      <li><code>GolemSetupTool.cs</code> & <code>SpiderSetupTool.cs</code>: Configuran prefabs y NavMesh de monstruos.</li>
+      <li><code>CharacterSetupTool.cs</code> & <code>AnimationInspectorTool.cs</code>: Verifican rig humanoide y clips UAL2.</li>
+    </ul>
+  </details>
+
+  <hr>
+
+  <h2 id="sec10">10. Índice de Búsqueda Rápida</h2>
+  <table>
+    <thead><tr><th>Si deseas modificar...</th><th>Archivo exacto de C#</th></tr></thead>
+    <tbody>
+      <tr><td>El calor, velocidad de fundición o carbón del horno</td><td><code>Assets/Scripts/MainGame/Forge/Horno/FurnaceController.Thermal.cs</code></td></tr>
+      <tr><td>La fórmula de aleaciones metálicas</td><td><code>Assets/Scripts/MainGame/Forge/Minerales/AlloyComposition.cs</code></td></tr>
+      <tr><td>La fuerza y el timing de golpe del martillo en el yunque</td><td><code>Assets/Scripts/MainGame/Forge/Yunque/AnvilHammerInput.cs</code></td></tr>
+      <tr><td>El corte por cincel y división de mallas 3D</td><td><code>Assets/Scripts/MainGame/Forge/Yunque/AnvilMeshCutter.cs</code></td></tr>
+      <tr><td>Las siluetas guía de ayuda en el yunque (tutorial)</td><td><code>Assets/Scripts/MainGame/Forge/Yunque/AnvilHammerInput.Guides.cs</code></td></tr>
+      <tr><td>El cálculo de daño final según el peso del arma forjada</td><td><code>Assets/Scripts/MainGame/Forge/Ensamblaje/WeaponAssemblyController.cs</code></td></tr>
+      <tr><td>Los combos de 5 ataques y animaciones de combate</td><td><code>Assets/Scripts/MainGame/Combat/ComboCatalog.cs</code></td></tr>
+      <tr><td>La IA y agresividad de los Golems al picar rocas</td><td><code>Assets/Scripts/MainGame/Combat/GolemEnemyController.AI.cs</code></td></tr>
+      <tr><td>Las telarañas, saltos y ataques de las Arañas</td><td><code>Assets/Scripts/MainGame/Combat/SpiderEnemyController.AI.cs</code></td></tr>
+      <tr><td>Los túneles, cámaras y rocas de la caverna</td><td><code>Assets/Scripts/MainGame/Environment/CaveDungeonBuilder.cs</code></td></tr>
+      <tr><td>La cantidad de minerales que caen al picar</td><td><code>Assets/Scripts/MainGame/Resources/ResourceNodeController.cs</code></td></tr>
+      <tr><td>El inventario inicial del herrero y respawn al morir</td><td><code>Assets/Scripts/MainGame/Inventory/InventoryController.Defaults.cs</code></td></tr>
+      <tr><td>Las fuentes medievales y textos renacentistas</td><td><code>Assets/Scripts/MainGame/UI/MedievalTypographyProvider.cs</code></td></tr>
+      <tr><td>El aspecto de pergamino de los paneles de libro</td><td><code>Assets/Scripts/MainGame/UI/BookJournalStyler.cs</code></td></tr>
+      <tr><td>La posición, márgenes y viewports del horno</td><td><code>Assets/Scripts/MainGame/UI/ForgeCanvasThemeStyler.Furnace.cs</code></td></tr>
+      <tr><td>La generación procedural de iconos de ítems</td><td><code>Assets/Scripts/MainGame/UI/ProceduralItemIconProvider.cs</code></td></tr>
+    </tbody>
+  </table>
+
+</body>
+</html>

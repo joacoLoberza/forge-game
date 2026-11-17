@@ -35,7 +35,7 @@ namespace ForjaGame.Forge
         public bool IsOccupied => _isOccupied;
         public GameObject CurrentInteractor => _currentInteractor;
         public GameObject StationUI => stationUI;
-        public virtual string InteractionPrompt => "Usar Estación";
+        public virtual string InteractionPrompt => "Use Station";
 
         protected float GetDistanceToInteractor(GameObject interactor)
         {
@@ -104,12 +104,16 @@ namespace ForjaGame.Forge
 
         public virtual bool CanInteract(GameObject interactor)
         {
+            if (ForjaGame.UI.ForgeTutorialDirector.Instance != null && !ForjaGame.UI.ForgeTutorialDirector.Instance.CanInteractWithStation(this, out _))
+                return false;
             if (!_isOccupied) return true;
             return IsOccupiedBy(interactor);
         }
 
         public virtual void Interact(GameObject interactor)
         {
+            if (ForjaGame.UI.ForgeTutorialDirector.Instance != null && !ForjaGame.UI.ForgeTutorialDirector.Instance.CanInteractWithStation(this, out _))
+                return;
             // Si la estación ya está ocupada por otro jugador, rechazar interacción
             if (_isOccupied && !IsOccupiedBy(interactor))
             {

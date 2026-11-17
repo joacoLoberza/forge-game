@@ -39,6 +39,7 @@ namespace ForjaGame.Forge
         public Quaternion bladeMountRotation = Quaternion.identity;
         public Vector3 gripCenterOffset;
         public bool isFrontFaceDominant = true;
+        public bool isPrebuiltModel = false;
         public Vector3[] vertexPositions;
 
         public float baseDamage;
@@ -57,10 +58,10 @@ namespace ForjaGame.Forge
         {
             float hLen = handleLength switch
             {
-                HandleLength.Short => 0.38f,
-                HandleLength.Medium => 0.78f,
-                HandleLength.Long => 1.38f,
-                _ => 0.55f
+                HandleLength.Short => 0.56f,
+                HandleLength.Medium => 0.80f,
+                HandleLength.Long => 1.45f,
+                _ => 0.80f
             };
             if (customHandleMesh != null && customHandleMesh.bounds.size.x > 0.05f)
                 hLen = customHandleMesh.bounds.size.x;
@@ -68,18 +69,19 @@ namespace ForjaGame.Forge
             float headL = 0.80f, headW = 0.06f, headT = 0.015f, latExt = 0.02f;
             if (customMesh != null && customMesh.bounds.size.sqrMagnitude > 0.001f)
             {
-                var b = customMesh.bounds;
-                headL = Mathf.Max(0.10f, b.size.x);
-                headW = Mathf.Max(0.02f, b.size.z);
-                headT = Mathf.Max(0.008f, b.size.y);
-                latExt = Mathf.Abs(b.center.z) / Mathf.Max(0.01f, b.size.z);
+                Bounds rb = ComputeRotatedMeshBounds(customMesh, bladeMountRotation);
+                headL = Mathf.Max(0.10f, rb.size.x);
+                headW = Mathf.Max(0.02f, rb.size.z);
+                headT = Mathf.Max(0.008f, rb.size.y);
+                float latOffset = Mathf.Max(Mathf.Abs(rb.center.z), Mathf.Abs(bladeMountPosition.z));
+                latExt = Mathf.Max(weaponType == WeaponType.Axe ? 0.22f : 0f, latOffset / Mathf.Max(0.05f, headW));
             }
             else
             {
                 switch (weaponType)
                 {
-                    case WeaponType.Axe: headL = 0.32f; headW = 0.22f; headT = 0.04f; latExt = 0.35f; break;
-                    case WeaponType.Hammer: headL = 0.26f; headW = 0.18f; headT = 0.16f; latExt = 0.05f; break;
+                    case WeaponType.Axe: headL = 0.26f; headW = 0.22f; headT = 0.04f; latExt = 0.35f; break;
+                    case WeaponType.Hammer: headL = 0.24f; headW = 0.18f; headT = 0.16f; latExt = 0.05f; break;
                     default: headL = 0.85f; headW = 0.06f; headT = 0.015f; latExt = 0.02f; break;
                 }
             }
@@ -88,60 +90,53 @@ namespace ForjaGame.Forge
             if (weaponType == WeaponType.Hammer) sh = 0.10f;
             else if (sh < 0.2f && quality >= 0.5f) sh = 0.75f;
 
-            float headMass = ingotSize switch { ItemSize.Small => 1.2f, ItemSize.Medium => 2.9f, ItemSize.Large => 5.8f, _ => 2.5f };
-            float handleMass = Mathf.Clamp(hLen * 0.95f, 0.22f, 1.55f);
-            _profile = WeaponProfile.Calculate(hLen, headL, headW, headT, sh, latExt, headMass + handleMass);
+            float headMass = ingotSize switch { ItemSize.Small => 1.25f, ItemSize.Medium => 2.85f, ItemSize.Large => 5.60f, _ => 2.4f };
+            float handleMass = Mathf.Clamp(hLen * 0.72f, 0.22f, 1.35f);
+            _profile = WeaponProfile.Calculate(hLen, headL, headW, headT, sh, latExt, headMass + handleMass, weaponType);
             return _profile;
         }
 
+        public static Bounds ComputeRotatedMeshBounds(Mesh mesh, Quaternion rot)
+        {
+            var verts = mesh.vertices;
+            if (verts == null || verts.Length == 0) return mesh.bounds;
+            Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+            for (int i = 0; i < verts.Length; i++)
+            {
+                Vector3 p = rot * verts[i];
+                if (p.x < min.x) min.x = p.x; if (p.x > max.x) max.x = p.x;
+                if (p.y < min.y) min.y = p.y; if (p.y > max.y) max.y = p.y;
+                if (p.z < min.z) min.z = p.z; if (p.z > max.z) max.z = p.z;
+            }
+            Bounds b = new Bounds(); b.SetMinMax(min, max); return b;
+        }
+
         /// <summary>
-        /// Determina el estilo de animación real según la morfología forjada (longitud real del mango,
-        /// masa de la cabeza y tipo de arma), diferenciando hachas/martillos ligeros 1H de pesados 2H y alabardas.
+        /// Determina el estilo de animación real según la morfología forjada:
+        /// - Lingote pequeño + mango corto o medio -> siempre arma LIGERA de 1 MANO (Axe1H, Hammer1H, Sword1H/Dagger1H).
+        /// - Mango largo -> Asta / Alabarda (o Pesada 2H si la cabeza también es pesada).
+        /// - Lingote grande (o mediano muy pesado de asta/cabeza pesada) -> Heavy2H.
         /// </summary>
         public WeaponAnimationStyle GetAnimationStyle()
         {
-            if (weaponType == WeaponType.Pickaxe)
-                return WeaponAnimationStyle.Hammer1H;
-
-            WeaponProfile prof = Profile;
-
-            // Asta / Alabarda / Lanza de hoja (mangos muy largos con cabeza ligera o mediana)
-            if (prof.grip == GripMode.Pole && ingotSize != ItemSize.Large)
-                return WeaponAnimationStyle.Polearm;
-            if (handleLength == HandleLength.Long && weaponType == WeaponType.Sword && ingotSize != ItemSize.Large)
-                return WeaponAnimationStyle.Polearm;
-
-            // Agarre pesado a DOS MANOS: Lingote Grande, Mango Largo, perfil TwoHand,
-            // o Hachas/Martillos de cabeza mediana con mango mediano/largo (Hacha de Batalla / Martillo de Guerra 2H)
-            bool isHeavyHeadedAxeOrHammer = (weaponType == WeaponType.Axe || weaponType == WeaponType.Hammer)
-                                            && handleLength != HandleLength.Short
-                                            && (ingotSize != ItemSize.Small || prof.handleLength >= 0.78f);
-
-            if (ingotSize == ItemSize.Large || handleLength == HandleLength.Long ||
-                prof.grip == GripMode.TwoHand || prof.grip == GripMode.Pole ||
-                isHeavyHeadedAxeOrHammer)
-            {
+            if (weaponType == WeaponType.Pickaxe) return WeaponAnimationStyle.Hammer1H;
+            if (handleLength == HandleLength.Long || (ingotSize == ItemSize.Large && handleLength != HandleLength.Short))
                 return WeaponAnimationStyle.Heavy2H;
-            }
-
-            // Armas ágiles de UNA MANO (Hachuelas cortas, Mazas compactas, Espadas 1H y Dagas)
             return weaponType switch
             {
                 WeaponType.Axe => WeaponAnimationStyle.Axe1H,
                 WeaponType.Hammer => WeaponAnimationStyle.Hammer1H,
-                WeaponType.Sword when handleLength == HandleLength.Short || prof.grip == GripMode.OneShort => WeaponAnimationStyle.Dagger1H,
+                WeaponType.Sword when handleLength == HandleLength.Short => WeaponAnimationStyle.Dagger1H,
                 _ => WeaponAnimationStyle.Sword1H
             };
         }
 
         public WeaponCombatStance GetCombatStance()
         {
-            return GetAnimationStyle() switch
-            {
-                WeaponAnimationStyle.Polearm => WeaponCombatStance.Polearm,
-                WeaponAnimationStyle.Heavy2H => WeaponCombatStance.TwoHanded,
-                _ => WeaponCombatStance.OneHanded
-            };
+            if (weaponType == WeaponType.Pickaxe || handleLength == HandleLength.Long || GetAnimationStyle() == WeaponAnimationStyle.Heavy2H)
+                return WeaponCombatStance.TwoHanded;
+            return WeaponCombatStance.OneHanded;
         }
 
         public float GetNormalizedWeight()
@@ -168,14 +163,21 @@ namespace ForjaGame.Forge
             return Mathf.Clamp((1.42f - (weight * 0.72f)) * handleLengthPenalty * mineralSpeed, 0.58f, 1.65f);
         }
 
+        public float GetPassiveBlockDamageMultiplier()
+        {
+            float headVal = ingotSize switch { ItemSize.Small => 0f, ItemSize.Medium => 0.5f, ItemSize.Large => 1f, _ => 0.4f };
+            float handleVal = handleLength switch { HandleLength.Short => 0f, HandleLength.Medium => 0.5f, HandleLength.Long => 1f, _ => 0.4f };
+            float sizeFactor = Mathf.Clamp01(headVal * 0.65f + handleVal * 0.35f);
+            return Mathf.Lerp(0.68f, 0.36f, sizeFactor);
+        }
+
         public int MaxComboCount => GetAnimationStyle() == WeaponAnimationStyle.Unarmed ? 3 : 5;
 
-        public float GetBaseAttackDuration() => GetAnimationStyle() switch
+        public float GetBaseAttackDuration()
         {
-            WeaponAnimationStyle.Dagger1H => 0.65f, WeaponAnimationStyle.Sword1H => 1.05f, WeaponAnimationStyle.Axe1H => 1.05f,
-            WeaponAnimationStyle.Hammer1H => 1.10f, WeaponAnimationStyle.Heavy2H => 1.45f,
-            WeaponAnimationStyle.Polearm => 1.30f, _ => 1.05f
-        };
+            if (weaponType == WeaponType.Pickaxe) return 0.80f;
+            return handleLength switch { HandleLength.Short => 0.82f, HandleLength.Long => 1.24f, _ => 1.02f };
+        }
 
         public float GetComboLinkRatio() => GetAnimationStyle() switch
         {
@@ -196,7 +198,7 @@ namespace ForjaGame.Forge
 
         public void ConsumeSharpness(float amount = 1f) => currentSharpness = Mathf.Max(0f, currentSharpness - amount);
         public void RestoreSharpness(float amount) => currentSharpness = Mathf.Min(maxSharpness, currentSharpness + amount);
-        public string Description => $"Daño: {EffectiveDamage:F1} (Base: {baseDamage:F1}) | Vel: {attackSpeed:F2} | Alcance: {attackRange:F2}m | Filo: {currentSharpness:F0}/{maxSharpness:F0} ({SharpnessRatio * 100:F0}%) | Pureza: {PurityPercentage}%";
+        public string Description => $"Dmg: {EffectiveDamage:F1} (Base: {baseDamage:F1}) | Spd: {attackSpeed:F2} | Reach: {attackRange:F2}m | Edge: {currentSharpness:F0}/{maxSharpness:F0} ({SharpnessRatio * 100:F0}%) | Purity: {PurityPercentage}%";
         public override string ToString() => $"{DisplayName} [{ingotSize}|{handleLength}] -> Dmg: {EffectiveDamage:F1}, Spd: {attackSpeed:F2}, Rng: {attackRange:F2}m";
     }
 }

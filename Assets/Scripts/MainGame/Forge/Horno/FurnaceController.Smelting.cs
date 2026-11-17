@@ -26,6 +26,7 @@ namespace ForjaGame.Forge
             _sweetSpotTime = 0f;
             _totalSmeltTimeSpent = 0f;
             hasReachedSharedRangeOnce = false;
+            HasUsedBellowsThisSmelt = false;
             isSmelting = true;
         }
 
@@ -97,6 +98,7 @@ namespace ForjaGame.Forge
             };
 
             AlloyComposition composition = GetCurrentComposition();
+            AlloyCodexRegistry.RegisterFromComposition(composition, true);
             BloomData bloom = new BloomData(size, composition, currentQuality);
 
             _insertedOres.Clear();

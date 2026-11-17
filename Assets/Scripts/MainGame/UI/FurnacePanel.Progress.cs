@@ -13,16 +13,25 @@ namespace ForjaGame.UI
     {
         private void Update()
         {
-            if (furnaceController == null || !IsOpen) return;
+            if (furnaceController == null || !IsOpen || PauseMenuPanel.IsGamePaused) return;
             var keyboard = UnityEngine.InputSystem.Keyboard.current;
-            if (keyboard != null)
+            bool inTut = ForgeTutorialDirector.Instance != null && ForgeTutorialDirector.Instance.IsTutorialActive;
+            bool canRegulate = !inTut || (furnaceController.GetTotalOreCount() >= 3 && _readyBloom == null && furnaceController.UnclaimedBloom == null);
+            if (keyboard != null && canRegulate)
             {
-                if (keyboard.spaceKey.wasPressedThisFrame)
+                bool tooHot = furnaceController.TargetMaxTemp > 0f && furnaceController.CurrentTemperature > furnaceController.TargetMaxTemp;
+                bool tooCold = furnaceController.TargetMinTemp > 0f && furnaceController.CurrentTemperature < furnaceController.TargetMinTemp;
+                bool allowBellows = !inTut || !tooCold;
+                bool allowCoal = !inTut || !tooHot;
+                if (allowBellows && keyboard.spaceKey.wasPressedThisFrame)
+                {
                     furnaceController.PulseBellows(45f);
-                else if (keyboard.spaceKey.isPressed)
+                    ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzHornoFuelle();
+                }
+                else if (allowBellows && keyboard.spaceKey.isPressed)
                     furnaceController.ApplyBellowsCooling(Time.deltaTime);
 
-                if (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame)
+                if (allowCoal && (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame))
                     OnAddCoalClicked();
             }
             UpdateThermalButton();
@@ -107,8 +116,9 @@ namespace ForjaGame.UI
             UpdateProgressSizeMarks();
             _lastDisplayedOreHash = int.MinValue;
             UpdateDisplay();
+            ForjaGame.Audio.ForgeAudioSystem.PlayProcessComplete(bloom != null ? bloom.quality : 0.85f);
             int qualityPercent = bloom != null ? Mathf.RoundToInt(bloom.quality * 100f) : 100;
-            SetStatus($"¡Fundición lista! Saca {bloom?.DisplayName ?? "la Lupa"} ({qualityPercent}%) de la boca inferior.");
+            SetStatus($"Smelting complete! Extract {bloom?.DisplayName ?? "Bloom"} ({qualityPercent}%) from bottom opening.");
         }
 
         private void OnExtractBloomClicked()
@@ -119,8 +129,9 @@ namespace ForjaGame.UI
 
             InventoryController inventory = GetCurrentPlayerInventory();
             inventory?.AddBloom(_readyBloom);
+            ForjaGame.Audio.ForgeAudioSystem.PlayItemPickup(transform.position);
 
-            SetStatus($"¡{_readyBloom.DisplayName} ({_readyBloom.SizeLabel}) extraída por debajo y guardada!");
+            SetStatus($"{_readyBloom.DisplayName} ({_readyBloom.SizeLabel}) extracted and stored in inventory!");
             _readyBloom = null;
 
             furnaceController?.TakeUnclaimedBloom();
@@ -162,67 +173,73 @@ namespace ForjaGame.UI
         private void UpdateOreGuideAndSummaryText()
         {
             if (oreCountText == null) return;
-            int inFurnace = furnaceController != null ? furnaceController.GetTotalOreCount() : 0;
+            int inFurnace = furnaceController.GetTotalOreCount();
             int staged = _stagedOres.Count;
-            int hash = (inFurnace * 397) ^ (staged * 31);
+            int impurity = furnaceController.CurrentImpurityPercentage;
+            int hash = (inFurnace * 397) ^ (staged * 31) ^ impurity ^ (_stagedOres.Count > 0 ? (int)_stagedOres[_stagedOres.Count - 1] * 7 : 0);
             if (hash == _lastDisplayedOreHash) return;
             _lastDisplayedOreHash = hash;
 
             int combined = inFurnace + staged;
             string multBadge = combined == 0
-                ? "<color=#8B5A2B>3, 6 o 9 minerales</color>"
+                ? "<color=#8B5A2B>Insert 3 (Small), 6 (Med) or 9 (Large)</color>"
                 : (combined % 3 == 0)
-                    ? $"<color=#1B6E32><b>[Lote válido: {combined}/9]</b></color>"
-                    : $"<color=#A84300><b>[Faltan {3 - (combined % 3)} para x3]</b></color>";
+                    ? $"<color=#1B6E32><b>[Valid Recipe: {combined}/9]</b></color>"
+                    : $"<color=#A84300><b>[Need {3 - (combined % 3)} more to reach multiple of 3]</b></color>";
 
-            string stagedSummary = staged > 0 ? $" • {FormatStagedSummary()}" : "";
-            oreCountText.text = $"<b>Carga: {combined}/9</b>  {multBadge}{stagedSummary}";
+            var sb = new StringBuilder();
+            sb.AppendLine($"<b>Total Load: {combined}/9</b>  {multBadge}");
+            sb.AppendLine($"In 3D tray: <b>{FormatStagedSummary()}</b>");
+            sb.Append(inFurnace > 0
+                ? $"In crucible ({inFurnace}): {furnaceController.GetCurrentComposition().GetCompositionDescription()}"
+                : "Smelt Guide: Copper (560-780°C) · Gold (670-890°C) · Iron (780-1000°C)");
+            oreCountText.text = sb.ToString();
         }
 
         private string FormatStagedSummary()
         {
-            if (_stagedOres.Count == 0) return "Ninguno seleccionado";
+            if (_stagedOres.Count == 0) return "None staged";
             Dictionary<MetalType, int> counts = new();
             for (int i = 0; i < _stagedOres.Count; i++)
                 counts[_stagedOres[i]] = counts.TryGetValue(_stagedOres[i], out int c) ? c + 1 : 1;
 
             List<string> parts = new();
             foreach (var kv in counts)
-                parts.Add($"{RawMaterialCatalog.GetDisplayName(kv.Key.ToString()).Replace("Mineral de ", "")} x{kv.Value}");
+                parts.Add($"{RawMaterialCatalog.GetDisplayName(kv.Key.ToString()).Replace("Mineral de ", "").Replace(" Ore", "")} x{kv.Value}");
             return string.Join(", ", parts);
         }
 
         private void UpdateStatusFeedback()
         {
             if (_readyBloom != null)
-                SetStatus($"¡Lupa lista en la boca inferior! Pulsa 'Sacar Lupa' o haz clic en ella.");
+                SetStatus("Bloom ready at bottom opening! Click 'Extract Bloom' or click on it.");
             else if (_stagedOres.Count > 0)
             {
                 int total = furnaceController.GetTotalOreCount() + _stagedOres.Count;
                 SetStatus(total % 3 == 0
-                    ? $"¡Múltiplo válido ({total}/9)! Pulsa 'Ingresar minerales' para echarlos por arriba."
-                    : $"Seleccionados {_stagedOres.Count} minerales ({total}/9). Elige {3 - (total % 3)} más para alcanzar múltiplo de 3.");
+                    ? $"Valid recipe ({total}/9)! Click 'Insert Ores' to load them into crucible."
+                    : $"Staged {_stagedOres.Count} ores ({total}/9). Pick {3 - (total % 3)} more for a valid multiple of 3.");
             }
             else if (furnaceController.IsSmeltInProgress)
             {
                 if (furnaceController.IsInSweetSpot)
-                    SetStatus("[ZONA ÓPTIMA] (+60% Rapidez) Equilibra con Carbón [Shift] y Fuelle [Espacio].");
+                    SetStatus("[SWEET SPOT] (+60% Speed) Balance with Coal [Shift] and Bellows [Space].");
                 else if (furnaceController.IsInOptimumRange)
-                    SetStatus("Rango de fusión activo: compensa con Fuelle [Espacio] o Carbón [Shift].");
+                    SetStatus("Melting range active: regulate with Bellows [Space] or Coal [Shift].");
                 else if (furnaceController.IsOverheating)
-                    SetStatus("¡Sobrecalentamiento! Pulsa o mantén Fuelle [Espacio] para bajar de golpe.");
+                    SetStatus("Overheating! Tap or hold Bellows [Space] to cool down quickly.");
                 else
-                    SetStatus("Fuego bajo: pulsa Carbón [Shift] para disparar la aguja hacia la zona.");
+                    SetStatus("Heat low: press Coal [Shift] to raise temperature into the zone.");
             }
             else if (furnaceController.GetTotalOreCount() > 0)
             {
                 int c = furnaceController.GetTotalOreCount();
                 SetStatus(c % 3 == 0
-                    ? $"Crisol cargado ({c}/9). Echa Carbón [Shift] para subir a {furnaceController.TargetMinTemp:F0}°C."
-                    : $"Crisol con {c}/9 minerales. Selecciona e ingresa {3 - (c % 3)} más.");
+                    ? $"Crucible loaded ({c}/9). Add Coal [Shift] to reach {furnaceController.TargetMinTemp:F0}°C."
+                    : $"Crucible has {c}/9 ores. Select and insert {3 - (c % 3)} more.");
             }
             else
-                SetStatus("Selecciona 3, 6 o 9 minerales y pulsa 'Ingresar minerales'.");
+                SetStatus("Select 3, 6 or 9 ores and click 'Insert Ores'.");
         }
     }
 }

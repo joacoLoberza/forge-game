@@ -87,76 +87,69 @@ namespace ForjaGame.Forge
             ramTransform.gameObject.SetActive(true);
             if (palaTransform != null) palaTransform.gameObject.SetActive(true);
 
-            // 1. Pivote del Torno (Part_Ram) centrado en el eje vertical del tornillo
-            Transform existingRamPivot = _stationRoot.Find("RamPivot");
-            if (existingRamPivot != null)
-            {
-                _ramPivot = existingRamPivot;
-            }
+            // 1. Setup Pala (Part_Pala):
+            Transform existingPalaPivot = _stationRoot.Find("PalaPivot");
+            if (existingPalaPivot != null) _palaPivot = existingPalaPivot;
             else
             {
-                GameObject go = new GameObject("RamPivot");
-                go.transform.SetParent(_stationRoot, false);
-                Bounds b = GetCombinedBounds(ramTransform.GetComponentsInChildren<Renderer>(true));
-                go.transform.position = b.center;
-                _ramPivot = go.transform;
+                GameObject goPala = new GameObject("PalaPivot");
+                goPala.transform.SetParent(_stationRoot, false);
+                Bounds pb = GetCombinedBounds(palaTransform.GetComponentsInChildren<Renderer>(true));
+                goPala.transform.position = pb.center;
+                _palaPivot = goPala.transform;
             }
+            if (palaTransform != null && palaTransform.parent != _palaPivot) palaTransform.SetParent(_palaPivot, true);
 
+            // 2. Setup Torno (Part_Ram):
+            Transform existingRamPivot = _stationRoot.Find("RamPivot");
+            if (existingRamPivot != null) _ramPivot = existingRamPivot;
+            else
+            {
+                GameObject goRam = new GameObject("RamPivot");
+                goRam.transform.SetParent(_stationRoot, false);
+                Bounds rb = GetCombinedBounds(ramTransform.GetComponentsInChildren<Renderer>(true));
+                goRam.transform.position = rb.center;
+                _ramPivot = goRam.transform;
+            }
             if (ramTransform.parent != _ramPivot) ramTransform.SetParent(_ramPivot, true);
 
-            // 2. Pivote de la Pala (Part_Pala): movimiento puramente vertical (subir y bajar sin rotar)
-            float halfPalaHeight = 0.12f;
-            if (palaTransform != null)
-            {
-                Transform existingPalaPivot = _stationRoot.Find("PalaPivot");
-                if (existingPalaPivot != null)
-                {
-                    _palaPivot = existingPalaPivot;
-                }
-                else
-                {
-                    GameObject go = new GameObject("PalaPivot");
-                    go.transform.SetParent(_stationRoot, false);
-                    Bounds pb = GetCombinedBounds(palaTransform.GetComponentsInChildren<Renderer>(true));
-                    go.transform.position = new Vector3(_ramPivot.position.x, pb.center.y, _ramPivot.position.z);
-                    _palaPivot = go.transform;
-                }
-
-                if (palaTransform.parent != _palaPivot) palaTransform.SetParent(_palaPivot, true);
-                Bounds palaBounds = GetCombinedBounds(palaTransform.GetComponentsInChildren<Renderer>(true));
-                halfPalaHeight = Mathf.Max(0.04f, palaBounds.extents.y);
-            }
+            _palaPivot.localRotation = Quaternion.identity;
+            _ramPivot.localRotation = Quaternion.identity;
 
             SetupWorkpieceBedAnchor(_stationRoot);
 
-            // Calibrar recorrido vertical exacto (eje Y):
-            // BedWorldFocusPoint es la cara superior de la mesa donde descansa la pieza.
-            // En reposo (progress = 0), la pala debe despejar la Lupa (altura ~0.35m + margen ~0.38m).
-            // Al prensar (progress = 1), la pala desciende hasta hacer contacto con el lingote (0.085m de grosor).
+            // 3. Calibrar posición de la pala prensada (progress = 1)
             Vector3 bedPos = BedWorldFocusPoint;
             float worldScaleY = _stationRoot.lossyScale.y > 0.001f ? _stationRoot.lossyScale.y : 0.1964f;
-
             float targetPalaMinY_Pressed = bedPos.y + 0.085f;
+
+            Bounds palaBounds = GetCombinedBounds(palaTransform.GetComponentsInChildren<Renderer>(true));
+            float halfPalaHeight = Mathf.Max(0.04f, palaBounds.extents.y);
+
+            // Posicionar la pala en su punto más bajo (contacto con el lingote)
+            Vector3 pressedPalaWorld = new Vector3(bedPos.x, targetPalaMinY_Pressed + halfPalaHeight, bedPos.z);
+            _palaPivot.position = pressedPalaWorld;
+            palaBounds = GetCombinedBounds(palaTransform.GetComponentsInChildren<Renderer>(true));
+
+            // 4. Conectar Part_Ram en contacto directo sobre Part_Pala (centrado y apoyado sobre la pala)
+            Bounds ramBounds = GetCombinedBounds(ramTransform.GetComponentsInChildren<Renderer>(true));
+            float verticalShift = (palaBounds.max.y - 0.015f) - ramBounds.min.y;
+            _ramPivot.position = new Vector3(bedPos.x, _ramPivot.position.y + verticalShift, bedPos.z);
+
+            // 5. Guardar posiciones base prensadas (progress = 1)
+            _basePalaLocalPos = _palaPivot.localPosition;
+            _baseRamLocalPos = _ramPivot.localPosition;
+
+            // 6. Recorrido mecánico (stroke)
             float restOffset = (restElevationOffset >= 0.35f) ? restElevationOffset : 0.38f;
             float targetPalaMinY_Rest = bedPos.y + restOffset;
             float strokeWorld = targetPalaMinY_Rest - targetPalaMinY_Pressed;
-
             strokeDistance = strokeWorld / worldScaleY;
 
-            if (_palaPivot != null)
-            {
-                Vector3 pressedPalaWorld = new Vector3(_palaPivot.position.x, targetPalaMinY_Pressed + halfPalaHeight, _palaPivot.position.z);
-                _basePalaLocalPos = _stationRoot.InverseTransformPoint(pressedPalaWorld);
-                _palaRestLocalPos = _basePalaLocalPos + Vector3.up * strokeDistance;
-                _palaRestLocalRot = _palaPivot.localRotation;
-            }
-
-            if (_ramPivot != null)
-            {
-                _baseRamLocalPos = _ramPivot.localPosition;
-                _ramRestLocalPos = _baseRamLocalPos + Vector3.up * strokeDistance;
-                _ramRestLocalRot = _ramPivot.localRotation;
-            }
+            _palaRestLocalPos = _basePalaLocalPos + Vector3.up * strokeDistance;
+            _ramRestLocalPos = _baseRamLocalPos + Vector3.up * strokeDistance;
+            _palaRestLocalRot = Quaternion.identity;
+            _ramRestLocalRot = Quaternion.identity;
 
             _isInitialized = true;
             ApplyProgress(0f);
@@ -190,14 +183,14 @@ namespace ForjaGame.Forge
             Vector3 verticalDisplacement = Vector3.up * (strokeDistance * progress);
             Quaternion spin = Quaternion.Euler(0f, progress * screwRotationDegrees, 0f);
 
-            // El torno gira sobre su eje mientras baja y sube
+            // El torno gira sobre su eje mientras baja y sube, siempre conectado a la pala
             if (_ramPivot != null)
             {
                 _ramPivot.localPosition = _ramRestLocalPos - verticalDisplacement;
                 _ramPivot.localRotation = _ramRestLocalRot * spin;
             }
 
-            // La pala únicamente sube y baja, sin girar
+            // La pala baja y sube conectada al Ram, pero sin rotar
             if (_palaPivot != null)
             {
                 _palaPivot.localPosition = _palaRestLocalPos - verticalDisplacement;

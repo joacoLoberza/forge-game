@@ -22,7 +22,7 @@ namespace ForjaGame.Combat
 
             return new WeaponStats
             {
-                weaponName = "Gran Pico de Hierro (2H)",
+                weaponName = "Great Iron Pickaxe (2H)",
                 weaponType = WeaponType.Pickaxe,
                 ingotSize = ItemSize.Large,
                 handleLength = HandleLength.Long,
@@ -33,7 +33,7 @@ namespace ForjaGame.Combat
                 maxSharpness = 100f,
                 currentSharpness = 100f,
                 quality = 0.98f,
-                qualityPrefix = "Minero Pesado",
+                qualityPrefix = "Heavy Mining",
                 customMesh = headMesh,
                 customHandleMesh = handleMesh,
                 bladeMountPosition = new Vector3(0.94f, 0f, 0f),

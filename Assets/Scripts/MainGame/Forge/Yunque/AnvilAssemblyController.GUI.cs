@@ -19,49 +19,58 @@ namespace ForjaGame.Forge
 
         private void OnGUI()
         {
-            if (_bladeObj == null) return;
+            if (_bladeObj == null || PauseMenuPanel.IsGamePaused) return;
             EnsureStyles();
 
             if (_stage == AssemblyStage.Positioning)
             {
-                float w = 780f, h = 112f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 20f;
-                string wTitle = _anvil?.SelectedWeaponType == WeaponType.Hammer ? "MARTILLO" : (_anvil?.SelectedWeaponType == WeaponType.Sword ? "ESPADA" : "HACHA");
+                float w = 780f, h = 148f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 20f;
+                string wTitle = _anvil?.SelectedWeaponType == WeaponType.Hammer ? "HAMMER" : (_anvil?.SelectedWeaponType == WeaponType.Sword ? "SWORD" : "AXE");
                 string status = !IsContactingEye
-                    ? (_anvil?.SelectedWeaponType == WeaponType.Sword ? "<color=#C84210><b>ESPIGA FUERA DE RANGO:</b> La espiga debe entrar en el mango sin sobresalir al aire.</color>" : "<color=#C84210><b>ALINEACIÓN PENDIENTE:</b> El mango debe estar contenido dentro del lingote.</color>")
-                    : "<color=#168A48><b>¡ENCASTRE ALINEADO!</b> Encastre firme sin holguras. Haz [Click Izquierdo] para deslizar la pieza.</color>";
-                GUI.Box(new Rect(x, y, w, h), $"<b>ENSAMBLAJE DE {wTitle}:</b> [Q]/[E]/[R]: Rotar ({_rotationStep * 90}°) • [A]/[D]/[W]/[S]: Ajustar posición ({_tangLength * 100f:F0}cm)\n{status}", _hudCardStyle);
+                    ? (_anvil?.SelectedWeaponType == WeaponType.Sword ? "<color=#C84210><b>TANG OUT OF RANGE:</b> Blade tang must fit inside handle socket.</color>" : "<color=#C84210><b>ALIGNMENT PENDING:</b> Handle must fit within ingot eye.</color>")
+                    : "<color=#168A48><b>FIT ALIGNED!</b> Firm socket with zero wobble. Left Click to slide blade head.</color>";
+                GUI.Box(new Rect(x, y, w, h), $"<b>ASSEMBLING {wTitle}:</b> [E]/[R]: Rotate ({_rotationStep * 90}°) • [A]/[D]/[W]/[S]: Adjust position ({_tangLength * 100f:F0}cm)\n{status}", _hudCardStyle);
+                if (GUI.Button(new Rect(x + (w - 300f) * 0.5f, y + h - 42f, 300f, 32f), "<b>« RETURN TO HANDLE [BACKSPACE]</b>", _actionBtnStyle))
+                {
+                    ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
+                    ReturnToHandleCarving();
+                }
             }
             else if (_stage == AssemblyStage.Sliding)
             {
-                string part = _anvil?.SelectedWeaponType == WeaponType.Sword ? "HOJA DE LA ESPADA" : $"CABEZA DEL {(_anvil?.SelectedWeaponType == WeaponType.Hammer ? "MARTILLO" : "HACHA")}";
-                GUI.Box(new Rect((Screen.width - 560f) * 0.5f, Screen.height - 78f, 560f, 48f), $"<b>DESLIZANDO {part} POR EL MANGO...</b>", _goldBannerStyle);
+                string part = _anvil?.SelectedWeaponType == WeaponType.Sword ? "SWORD BLADE" : $"{(_anvil?.SelectedWeaponType == WeaponType.Hammer ? "HAMMER HEAD" : "AXE HEAD")}";
+                GUI.Box(new Rect((Screen.width - 560f) * 0.5f, Screen.height - 78f, 560f, 48f), $"<b>SLIDING {part} ONTO HANDLE...</b>", _goldBannerStyle);
             }
             else if (_stage == AssemblyStage.Inspection)
             {
                 float w = 800f, h = 212f, x = (Screen.width - w) * 0.5f, y = Screen.height - h - 20f;
-                string def = _anvil?.SelectedWeaponType == WeaponType.Hammer ? "Martillo Artesanal" : (_anvil?.SelectedWeaponType == WeaponType.Sword ? "Espada Artesanal" : "Hacha Artesanal");
+                string def = _anvil?.SelectedWeaponType == WeaponType.Hammer ? "Artisan Hammer" : (_anvil?.SelectedWeaponType == WeaponType.Sword ? "Artisan Sword" : "Artisan Axe");
                 string nm = _previewStats?.weaponName ?? def, q = _previewStats?.qualityPrefix ?? "Standard";
                 float d = _previewStats?.baseDamage ?? 30f, s = _previewStats?.attackSpeed ?? 1.0f, sh = _previewStats?.maxSharpness ?? 80f, r = _previewStats?.attackRange ?? 1.2f;
+                float mKg = _previewStats != null ? _previewStats.Profile.mass : 1.5f;
 
-                var style = _previewStats != null ? _previewStats.GetAnimationStyle() : WeaponAnimationStyle.Axe1H;
-                string comboDesc = style switch
+                string lenLabel = _previewStats != null ? _previewStats.handleLength.ToString() : "Medium";
+                string comboDesc = _previewStats != null ? _previewStats.weaponType switch
                 {
-                    WeaponAnimationStyle.Axe1H => "Hacha 1H (Combo 5 Golpes: Tajos Laterales + Hachazos)",
-                    WeaponAnimationStyle.Hammer1H => "Martillo 1H (Combo 5 Golpes: Aplastamientos + Impactos)",
-                    WeaponAnimationStyle.Sword1H => "Espada 1H (Combo 5 Golpes: Tajos Cruzados + Estocadas)",
-                    WeaponAnimationStyle.Dagger1H => "Daga 1H (Combo 5 Golpes: Estocadas Rápidas y Cortes)",
-                    WeaponAnimationStyle.Heavy2H => "Arma Pesada 2 Manos (Combo 5 Golpes Pesados de Gran Inercia)",
-                    WeaponAnimationStyle.Polearm => "Arma de Asta (Combo 5 Golpes: Barridos Largos + Estocadas)",
-                    _ => "Combo 5 Golpes"
-                };
+                    WeaponType.Axe => $"{lenLabel} Axe (5-Hit Chop & Cleave Combo)",
+                    WeaponType.Hammer => $"{lenLabel} Hammer (5-Hit Crush & Slam Combo)",
+                    _ => $"{lenLabel} Sword (5-Hit Slash & Thrust Combo)"
+                } : "5-Hit Combo";
 
-                string card = $"<b>★ ARMA ARTESANAL FORJADA CON ÉXITO ★</b>\n" +
+                string card = $"<b>★ ARTISAN WEAPON SUCCESSFULLY FORGED ★</b>\n" +
                               $"<color=#845512><size=17><b>{nm}</b> [{q}]</size></color>\n" +
-                              $"Daño: <b>{d:F1} DMG</b>  •  Velocidad: <b>{s:F2}x</b>  •  Filo: <b>{sh:F0}</b>  •  Alcance: <b>{r:F2}m</b>\n" +
-                              $"Estilo de Combate: <color=#966014><b>{comboDesc}</b></color>";
+                              $"Damage: <b>{d:F1} DMG</b>  •  Speed: <b>{s:F2}x</b>  •  Weight: <b>{mKg:F1} kg</b>  •  Reach: <b>{r:F2}m</b>\n" +
+                              $"Combat Style: <color=#966014><b>{comboDesc}</b></color>";
                 GUI.Box(new Rect(x, y, w, h), card, _hudCardStyle);
-                if (GUI.Button(new Rect((Screen.width - 320f) * 0.5f, y + h - 44f, 320f, 34f), "<b>★ TOMAR ARMA [ESPACIO] ★</b>", _actionBtnStyle))
+                float btnRowY = y + h - 44f;
+                if (GUI.Button(new Rect(x + 60f, btnRowY, 310f, 34f), "<b>« RETURN TO HANDLE [BACKSPACE]</b>", _actionBtnStyle))
                 {
+                    ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
+                    ReturnToHandleCarving();
+                }
+                if (GUI.Button(new Rect(x + w - 370f, btnRowY, 310f, 34f), "<b>★ CLAIM WEAPON [SPACE] ★</b>", _actionBtnStyle))
+                {
+                    ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
                     FinishAssembly();
                 }
             }

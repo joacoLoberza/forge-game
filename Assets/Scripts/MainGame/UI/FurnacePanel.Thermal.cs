@@ -19,16 +19,20 @@ namespace ForjaGame.UI
 
         public void EnsureBellowsButtonExists()
         {
-            if (bellowsButton == null)
+            if (bellowsButton != null) return;
+            Transform existing = transform.Find("RightStationCard/ParchmentBody/BellowsButton") ?? transform.Find("BellowsButton");
+            if (existing != null && existing.TryGetComponent<Button>(out var foundBtn))
             {
-                Transform existing = transform.Find("RightStationCard/ParchmentBody/BellowsButton") ?? transform.Find("BellowsButton");
-                if (existing != null && existing.TryGetComponent<Button>(out var foundBtn)) bellowsButton = foundBtn;
-                else bellowsButton = CreateActionButton("BellowsButton", "Fuelle [Espacio]");
+                bellowsButton = foundBtn;
+            }
+            else
+            {
+                bellowsButton = CreateActionButton("BellowsButton", "Bellows [Space]");
             }
             if (bellowsButton != null)
             {
                 BindPressDown(bellowsButton, OnBellowsClicked);
-                SetButtonLabel(bellowsButton, "Fuelle [Espacio]");
+                SetButtonLabel(bellowsButton, "Bellows [Space]");
             }
         }
 
@@ -184,8 +188,8 @@ namespace ForjaGame.UI
             if (targetRangeText != null)
             {
                 targetRangeText.text = (totalOres > 0 && minOpt > 0f)
-                    ? $"Fusión: {minOpt:F0}-{maxOpt:F0}°C [Zona Estrecha]"
-                    : "Rango: Selecciona minerales";
+                    ? $"Melting: {minOpt:F0}-{maxOpt:F0}°C [Sweet Spot]"
+                    : "Range: Select ores";
             }
         }
 
@@ -206,24 +210,24 @@ namespace ForjaGame.UI
             int coal = 0;
             var inv = GetCurrentPlayerInventory();
             if (inv != null) coal = inv.GetCount("Coal");
-            if (addCoalButton != null) SetButtonLabel(addCoalButton, $"+ Carbón ({coal}) [Shift]");
-            if (bellowsButton != null) SetButtonLabel(bellowsButton, "Fuelle [Espacio]");
+            if (addCoalButton != null) SetButtonLabel(addCoalButton, $"+ Coal ({coal}) [Shift]");
+            if (bellowsButton != null) SetButtonLabel(bellowsButton, "Bellows [Space]");
         }
 
         private void OnAddCoalClicked()
         {
             if (furnaceController == null) return;
+            bool inTut = ForgeTutorialDirector.Instance != null && ForgeTutorialDirector.Instance.IsTutorialActive;
+            if (inTut && (furnaceController.GetTotalOreCount() < 3 || _readyBloom != null || (furnaceController.TargetMaxTemp > 0f && furnaceController.CurrentTemperature > furnaceController.TargetMaxTemp))) return;
             InventoryController inventory = GetCurrentPlayerInventory();
-            if (inventory == null || !inventory.HasItem("Coal", 1))
-            {
-                SetStatus("No tienes Carbón en el inventario (ve a la mina).");
-                return;
-            }
+            if (inTut && inventory != null && !inventory.HasItem("Coal", 1)) inventory.AddItem("Coal", 5);
+            if (inventory == null || !inventory.HasItem("Coal", 1)) { SetStatus("No Coal in inventory (mine coal in caves)."); return; }
 
             if (inventory.RemoveItem("Coal", 1))
             {
                 furnaceController.AddCoal(1);
-                SetStatus("Carbón añadido (+140°C). Subida constante y uniforme.");
+                ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzHornoFuego();
+                SetStatus("Coal added (+140°C). Temperature rising steadily.");
                 UpdateDisplay();
             }
         }
@@ -231,8 +235,11 @@ namespace ForjaGame.UI
         private void OnBellowsClicked()
         {
             if (furnaceController == null) return;
+            if (ForgeTutorialDirector.Instance != null && ForgeTutorialDirector.Instance.IsTutorialActive &&
+                (furnaceController.GetTotalOreCount() < 3 || _readyBloom != null || furnaceController.CurrentTemperature < furnaceController.TargetMinTemp)) return;
             furnaceController.PulseBellows(45f);
-            SetStatus("Fuelle: frenada suave (-45°C). Mantén [Espacio] para caída continua.");
+            ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzHornoFuelle();
+            SetStatus("Bellows: air blast (-45°C). Hold [Space] for continuous cooling.");
             UpdateDisplay();
         }
     }

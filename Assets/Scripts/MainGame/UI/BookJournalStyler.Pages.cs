@@ -13,8 +13,8 @@ namespace ForjaGame.UI
             {
                 rt.localRotation = Quaternion.identity; rt.localScale = Vector3.one;
                 rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = new Vector2(-220f, -10f);
-                rt.sizeDelta = new Vector2(420f, 470f);
+                rt.anchoredPosition = new Vector2(-216f, -10f);
+                rt.sizeDelta = new Vector2(416f, 464f);
             }
 
             var img = page.GetComponent<Image>() ?? page.gameObject.AddComponent<Image>();
@@ -80,8 +80,8 @@ namespace ForjaGame.UI
             {
                 rt.localRotation = Quaternion.identity; rt.localScale = Vector3.one;
                 rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = new Vector2(220f, -10f);
-                rt.sizeDelta = new Vector2(420f, 470f);
+                rt.anchoredPosition = new Vector2(216f, -10f);
+                rt.sizeDelta = new Vector2(416f, 464f);
             }
 
             var img = page.GetComponent<Image>() ?? page.gameObject.AddComponent<Image>();
@@ -109,9 +109,21 @@ namespace ForjaGame.UI
                 {
                     chRt.anchorMin = chRt.anchorMax = chRt.pivot = new Vector2(0.5f, 1f);
                     chRt.anchoredPosition = new Vector2(0f, -16f);
-                    chRt.sizeDelta = new Vector2(360f, 28f);
+                    chRt.sizeDelta = new Vector2(346f, 36f);
                     var t = ch.GetComponent<TMP_Text>();
-                    if (t != null) { t.margin = Vector4.zero; t.fontSize = 17f; t.enableAutoSizing = true; t.fontSizeMin = 12f; t.fontSizeMax = 17f; t.alignment = TextAlignmentOptions.Center; t.fontStyle = FontStyles.Bold; t.raycastTarget = false; }
+                    if (t != null)
+                    {
+                        t.margin = new Vector4(12f, 2f, 12f, 2f);
+                        t.fontSize = 18f;
+                        t.enableAutoSizing = true;
+                        t.fontSizeMin = 9.5f;
+                        t.fontSizeMax = 18f;
+                        t.textWrappingMode = TextWrappingModes.NoWrap;
+                        t.overflowMode = TextOverflowModes.Ellipsis;
+                        t.alignment = TextAlignmentOptions.Center;
+                        t.fontStyle = FontStyles.Bold;
+                        t.raycastTarget = false;
+                    }
                 }
                 else if (n.Contains("empty") || n.Contains("notice"))
                 {

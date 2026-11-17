@@ -9,6 +9,7 @@ namespace ForjaGame.UI
     public class PauseMenuPanel : UIPanelBase
     {
         public static PauseMenuPanel Instance { get; private set; }
+        public static bool IsGamePaused => Instance != null && Instance.IsOpen;
 
         [SerializeField] private Slider volumeSlider;
 
@@ -27,10 +28,14 @@ namespace ForjaGame.UI
             if (Instance == null) Instance = this;
             _volumeController = volumeControllerSource as IVolumeController;
 
+            float savedVolume = ForgeAudioSystem.GetMasterVolume();
+            if (_volumeController != null) _volumeController.Volume = savedVolume;
+
             if (volumeSlider != null)
             {
+                volumeSlider.SetValueWithoutNotify(savedVolume);
+                volumeSlider.onValueChanged.RemoveListener(OnVolumeChanged);
                 volumeSlider.onValueChanged.AddListener(OnVolumeChanged);
-                if (_volumeController != null) _volumeController.Volume = volumeSlider.value;
             }
 
             var buttons = GetComponentsInChildren<Button>(true);
@@ -55,8 +60,9 @@ namespace ForjaGame.UI
         {
             base.OnOpened();
             BookJournalStyler.StylePauseMenuPanel();
-            if (volumeSlider != null && _volumeController != null)
-                _volumeController.Volume = volumeSlider.value;
+            float currentVol = ForgeAudioSystem.GetMasterVolume();
+            if (volumeSlider != null) volumeSlider.SetValueWithoutNotify(currentVol);
+            if (_volumeController != null) _volumeController.Volume = currentVol;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Pause);
@@ -65,18 +71,26 @@ namespace ForjaGame.UI
         protected override void OnClosed()
         {
             base.OnClosed();
-            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
+            bool inForgeStation = ForjaGame.Forge.BaseForgeStationController.IsAnyStationOccupied()
+                || (ForjaGame.Forge.AnvilController.Instance != null && ForjaGame.Forge.AnvilController.Instance.IsForging)
+                || IsAnyPanelOpen;
 
-            if (UnityEngine.EventSystems.EventSystem.current != null)
-                UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(null);
-
-            var menuInputs = FindObjectsByType<ForjaGame.Input.PlayerMenuInput>(FindObjectsSortMode.None);
-            foreach (var mi in menuInputs) mi?.ResetMenuInputState();
-
-            ForjaGame.Core.PlayerMovement.LocalInstance?.SetMovementEnabled(true);
-
-            if (!IsAnyPanelOpen)
+            if (inForgeStation)
             {
+                ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Forge);
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            else
+            {
+                ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
+                if (UnityEngine.EventSystems.EventSystem.current != null)
+                    UnityEngine.EventSystems.EventSystem.current.SetSelectedGameObject(null);
+
+                var menuInputs = FindObjectsByType<ForjaGame.Input.PlayerMenuInput>(FindObjectsSortMode.None);
+                foreach (var mi in menuInputs) mi?.ResetMenuInputState();
+
+                ForjaGame.Core.PlayerMovement.LocalInstance?.SetMovementEnabled(true);
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
             }
@@ -87,8 +101,11 @@ namespace ForjaGame.UI
             Close();
         }
 
+        public void ApplyVolumeFromUI(float value) => OnVolumeChanged(value);
+
         private void OnVolumeChanged(float value)
         {
+            ForgeAudioSystem.SetMasterVolume(value);
             if (_volumeController != null)
                 _volumeController.Volume = value;
         }
@@ -96,6 +113,7 @@ namespace ForjaGame.UI
         public void GoToMainMenu()
         {
             Time.timeScale = 1f;
+            ForjaGame.Combat.KonamiCheatController.DeactivateKonamiCode();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             if (Unity.Netcode.NetworkManager.Singleton != null)

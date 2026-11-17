@@ -37,6 +37,8 @@ namespace ForjaGame.UI
         private PressMechanicalVisual _pressVisual;
         private IngotData _readyIngot;
 
+        public Transform BloomsContainer => bloomsContainer;
+        public GameObject BloomSelectionSection => bloomSelectionSection;
         public TMP_Text BloomInfoText => bloomInfoText;
         public TMP_Text ProgressText => progressText;
         public TMP_Text StatusText => statusText;
@@ -54,17 +56,17 @@ namespace ForjaGame.UI
             if (mashButton != null)
             {
                 BindPressDown(mashButton, OnMashClicked);
-                SetBtnText(mashButton, "PRENSAR [ESPACIO]");
+                SetBtnText(mashButton, "PRESS [SPACE]");
             }
             if (retrieveBloomButton != null)
             {
                 BindPressDown(retrieveBloomButton, OnRetrieveBloomClicked);
-                SetBtnText(retrieveBloomButton, "Retirar Lupa");
+                SetBtnText(retrieveBloomButton, "Retrieve Bloom");
             }
             if (extractIngotButton != null)
             {
                 BindPressDown(extractIngotButton, OnExtractIngotClicked);
-                SetBtnText(extractIngotButton, "Recoger Lingote");
+                SetBtnText(extractIngotButton, "Collect Ingot");
             }
             if (closeButton != null) BindPressDown(closeButton, Close);
         }
@@ -120,12 +122,13 @@ namespace ForjaGame.UI
 
         private void Update()
         {
-            if (!IsOpen || pressController == null || !pressController.HasBloom || pressController.IsCompleted) return;
+            if (!IsOpen || PauseMenuPanel.IsGamePaused || pressController == null || !pressController.HasBloom || pressController.IsCompleted) return;
             if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) pressController.PushPress();
         }
 
         private void OnMashClicked()
         {
+            if (PauseMenuPanel.IsGamePaused) return;
             if (pressController != null && pressController.HasBloom && !pressController.IsCompleted) pressController.PushPress();
         }
 
@@ -137,7 +140,7 @@ namespace ForjaGame.UI
             if (retrieved != null)
             {
                 GetCurrentPlayerInventory()?.AddBloom(retrieved);
-                SetStatus($"Lupa '{retrieved.DisplayName}' devuelta al inventario.");
+                SetStatus($"Bloom '{retrieved.DisplayName}' returned to inventory.");
             }
             UpdateDisplay();
         }
@@ -145,7 +148,7 @@ namespace ForjaGame.UI
         private void OnPressCompleted(IngotData ingot)
         {
             _readyIngot = ingot;
-            SetStatus($"¡Prensado completado! El Lingote 3D está en la base: pulsa 'Recoger Lingote'.");
+            SetStatus("Pressing complete! Ingot ready on base: click 'Collect Ingot'.");
             UpdateDisplay();
         }
 
@@ -158,7 +161,8 @@ namespace ForjaGame.UI
             if (extracted != null)
             {
                 GetCurrentPlayerInventory()?.AddIngot(extracted);
-                SetStatus($"¡{extracted.DisplayName} guardado en el inventario!");
+                ForjaGame.Audio.ForgeAudioSystem.PlayItemPickup(transform.position);
+                SetStatus($"{extracted.DisplayName} added to inventory!");
                 _readyIngot = null;
             }
             UpdateDisplay();
@@ -188,7 +192,7 @@ namespace ForjaGame.UI
             if (!hasBloom)
             {
                 if (bloomInfoText != null)
-                    bloomInfoText.text = "<b>Ninguna Lupa cargada</b>  ·  Selecciona una Lupa en la lista izquierda para consultar su dificultad y detalles.";
+                    bloomInfoText.text = "<b>No Bloom loaded</b>  ·  Select a Bloom from the left list to view difficulty and details.";
                 if (mashButton != null) mashButton.gameObject.SetActive(false);
                 if (retrieveBloomButton != null) retrieveBloomButton.gameObject.SetActive(false);
                 if (extractIngotButton != null) extractIngotButton.gameObject.SetActive(false);
@@ -202,10 +206,10 @@ namespace ForjaGame.UI
                 {
                     var bloom = pressController.CurrentBloom;
                     string stateLabel = isCompleted
-                        ? "<color=#1B6E32><b>¡LINGOTE 3D FORJADO!</b></color>"
-                        : $"Dificultad: <color=#8B3A0E><b>Nivel {bloom.DifficultyLevel}/10</b></color>";
+                        ? "<color=#1B6E32><b>3D INGOT FORGED!</b></color>"
+                        : $"Difficulty: <color=#8B3A0E><b>Level {bloom.DifficultyLevel}/10</b></color>";
                     string compDesc = bloom.composition != null ? bloom.composition.GetCompositionDescription() : "";
-                    bloomInfoText.text = $"<b>{bloom.DisplayName}</b> ({bloom.SizeLabel})  ·  {stateLabel}\nPureza: <b>{bloom.PurityPercentage}%</b>  |  Impurezas de Horno: <b>{bloom.ImpurityPercentage}%</b>  |  {compDesc}";
+                    bloomInfoText.text = $"<b>{bloom.DisplayName}</b> ({bloom.SizeLabel})  ·  {stateLabel}\nPurity: <b>{bloom.PurityPercentage}%</b>  |  Furnace Impurities: <b>{bloom.ImpurityPercentage}%</b>  |  {compDesc}";
                 }
             }
         }

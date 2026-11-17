@@ -50,7 +50,7 @@ namespace ForjaGame.Input
                 var kb = Keyboard.current;
                 if (kb != null)
                 {
-                    if (kb.eKey.wasPressedThisFrame || kb.iKey.wasPressedThisFrame)
+                    if (kb.eKey.wasPressedThisFrame)
                     {
                         RequestInventory();
                     }
@@ -104,19 +104,16 @@ namespace ForjaGame.Input
             _lastPauseFrame = Time.frameCount;
             _lastPauseTime = Time.unscaledTime;
 
-            // 1. Si el menú de pausa ya está abierto, cerrarlo y reanudar el juego
+            // 1. Si el menú de pausa ya está abierto, cerrarlo y reanudar el estado previo (Forja o Exploración)
             if (PauseMenuPanel.Instance != null && PauseMenuPanel.Instance.IsOpen)
             {
                 PauseMenuPanel.Instance.Close();
                 UpdateMovementAvailability();
-                GameStateController.ChangeState(GameState.Exploration);
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
                 return;
             }
 
-            // 2. Si hay cualquier otro panel abierto (ej: inventario, etc.), cerrarlo y volver a exploración
-            if (UI.Core.UIPanelBase.IsAnyPanelOpen)
+            // 2. Si hay cualquier otro panel abierto (ej: inventario, etc.), cerrarlo salvo estación bloqueada por el tutorial
+            if (UI.Core.UIPanelBase.IsAnyPanelOpen && !(ForgeTutorialDirector.Instance != null && ForgeTutorialDirector.Instance.IsAnyForgeStationLockedOpen))
             {
                 UI.Core.UIPanelBase.CloseAllPanels();
                 UpdateMovementAvailability();
@@ -156,10 +153,15 @@ namespace ForjaGame.Input
             _lastInventoryFrame = Time.frameCount;
             _lastInventoryTime = Time.unscaledTime;
 
-            // No abrir inventario si el menú de pausa está activo
             if (PauseMenuPanel.Instance != null && PauseMenuPanel.Instance.IsOpen) return;
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "MainMenu") return;
+            var sel = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
+            if (sel != null && sel.TryGetComponent<TMPro.TMP_InputField>(out var inp) && inp.isFocused) return;
 
             var inv = UI.InventoryPanel.Instance ?? FindFirstObjectByType<UI.InventoryPanel>(FindObjectsInactive.Include);
+            bool invAlreadyOpen = inv != null && inv.IsOpen;
+            if (!invAlreadyOpen && (GameStateController.IsForging || ForjaGame.Forge.BaseForgeStationController.IsAnyStationOccupied())) return;
+
             if (inv != null)
             {
                 var myInv = GetComponentInParent<InventoryController>() ?? GetComponentInChildren<InventoryController>();

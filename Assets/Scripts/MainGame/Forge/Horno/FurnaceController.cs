@@ -49,6 +49,7 @@ namespace ForjaGame.Forge
         public IReadOnlyDictionary<MetalType, int> MetalImpurityDeductions => _metalImpurityDeductions;
         public float MaxTemperature => maxTemperature;
         public float CurrentTemperature => currentTemperature;
+        public float TargetTemperature => targetTemperature;
         public float TargetMinTemp => targetMinTemp;
         public float TargetMaxTemp => targetMaxTemp;
         public float CurrentQuality => currentQuality;
@@ -99,21 +100,24 @@ namespace ForjaGame.Forge
 
             UpdateBellowsCharge(deltaTime);
 
-            // 1. Dinámica térmica: sube de forma suave hacia targetTemperature
+            // 1. Dinámica térmica: el carbón encendido sube la temperatura de forma constante; el fuelle [Espacio] la baja
+            bool activeCoalBurn = targetTemperature > ambientTemperature + 15f && GetTotalOreCount() >= 3 && _unclaimedBloom == null;
+            if (activeCoalBurn)
+            {
+                targetTemperature = Mathf.Min(maxTemperature, targetTemperature + 38f * deltaTime);
+            }
+            else if (targetTemperature > ambientTemperature)
+            {
+                targetTemperature = Mathf.MoveTowards(targetTemperature, ambientTemperature, (coolingRate * 0.35f) * deltaTime);
+            }
+
             if (currentTemperature < targetTemperature)
             {
                 currentTemperature = Mathf.MoveTowards(currentTemperature, targetTemperature, heatingRate * deltaTime);
             }
             else if (currentTemperature > ambientTemperature)
             {
-                // Enfriamiento rápido hacia 0°C (exige uso de fuelle)
                 currentTemperature = Mathf.MoveTowards(currentTemperature, ambientTemperature, coolingRate * deltaTime);
-            }
-
-            // TargetTemperature decae suavemente si no se añade más carbón
-            if (targetTemperature > ambientTemperature)
-            {
-                targetTemperature = Mathf.MoveTowards(targetTemperature, ambientTemperature, (coolingRate * 0.5f) * deltaTime);
             }
 
             if (!Mathf.Approximately(previousTemp, currentTemperature))
@@ -167,11 +171,8 @@ namespace ForjaGame.Forge
                 }
                 else
                 {
-                    // Fuera del área verde: el progreso se congela y las impurezas se acumulan por error térmico
-                    if (hasReachedSharedRangeOnce)
-                    {
-                        ProcessThermalImpurities(deltaTime);
-                    }
+                    bool inTut = ForjaGame.UI.ForgeTutorialDirector.Instance != null && ForjaGame.UI.ForgeTutorialDirector.Instance.IsTutorialActive;
+                    if (hasReachedSharedRangeOnce && !inTut) ProcessThermalImpurities(deltaTime);
                 }
             }
         }

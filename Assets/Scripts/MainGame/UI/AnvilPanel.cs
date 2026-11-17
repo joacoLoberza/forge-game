@@ -132,7 +132,8 @@ namespace ForjaGame.UI
             if (anvilController == null || !anvilController.IsForging)
             {
                 stationController?.ReleaseStation();
-                ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
+                var gs = FindFirstObjectByType<ForjaGame.Core.GameStateController>();
+                gs?.TryChangeState(ForjaGame.Core.GameState.Exploration);
             }
         }
 
@@ -192,11 +193,15 @@ namespace ForjaGame.UI
             IReadOnlyList<HandleData> handles = inventory != null ? inventory.Handles : null;
 
             bool hasHandles = handles != null && handles.Count > 0;
-            if (emptyHandlesNotice != null) emptyHandlesNotice.SetActive(!hasHandles);
+            if (emptyHandlesNotice != null)
+            {
+                ForgeScrollViewStyler.StyleEmptyNotice(emptyHandlesNotice, "No handles in inventory.\nCarve or obtain handles to assemble!");
+                emptyHandlesNotice.SetActive(!hasHandles);
+            }
             if (!hasHandles)
             {
                 if (emptyHandlesNotice == null)
-                    ForgeScrollViewStyler.CreateNoticeEntry(targetContent, "No hay mangos en el inventario.");
+                    ForgeScrollViewStyler.CreateNoticeEntry(targetContent, "No handles in inventory.\nCarve or obtain handles to assemble!");
                 return;
             }
 
@@ -221,7 +226,7 @@ namespace ForjaGame.UI
                 int count = kvp.count;
                 string spd = handle.speedModifier >= 0 ? $"+{handle.speedModifier * 100:F0}%" : $"{handle.speedModifier * 100:F0}%";
                 string countSuffix = count > 1 ? $" x{count}" : "";
-                string label = $"{handle.DisplayName}{countSuffix} (Alcance x{handle.rangeModifier:F2}, Vel {spd})";
+                string label = $"{handle.DisplayName}{countSuffix} (Reach x{handle.rangeModifier:F2}, Spd {spd})";
 
                 Sprite icon = GetHandleSprite(handle.length);
                 ForgeScrollViewStyler.CreateRowEntry(targetContent, label, icon, new Color(0.6f, 0.45f, 0.3f, 1f), false, () => OnHandleChosen(handle));

@@ -14,7 +14,7 @@ namespace ForjaGame.Core
         [Header("Movement Speeds")]
         [SerializeField] private float walkSpeed = 4.5f;
         [SerializeField] private float runSpeed = 7.8f;
-        [SerializeField] private float jumpForce = 3.2f;
+        [SerializeField] private float jumpForce = 2.8f;
         [SerializeField] private float rotationSpeed = 12f;
         [SerializeField] private float groundCheckDistance = 1.15f;
         [SerializeField] private LayerMask groundLayer = ~0;
@@ -38,29 +38,27 @@ namespace ForjaGame.Core
         private ForjaGame.Combat.PlayerEquipmentController _equipmentCtrl;
         private ForjaGame.Combat.PlayerHealthController _healthCtrl;
         private ForjaGame.Combat.AttackController _attackCtrl;
+        private ForjaGame.Combat.PlayerRollController _rollCtrl;
+        private ForjaGame.Combat.PlayerStaminaController _staminaCtrl;
+        private Vector3 _originalWalkDir = Vector3.forward;
 
-        public int PlayerIndex
-        {
-            get => playerIndex;
-            set => playerIndex = value;
-        }
-
-        public Camera PlayerCamera
-        {
-            get => playerCamera;
-            set => playerCamera = value;
-        }
-
+        public int PlayerIndex { get => playerIndex; set => playerIndex = value; }
+        public Camera PlayerCamera { get => playerCamera; set => playerCamera = value; }
         public Vector2 MoveInput => _moveInput;
         public bool IsSprinting { get; private set; }
         public float WalkSpeed => walkSpeed;
         public float RunSpeed => runSpeed;
+        public Animator CharacterAnimator => animator;
+        public bool IsMovementEnabled => _movementEnabled;
+        public bool IsGroundedPublic => IsGrounded();
+        public Vector3 OriginalWalkDirection => _originalWalkDir;
+        public ForjaGame.Combat.PlayerRollController RollCtrl => _rollCtrl;
 
         private void Awake()
         {
             if (LocalInstance == null) LocalInstance = this;
             _rb = GetComponent<Rigidbody>();
-            if (jumpForce > 3.6f) jumpForce = 3.2f;
+            if (jumpForce < 2.0f || jumpForce > 5.0f) jumpForce = 2.8f;
             if (_rb != null)
             {
                 _rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -81,15 +79,16 @@ namespace ForjaGame.Core
             if (_equipmentCtrl == null)
                 _equipmentCtrl = gameObject.AddComponent<ForjaGame.Combat.PlayerEquipmentController>();
 
-            _healthCtrl = GetComponent<ForjaGame.Combat.PlayerHealthController>();
-            if (_healthCtrl == null)
-                _healthCtrl = gameObject.AddComponent<ForjaGame.Combat.PlayerHealthController>();
-
+            _healthCtrl = GetComponent<ForjaGame.Combat.PlayerHealthController>() ?? gameObject.AddComponent<ForjaGame.Combat.PlayerHealthController>();
             _attackCtrl = GetComponent<ForjaGame.Combat.AttackController>();
+            _rollCtrl = GetComponent<ForjaGame.Combat.PlayerRollController>() ?? gameObject.AddComponent<ForjaGame.Combat.PlayerRollController>();
+            Vector3 f = new Vector3(transform.forward.x, 0f, transform.forward.z);
+            if (f.sqrMagnitude > 0.001f) _originalWalkDir = f.normalized;
         }
 
         private void OnDestroy()
         {
+            StopJumpFallbackGraph();
             if (LocalInstance == this) LocalInstance = null;
         }
 
@@ -112,32 +111,12 @@ namespace ForjaGame.Core
             if (_movementEnabled) _moveInput = _moveInputFromEvents;
         }
 
-        public void OnJump(InputAction.CallbackContext context)
-        {
-            if (!context.started || !_movementEnabled) return;
-            if (IsGrounded()) _rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        }
-
-        public void OnJump(InputValue value)
-        {
-            if (value.isPressed && _movementEnabled && IsGrounded())
-                _rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        }
-
-        public void OnSprint(InputAction.CallbackContext context)
-        {
-            _sprintInputFromEvents = context.ReadValueAsButton();
-        }
-
-        public void OnSprint(InputValue value)
-        {
-            _sprintInputFromEvents = value.isPressed;
-        }
-
-        private bool IsGrounded()
-        {
-            return Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore);
-        }
+        public void OnJump(InputAction.CallbackContext context) { if (context.started) ExecuteJump(); }
+        public void OnJump(InputValue value) { if (value.isPressed) ExecuteJump(); }
+        public void OnSprint(InputAction.CallbackContext context) => _sprintInputFromEvents = context.ReadValueAsButton();
+        public void OnSprint(InputValue value) => _sprintInputFromEvents = value.isPressed;
+        public void OnRoll(InputAction.CallbackContext context) { if (context.started) _rollCtrl?.TryStartRoll(); }
+        public void OnRoll(InputValue value) { if (value.isPressed) _rollCtrl?.TryStartRoll(); }
 
         public void SetMovementEnabled(bool enabled)
         {
@@ -149,7 +128,7 @@ namespace ForjaGame.Core
                 _moveInputFromEvents = Vector2.zero;
                 _isSprintingInput = false;
                 _sprintInputFromEvents = false;
-                if (_rb != null)
+                if (_rb != null && !_rb.isKinematic)
                 {
                     _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
                     _rb.angularVelocity = Vector3.zero;
@@ -202,8 +181,8 @@ namespace ForjaGame.Core
                     if (direct.sqrMagnitude > 0.01f) input = direct.normalized;
 
                     kbShift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
-                    if (kb.spaceKey.wasPressedThisFrame && IsGrounded() && _rb != null)
-                        _rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+                    if (kb.spaceKey.wasPressedThisFrame) ExecuteJump();
+                    if (kb.qKey.wasPressedThisFrame) _rollCtrl?.TryStartRoll();
                 }
 
                 var gp = Gamepad.current;
@@ -218,10 +197,18 @@ namespace ForjaGame.Core
                 _isSprintingInput = false;
             }
 
-            if (transform.position.y < -14.0f && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "MainMenu")
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "MainMenu")
             {
-                transform.position = new Vector3(playerIndex * 3.0f, 1.2f, 0f);
-                if (_rb != null) { _rb.linearVelocity = Vector3.zero; _rb.angularVelocity = Vector3.zero; }
+                if (transform.position.y < -0.2f && transform.position.z < 26.5f)
+                {
+                    transform.position = new Vector3(transform.position.x, 1.15f, transform.position.z);
+                    if (_rb != null && !_rb.isKinematic) { _rb.linearVelocity = Vector3.zero; _rb.angularVelocity = Vector3.zero; }
+                }
+                else if (transform.position.y < -14.0f)
+                {
+                    transform.position = new Vector3(playerIndex * 2.2f, 1.2f, 0f);
+                    if (_rb != null && !_rb.isKinematic) { _rb.linearVelocity = Vector3.zero; _rb.angularVelocity = Vector3.zero; }
+                }
             }
 
             if (animator == null)
@@ -229,19 +216,25 @@ namespace ForjaGame.Core
                 animator = GetComponentInChildren<Animator>();
                 if (animator != null) animator.applyRootMotion = false;
             }
-            if (animator == null)
-                return;
+            if (animator == null) return;
 
-            if (_attackCtrl == null)
-                _attackCtrl = GetComponent<ForjaGame.Combat.AttackController>();
+            if (_rollCtrl != null && _rollCtrl.IsRolling) return;
+            UpdateJumpAnimation();
+            if (_attackCtrl == null) _attackCtrl = GetComponent<ForjaGame.Combat.AttackController>();
 
             bool isAttacking = _attackCtrl != null && _attackCtrl.IsAttacking;
             bool isMoving = _movementEnabled && _moveInput.sqrMagnitude > 0.01f;
-            IsSprinting = isMoving && _isSprintingInput && !isAttacking;
+            bool wantSprint = isMoving && _isSprintingInput;
+            if (wantSprint)
+            {
+                if (_staminaCtrl == null) _staminaCtrl = GetComponent<ForjaGame.Combat.PlayerStaminaController>();
+                if (_staminaCtrl != null && !_staminaCtrl.TryConsumeForSprint(Time.deltaTime))
+                    wantSprint = false;
+            }
+            IsSprinting = wantSprint;
 
-            float targetSpeed = !isMoving ? 0f : (isAttacking ? 0.75f : (IsSprinting ? 2.0f : 1.0f));
-            float dampTime = !isMoving ? 0.08f : 0.15f;
-            animator.SetFloat("Speed", targetSpeed, dampTime, Time.deltaTime);
+            float targetSpeed = !isMoving ? 0f : (isAttacking ? (IsSprinting ? 1.55f : 1.20f) : (IsSprinting ? 2.0f : 1.0f));
+            animator.SetFloat("Speed", targetSpeed, !isMoving ? 0.08f : 0.15f, Time.deltaTime);
         }
     }
 }

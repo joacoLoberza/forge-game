@@ -61,7 +61,7 @@ namespace ForjaGame.Combat
     public class AttackMove : ScriptableObject
     {
         [Header("Identificación y Capacidades")]
-        public string moveName = "Tajo Básico";
+        public string moveName = "Basic Slash";
         public WeaponArchetype archetype = WeaponArchetype.Sword1H;
         public AttackMotionType motionType = AttackMotionType.HorizontalSlash;
         public WeaponCapabilities requiredCapability = WeaponCapabilities.CanSlash;

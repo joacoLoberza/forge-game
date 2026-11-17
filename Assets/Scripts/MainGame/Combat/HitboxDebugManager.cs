@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 namespace ForjaGame.Combat
 {
     /// <summary>
-    /// Administrador global de depuración visual de Hitboxes y Hurtboxes activable mediante F3.
+    /// Administrador global de depuración visual de Hitboxes y Hurtboxes activable mediante F5.
     /// Crea materiales translúcidos compartidos (Rojo para estado normal, Negro al conectar)
     /// y notifica a todos los visualizadores activos en la escena.
     /// </summary>
@@ -64,7 +64,7 @@ namespace ForjaGame.Combat
         private void Update()
         {
             var kb = Keyboard.current;
-            if (kb != null && kb.f3Key.wasPressedThisFrame)
+            if (kb != null && kb.f5Key.wasPressedThisFrame)
             {
                 ToggleHitboxes();
             }
@@ -74,7 +74,7 @@ namespace ForjaGame.Combat
         {
             ShowHitboxes = !ShowHitboxes;
             OnHitboxVisibilityChanged?.Invoke(ShowHitboxes);
-            Debug.Log($"[HitboxDebug] Visualización de Hitboxes: {(ShowHitboxes ? "ACTIVADA (F3)" : "DESACTIVADA (F3)")}");
+            Debug.Log($"[HitboxDebug] Visualización de Hitboxes: {(ShowHitboxes ? "ACTIVADA (F5)" : "DESACTIVADA (F5)")}");
         }
 
         private Material CreateTransparentMaterial(Color color, string name)
@@ -127,14 +127,14 @@ namespace ForjaGame.Combat
             var dummy = CombatDummyEnemy.Instance;
             var pHealth = PlayerHealthController.Instance;
 
-            string weaponInfo = "Desarmado";
-            string comboInfo = "Sin arma equipada";
+            string weaponInfo = "Unarmed";
+            string comboInfo = "No weapon equipped";
             if (equip != null && equip.HasWeaponEquipped && equip.CurrentWeapon != null)
             {
                 var w = equip.CurrentWeapon;
                 var style = w.GetAnimationStyle();
                 var stance = w.GetCombatStance();
-                weaponInfo = $"{w.DisplayName} [{style}, {stance}] (DMG: {w.EffectiveDamage:F0}, Rango: {w.attackRange:F2}m)";
+                weaponInfo = $"{w.DisplayName} [{style}, {stance}] (DMG: {w.EffectiveDamage:F0}, Reach: {w.attackRange:F2}m)";
 
                 if (atk != null && atk.IsAttacking)
                 {
@@ -142,40 +142,40 @@ namespace ForjaGame.Combat
                     var motion = atk.ActiveMove != null ? atk.ActiveMove.motionType : AttackMotionType.HorizontalSlash;
                     string motionName = motion switch
                     {
-                        AttackMotionType.Thrust => "Estocada Frontal",
-                        AttackMotionType.OverheadSlam => "Hachazo/Aplastamiento Vertical",
-                        _ => "Tajo Horizontal Amplio"
+                        AttackMotionType.Thrust => "Forward Thrust",
+                        AttackMotionType.OverheadSlam => "Overhead Chop / Slam",
+                        _ => "Wide Horizontal Slash"
                     };
                     string moveTitle = atk.ActiveMove != null ? atk.ActiveMove.moveName : motionName;
-                    comboInfo = $"<color=#33FFAA><b>[Golpe {step + 1}/{w.MaxComboCount}]</b> {moveTitle} ({motionName})</color>";
+                    comboInfo = $"<color=#33FFAA><b>[Hit {step + 1}/{w.MaxComboCount}]</b> {moveTitle} ({motionName})</color>";
                 }
                 else
                 {
-                    comboInfo = $"Combo listo: {w.MaxComboCount} golpes disponibles ({style})";
+                    comboInfo = $"Combo ready: {w.MaxComboCount} hits available ({style})";
                 }
             }
 
             var golem = GolemEnemyController.Instance;
-            string enemyInfo = "No encontrado";
+            string enemyInfo = "Not found";
             if (golem != null)
             {
                 if (golem.IsAlive)
                 {
                     float dist = pHealth != null ? Vector3.Distance(golem.transform.position, pHealth.transform.position) : 0f;
-                    string state = golem.IsAlive ? "<color=#33FFAA>Activo en Caverna</color>" : "<color=#FF5533>Derrotado</color>";
-                    enemyInfo = $"Golem HP: {golem.CurrentHealth}/{golem.MaxHealth} | Distancia: {dist:F1}m | Estado: {state}";
+                    string state = golem.IsAlive ? "<color=#33FFAA>Active in Cave</color>" : "<color=#FF5533>Defeated</color>";
+                    enemyInfo = $"Golem HP: {golem.CurrentHealth}/{golem.MaxHealth} | Distance: {dist:F1}m | State: {state}";
                 }
-                else enemyInfo = "<color=#FF5533>Golem Derrotado</color>";
+                else enemyInfo = "<color=#FF5533>Golem Defeated</color>";
             }
             else if (dummy != null)
             {
                 enemyInfo = $"Dummy HP: {dummy.CurrentHealth}/{dummy.MaxHealth}";
             }
 
-            string text = $"<b>[F3] DEBUG DE HITBOXES Y COMBATE</b>\n" +
-                          $"• <b>Arma:</b> {weaponInfo}\n" +
+            string text = $"<b>[F5] HITBOX & COMBAT DEBUG</b>\n" +
+                          $"• <b>Weapon:</b> {weaponInfo}\n" +
                           $"• <b>Combo:</b> {comboInfo}\n" +
-                          $"• <b>Dummy Enemigo:</b> {enemyInfo}";
+                          $"• <b>Target:</b> {enemyInfo}";
 
             GUI.Box(new Rect(16, 114, 480, 115), text, _hudBoxStyle);
         }

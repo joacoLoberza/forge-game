@@ -59,6 +59,7 @@ namespace ForjaGame.Forge
         public AnvilQuenchDifferential QuenchDifferential => _quenchDifferential; public Vector3 IngotBaseSize => _currentBaseSize;
         public float RemainingMassRatio => _remainingMassRatio;
         public bool WasLastHitDulling { get; private set; }
+        public bool IsIngotRuinedTooSmall { get; private set; }
         public Vector3 WorkpieceCenterLocal => _deformableMesh != null ? _deformableMesh.bounds.center : Vector3.zero;
         public Vector2 KeepPoint2D => IsCarvingHandle ? new Vector2((ValidateCurrentHandle().tangX1 + ValidateCurrentHandle().gripX0) * 0.5f, (ValidateCurrentHandle().tangCenterZ + ValidateCurrentHandle().gripCenterZ) * 0.5f) : new Vector2(WorkpieceCenterLocal.x, WorkpieceCenterLocal.z);
         public bool GetCutPreview(List<Vector3> pts, bool flip, out List<Vector3> tris) => AnvilMeshCutter.GetCutPreviewTriangles(_deformableMesh, _columns, pts, KeepPoint2D, flip, out tris);
@@ -71,45 +72,33 @@ namespace ForjaGame.Forge
 
         private void EnsureIngotReferences()
         {
-            if (activeIngotMeshFilter == null)
-            {
-                activeIngotMeshFilter = GetComponentInChildren<MeshFilter>();
-                if (activeIngotMeshFilter != null) activeIngotMeshRenderer = activeIngotMeshFilter.GetComponent<MeshRenderer>();
-            }
+            if (activeIngotMeshFilter == null) activeIngotMeshFilter = GetComponentInChildren<MeshFilter>();
             if (activeIngotMeshFilter == null) return;
             if (activeIngotMeshRenderer == null) activeIngotMeshRenderer = activeIngotMeshFilter.GetComponent<MeshRenderer>();
             if (activeIngotMeshCollider == null)
             {
-                var oldBox = activeIngotMeshFilter.GetComponent<BoxCollider>();
-                if (oldBox != null) ForjaGame.Core.UnitySafeUtility.DestroySafe(oldBox);
+                if (activeIngotMeshFilter.TryGetComponent<BoxCollider>(out var oldBox)) ForjaGame.Core.UnitySafeUtility.DestroySafe(oldBox);
                 activeIngotMeshCollider = activeIngotMeshFilter.gameObject.AddComponent<MeshCollider>();
             }
             activeIngotMeshCollider.convex = true;
-            if (_thermalController == null && !TryGetComponent<AnvilThermalController>(out _thermalController))
-                _thermalController = gameObject.AddComponent<AnvilThermalController>();
+            if (_thermalController == null && !TryGetComponent(out _thermalController)) _thermalController = gameObject.AddComponent<AnvilThermalController>();
             _thermalController?.Initialize(this);
-            if (_quenchDifferential == null && !TryGetComponent<AnvilQuenchDifferential>(out _quenchDifferential))
-                _quenchDifferential = gameObject.AddComponent<AnvilQuenchDifferential>();
+            if (_quenchDifferential == null && !TryGetComponent(out _quenchDifferential)) _quenchDifferential = gameObject.AddComponent<AnvilQuenchDifferential>();
             _quenchDifferential?.Initialize(this);
         }
 
         public bool PlaceIngot(IngotData ingot, WeaponType weaponType, MeshFilter meshFilter = null)
         {
             if (ingot == null) return false;
-            IsCarvingHandle = false;
-            CarvedHandleMesh = null;
-            _forgedBladeMesh = null;
-            _forgedBladeMaterial = null;
+            IsCarvingHandle = false; IsIngotRuinedTooSmall = false;
+            CarvedHandleMesh = null; _forgedBladeMesh = null; _forgedBladeMaterial = null;
             EnsureIngotReferences();
             _thermalController?.ResetThermal(25f);
             if (meshFilter != null) activeIngotMeshFilter = meshFilter;
             if (activeIngotMeshFilter == null) return false;
 
-            _currentIngot = ingot;
-            _selectedWeaponType = weaponType;
-            currentHits = 0;
-            forgingQuality = 1.0f;
-            isForging = true;
+            _currentIngot = ingot; _selectedWeaponType = weaponType;
+            forgingQuality = 1.0f; isForging = true;
             isQuenched = false; _isEdgeComplete = false; WasLastHitDulling = false;
             currentHits = 0; _cutsPerformed = 0;
 
@@ -135,15 +124,12 @@ namespace ForjaGame.Forge
 
             _frontEdge.Clear(); _backEdge.Clear(); _rightEdge.Clear(); _leftEdge.Clear();
             for (int r = 0; r < _rows; r++)
-            {
-                int rowOffset = r * _cols;
                 for (int c = 0; c < _cols; c++)
                 {
-                    int k = rowOffset + c;
+                    int k = r * _cols + c;
                     if (r >= _rows - 2) _frontEdge.Add(k); if (r <= 1) _backEdge.Add(k);
                     if (c >= _cols - 2) _rightEdge.Add(k); if (c <= 1) _leftEdge.Add(k);
                 }
-            }
 
             int maxP = Mathf.Max(_frontEdge.Count, Mathf.Max(_backEdge.Count, Mathf.Max(_rightEdge.Count, _leftEdge.Count)));
             _requiredEdgeCount = _selectedWeaponType == WeaponType.Sword ? 14 : Mathf.Max(3, Mathf.CeilToInt(maxP * 0.50f));
@@ -163,25 +149,29 @@ namespace ForjaGame.Forge
         {
             if (!_isEdgeComplete || isQuenched) return false;
             isQuenched = true; isForging = false;
+            _thermalController?.ResetThermal(25f);
+            ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzTempladoAgua();
             if (_currentIngot != null) _currentIngot.quality = FinalCombinedQuality;
             _forgedBladeMesh = Instantiate(_deformableMesh);
             if (_forgedBladeMesh != null) _forgedBladeMesh.name = $"Blade_{_selectedWeaponType}_{_currentIngot?.id}";
             if (activeIngotMeshRenderer != null)
             {
                 _forgedBladeMaterial = new Material(activeIngotMeshRenderer.material);
-                if (_currentMetalBaseColor != default && _currentMetalBaseColor.a > 0.1f)
-                {
-                    Color qCol = Color.Lerp(_currentMetalBaseColor, new Color(0.20f, 0.18f, 0.18f), 0.18f);
-                    _forgedBladeMaterial.color = qCol;
-                    if (_forgedBladeMaterial.HasProperty("_BaseColor")) _forgedBladeMaterial.SetColor("_BaseColor", qCol);
-                }
+                _forgedBladeMaterial.DisableKeyword("_NORMALMAP"); _forgedBladeMaterial.mainTexture = null;
+                foreach (var p in new[] { "_BaseMap", "_MainTex", "_EmissionMap", "_BumpMap" }) if (_forgedBladeMaterial.HasProperty(p)) _forgedBladeMaterial.SetTexture(p, null);
+                Color qCol = Color.Lerp(_currentMetalBaseColor, new Color(0.20f, 0.18f, 0.18f), 0.18f);
+                _forgedBladeMaterial.color = qCol;
+                if (_forgedBladeMaterial.HasProperty("_BaseColor")) _forgedBladeMaterial.SetColor("_BaseColor", qCol);
+                if (_forgedBladeMaterial.HasProperty("_EmissionColor")) _forgedBladeMaterial.SetColor("_EmissionColor", Color.black);
+                if (_forgedBladeMaterial.HasProperty("_Metallic")) _forgedBladeMaterial.SetFloat("_Metallic", 0.90f);
+                if (_forgedBladeMaterial.HasProperty("_Smoothness")) _forgedBladeMaterial.SetFloat("_Smoothness", 0.72f);
             }
             ForgingCompleted?.Invoke(); return true;
         }
 
         public void ClearAnvilSurface()
         {
-            isForging = false; IsCarvingHandle = false; CarvedHandleMesh = null;
+            isForging = false; IsCarvingHandle = false; IsIngotRuinedTooSmall = false; CarvedHandleMesh = null;
             _forgedBladeMesh = null; _forgedBladeMaterial = null; _cutsPerformed = 0;
             if (activeIngotMeshFilter != null && activeIngotMeshFilter.gameObject != gameObject)
                 activeIngotMeshFilter.gameObject.SetActive(false);
@@ -191,20 +181,36 @@ namespace ForjaGame.Forge
         public IngotData CancelAndRetrieveIngot()
         {
             if (!CanRetrieveIngot) return null;
-            IngotData r = _currentIngot;
-            ClearAnvilSurface();
-            return r;
+            IngotData r = _currentIngot; ClearAnvilSurface(); return r;
         }
 
         public bool ApplyCut(List<Vector3> cutPointsLocal, bool? discardInside = null)
         {
-            if (!isForging || isQuenched || cutPointsLocal == null || cutPointsLocal.Count == 0) return false;
-            _cutsPerformed++;
+            if (!isForging || isQuenched || IsIngotRuinedTooSmall || cutPointsLocal == null || cutPointsLocal.Count == 0) return false;
+            bool inTutorial = ForjaGame.UI.ForgeTutorialDirector.Instance != null && ForjaGame.UI.ForgeTutorialDirector.Instance.IsTutorialActive;
             int prevCols = _columns != null ? _columns.Length : 0;
             if (!AnvilMeshCutter.CutBilletMesh(_deformableMesh, _columns, _perimIndices, cutPointsLocal,
                 out Vector3[] newColumns, out int[] newPerimIndices, out Mesh newMesh,
-                out Mesh offcutMesh, _currentBaseSize, discardInside, KeepPoint2D, IsCarvingHandle) || newMesh == null) return false;
-
+                out Mesh offcutMesh, _currentBaseSize, discardInside, KeepPoint2D, IsCarvingHandle) || newMesh == null)
+            {
+                if (!inTutorial && !IsCarvingHandle && GetCutPreview(cutPointsLocal, discardInside ?? false, out var disc) && disc != null && disc.Count >= 3)
+                {
+                    _cutsPerformed++; IsIngotRuinedTooSmall = true;
+                    if (activeIngotMeshFilter != null) activeIngotMeshFilter.mesh = null;
+                    return true;
+                }
+                return false;
+            }
+            if (inTutorial && !IsCarvingHandle && (newColumns == null || newColumns.Length < Mathf.Max(22, prevCols / 2)))
+            { Destroy(newMesh); if (offcutMesh != null) Destroy(offcutMesh); return false; }
+            if (inTutorial && IsCarvingHandle)
+            {
+                float minX = float.MaxValue, maxX = float.MinValue;
+                if (newColumns != null) for (int i = 0; i < newColumns.Length; i++) { minX = Mathf.Min(minX, newColumns[i].x); maxX = Mathf.Max(maxX, newColumns[i].x); }
+                var checkVal = AnvilHandleCarver.ValidateHandle(newColumns, newPerimIndices, maxX > minX + 0.01f ? maxX - minX : handleBoardSize.x, _forgedBladeMesh != null ? _forgedBladeMesh.bounds.size.y : 0.24f);
+                if (!checkVal.isValid || checkVal.hasBrokenSection) { Destroy(newMesh); if (offcutMesh != null) Destroy(offcutMesh); return false; }
+            }
+            _cutsPerformed++;
             if (offcutMesh != null && activeIngotMeshRenderer != null)
             {
                 Vector3 outw = offcutMesh.bounds.center - newMesh.bounds.center; outw.y = 0f;
@@ -213,14 +219,11 @@ namespace ForjaGame.Forge
                      offcutMesh.bounds.min.z <= newMesh.bounds.min.z && offcutMesh.bounds.max.z >= newMesh.bounds.max.z);
                 AnvilOffcutSpawner.SpawnOffcut(offcutMesh, IngotTransform, activeIngotMeshRenderer.material, isSurr ? Vector3.up : (outw.sqrMagnitude > 0.0001f ? outw.normalized : Vector3.right));
             }
-
             if (!IsCarvingHandle && prevCols > 0 && newColumns != null)
-                _remainingMassRatio = Mathf.Clamp(_remainingMassRatio * ((float)newColumns.Length / prevCols), 0.20f, 1.0f);
-
-            _deformableMesh = newMesh; _columns = newColumns; _perimIndices = newPerimIndices;
-            _meshVertices = _deformableMesh.vertices;
+                _remainingMassRatio = Mathf.Clamp(_remainingMassRatio * ((float)newColumns.Length / prevCols), 0.05f, 1.0f);
+            _deformableMesh = newMesh; _columns = newColumns; _perimIndices = newPerimIndices; _meshVertices = _deformableMesh.vertices;
             if (activeIngotMeshFilter != null) activeIngotMeshFilter.mesh = _deformableMesh;
-
+            if (!inTutorial && !IsCarvingHandle && ComputeCurrentTopArea2D() < GetMinimumAllowedArea2D()) IsIngotRuinedTooSmall = true;
             RebuildEdgeIndices(); RefreshCollider(); EvaluateEdgeCompletion();
             return true;
         }

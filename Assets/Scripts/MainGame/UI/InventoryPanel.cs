@@ -59,11 +59,7 @@ namespace ForjaGame.UI
             base.Awake();
             if (Instance == null) Instance = this;
             EnsureController();
-
-#if UNITY_EDITOR
-            if (weaponDefaultIcon == null)
-                weaponDefaultIcon = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Journal/sword_sketch_example.png");
-#endif
+            EnsureSceneReferencesFallback();
 
             if (equipButton == null)
             {
@@ -88,6 +84,7 @@ namespace ForjaGame.UI
                 closeButton.onClick.RemoveAllListeners();
                 closeButton.onClick.AddListener(Close);
             }
+            BookJournalStyler.StyleInventoryJournal();
         }
 
         private void CleanAndBindTabButton(Button btn, UnityEngine.Events.UnityAction action)
@@ -112,26 +109,16 @@ namespace ForjaGame.UI
             if (Instance == this) Instance = null;
         }
 
-        private void Update()
-        {
-        }
-
         private void OnEnable()
         {
             EnsureController();
-            if (inventoryController != null)
-            {
-                inventoryController.InventoryUpdated += OnInventoryUpdated;
-            }
+            if (inventoryController != null) inventoryController.InventoryUpdated += OnInventoryUpdated;
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
-            if (inventoryController != null)
-            {
-                inventoryController.InventoryUpdated -= OnInventoryUpdated;
-            }
+            if (inventoryController != null) inventoryController.InventoryUpdated -= OnInventoryUpdated;
         }
 
         protected override void OnOpened()
@@ -148,20 +135,12 @@ namespace ForjaGame.UI
         {
             base.OnClosed();
             ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
-
-            if (!IsAnyPanelOpen)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            if (!IsAnyPanelOpen) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
         }
 
         private void OnInventoryUpdated()
         {
-            if (IsOpen)
-            {
-                RefreshCurrentView();
-            }
+            if (IsOpen) RefreshCurrentView();
         }
 
         public void RefreshCurrentView()
@@ -175,9 +154,34 @@ namespace ForjaGame.UI
 
         public void SelectCategory(ForgeItemCategory category)
         {
+            bool tabChanged = IsOpen && category != _currentCategory;
+            int dir = (int)category >= (int)_currentCategory ? 1 : -1;
             _currentCategory = category;
+
+            if (tabChanged)
+            {
+                UpdateTabVisuals();
+                var flipper = GetComponent<InventoryPageFlipper>();
+                if (flipper != null)
+                {
+                    flipper.PlayPageTurn(dir, ApplySelectedCategoryBody);
+                    return;
+                }
+            }
+            ApplySelectedCategoryBody();
+        }
+
+        private void ApplySelectedCategoryBody()
+        {
             _selectedItem = null;
             RefreshCurrentView();
+            if (_selectedItem == null && _activeEntries.Count > 0)
+            {
+                _selectedItem = _activeEntries[0].item;
+                for (int i = 0; i < _activeEntries.Count; i++)
+                    _activeEntries[i].ui.SetSelected(i == 0);
+                RenderRightPage(_selectedItem);
+            }
         }
 
         public void OpenFor(InventoryController inv, PlayerEquipmentController equip)
@@ -208,20 +212,20 @@ namespace ForjaGame.UI
 
         private void EnsureController()
         {
-            if (inventoryController == null)
+            if (inventoryController == null || !inventoryController.gameObject.activeInHierarchy)
             {
                 inventoryController = InventoryController.LocalInstance ?? InventoryController.Instance ?? FindFirstObjectByType<InventoryController>();
-                if (inventoryController == null)
+                if (inventoryController == null || !inventoryController.gameObject.activeInHierarchy)
                 {
                     GameObject player = GameObject.FindWithTag("Player");
                     if (player != null) inventoryController = player.GetComponent<InventoryController>();
                 }
             }
 
-            if (_equipmentController == null)
+            if (_equipmentController == null || !_equipmentController.gameObject.activeInHierarchy)
             {
                 _equipmentController = PlayerEquipmentController.LocalInstance ?? FindFirstObjectByType<PlayerEquipmentController>();
-                if (_equipmentController == null)
+                if (_equipmentController == null || !_equipmentController.gameObject.activeInHierarchy)
                 {
                     GameObject player = GameObject.FindWithTag("Player");
                     if (player != null) _equipmentController = player.GetComponent<PlayerEquipmentController>();

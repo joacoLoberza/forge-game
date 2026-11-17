@@ -159,14 +159,18 @@ namespace ForjaGame.UI
             var rt = txt.rectTransform;
             rt.localRotation = Quaternion.identity;
             rt.localScale = Vector3.one;
-            if (rt.sizeDelta.y < 34f) rt.sizeDelta = new Vector2(Mathf.Max(260f, rt.sizeDelta.x), 38f);
+            if (rt.sizeDelta.y < 36f) rt.sizeDelta = new Vector2(Mathf.Max(260f, rt.sizeDelta.x), 40f);
 
             txt.fontSize = fontSize;
-            txt.enableAutoSizing = false;
+            txt.enableAutoSizing = true;
+            txt.fontSizeMin = 9.5f;
+            txt.fontSizeMax = fontSize;
+            txt.textWrappingMode = TextWrappingModes.NoWrap;
+            txt.overflowMode = TextOverflowModes.Ellipsis;
             txt.fontStyle = FontStyles.Bold | FontStyles.SmallCaps;
             txt.color = GoldTitleInk;
             txt.alignment = TextAlignmentOptions.Center;
-            txt.margin = Vector4.zero;
+            txt.margin = new Vector4(14f, 2f, 14f, 2f);
             txt.raycastTarget = false;
 
             Transform bg = txt.transform.Find("TitlePlaque_BG");
@@ -187,7 +191,7 @@ namespace ForjaGame.UI
                 bgRt.anchorMax = rt.anchorMax;
                 bgRt.pivot = rt.pivot;
                 bgRt.anchoredPosition = rt.anchoredPosition;
-                bgRt.sizeDelta = rt.sizeDelta + new Vector2(24f, 8f);
+                bgRt.sizeDelta = rt.sizeDelta + new Vector2(18f, 6f);
                 bgRt.localRotation = Quaternion.identity;
                 bgRt.localScale = Vector3.one;
 
@@ -237,7 +241,7 @@ namespace ForjaGame.UI
                 slider.handleRect.localRotation = Quaternion.identity; slider.handleRect.localScale = Vector3.one;
                 hImg.sprite = isThermalGauge ? BookTextureBuilder.GetThermalNeedleSprite() : BookTextureBuilder.GetSliderKnobSprite();
                 hImg.type = Image.Type.Simple; hImg.color = (isThermalGauge || interactive) ? Color.white : Color.clear;
-                slider.handleRect.sizeDelta = isThermalGauge ? new Vector2(16f, 48f) : new Vector2(28f, 28f);
+                slider.handleRect.sizeDelta = isThermalGauge ? new Vector2(16f, 48f) : new Vector2(18f, 18f);
                 if (isThermalGauge && slider.handleRect.parent != null) slider.handleRect.parent.SetAsLastSibling();
             }
         }

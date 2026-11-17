@@ -25,12 +25,13 @@ namespace ForjaGame.Forge
         public static void EnsureStationPositions()
         {
             Quaternion workshopFacing = Quaternion.Euler(0f, -90f, 0f);
+            const float stationCenterY = 1.0f;
             var f = Object.FindFirstObjectByType<FurnaceStationController>();
-            if (f != null) f.transform.SetPositionAndRotation(new Vector3(-9.60f, f.transform.position.y, 6.20f), workshopFacing);
+            if (f != null) f.transform.SetPositionAndRotation(new Vector3(-9.60f, stationCenterY, 6.20f), workshopFacing);
             var p = Object.FindFirstObjectByType<PressStationController>();
-            if (p != null) p.transform.SetPositionAndRotation(new Vector3(-9.60f, p.transform.position.y, 10.00f), workshopFacing);
+            if (p != null) p.transform.SetPositionAndRotation(new Vector3(-9.60f, stationCenterY, 10.00f), workshopFacing);
             var a = Object.FindFirstObjectByType<AnvilStationController>();
-            if (a != null) a.transform.SetPositionAndRotation(new Vector3(-9.60f, a.transform.position.y, 13.80f), workshopFacing);
+            if (a != null) a.transform.SetPositionAndRotation(new Vector3(-9.60f, stationCenterY, 13.80f), workshopFacing);
         }
 
         private static bool ShouldRebuild(Transform parent, string name, bool force)
@@ -52,7 +53,6 @@ namespace ForjaGame.Forge
         {
             var furnace = Object.FindFirstObjectByType<FurnaceStationController>();
             if (furnace == null) return;
-
             if (ShouldRebuild(furnace.transform, "VisualModel_Horno", forceRebuild))
             {
                 GameObject prefab = LoadModelAsset(HornoFbxPath);
@@ -68,11 +68,10 @@ namespace ForjaGame.Forge
                     AlignModelToGroundAndCenter(model, furnace.transform, 2.30f);
                 }
             }
-
             var cubeRenderer = furnace.GetComponent<MeshRenderer>();
             if (cubeRenderer != null) cubeRenderer.enabled = false;
             var col = furnace.GetComponent<BoxCollider>();
-            if (col != null) { col.center = new Vector3(0f, 0.20f, 0f); col.size = new Vector3(2.2f, 2.40f, 2.2f); }
+            if (col != null) { col.center = new Vector3(0f, 1.20f, 0f); col.size = new Vector3(2.2f, 2.40f, 2.2f); }
             var fx = furnace.GetComponent<FurnaceVisualController>();
             if (fx == null) fx = furnace.gameObject.AddComponent<FurnaceVisualController>();
             fx.EnsureBuilt();
@@ -90,8 +89,8 @@ namespace ForjaGame.Forge
             visualRoot.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.Euler(0f, 90f, 0f));
 
             float groundY = GetGroundHeightAt(anvil.transform.position.x, anvil.transform.position.z) + 0.02f;
-            float targetAnvilTop = groundY + 1.08f, anvilHeight = 0.42f;
-            float anvilBaseY = targetAnvilTop - anvilHeight, blockHeight = Mathf.Max(0.2f, anvilBaseY - groundY);
+            float targetAnvilTop = groundY + 1.44f, anvilHeight = 0.50f;
+            float anvilBaseY = targetAnvilTop - anvilHeight, blockHeight = Mathf.Max(0.35f, anvilBaseY - groundY);
 
             GameObject model = Object.Instantiate(prefab, visualRoot.transform);
             model.name = "Model_Yunque";
@@ -118,8 +117,7 @@ namespace ForjaGame.Forge
             var cubeRenderer = anvil.GetComponent<MeshRenderer>();
             if (cubeRenderer != null) cubeRenderer.enabled = false;
             var col = anvil.GetComponent<BoxCollider>();
-            if (col != null) { col.center = new Vector3(0f, ((targetAnvilTop + groundY) * 0.5f) - anvil.transform.position.y, 0f); col.size = new Vector3(1.4f, targetAnvilTop - groundY, 1.8f); }
-
+            if (col != null) { col.center = new Vector3(0f, 0.72f, 0f); col.size = new Vector3(1.4f, 1.48f, 1.8f); }
             if (!anvil.TryGetComponent<AnvilStationVisualController>(out var visual)) visual = anvil.gameObject.AddComponent<AnvilStationVisualController>();
             visual.EnsureBuilt();
         }
@@ -128,52 +126,39 @@ namespace ForjaGame.Forge
         {
             var press = Object.FindFirstObjectByType<PressStationController>();
             if (press == null) return;
-
             Transform existingVisual = press.transform.Find("VisualModel_Prensa");
             if (existingVisual != null && !forceRebuild)
             {
-                if (FindDeepChild(existingVisual, "Part_Ram") == null || FindDeepChild(existingVisual, "Part_Pala") == null)
-                    forceRebuild = true;
+                if (FindDeepChild(existingVisual, "Part_Ram") == null || FindDeepChild(existingVisual, "Part_Pala") == null) forceRebuild = true;
                 RemovePalancaIfPresent(existingVisual);
             }
-
             if (ShouldRebuild(press.transform, "VisualModel_Prensa", forceRebuild))
             {
-                GameObject soportePrefab = LoadModelAsset("Assets/Models/prensaSoporte.fbx");
-                GameObject palaPrefab = LoadModelAsset("Assets/Models/prensaPala.fbx");
-                GameObject prensaPrefab = LoadModelAsset("Assets/Models/prensaPrensa.fbx");
+                GameObject soportePrefab = LoadModelAsset("Assets/Models/prensaSoporte.fbx"), palaPrefab = LoadModelAsset("Assets/Models/prensaPala.fbx"), prensaPrefab = LoadModelAsset("Assets/Models/prensaPrensa.fbx");
                 if (soportePrefab == null) return;
-
                 GameObject visualRoot = new GameObject("VisualModel_Prensa");
                 visualRoot.transform.SetParent(press.transform, false);
                 visualRoot.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.Euler(0f, 180f, 0f));
-
                 GameObject soporte = Object.Instantiate(soportePrefab, visualRoot.transform);
-                soporte.name = "Part_Soporte";
-                soporte.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+                soporte.name = "Part_Soporte"; soporte.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
                 GameObject pala = palaPrefab != null ? Object.Instantiate(palaPrefab, visualRoot.transform) : null;
                 if (pala != null) { pala.name = "Part_Pala"; pala.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f); }
                 GameObject ram = prensaPrefab != null ? Object.Instantiate(prensaPrefab, visualRoot.transform) : null;
                 if (ram != null) { ram.name = "Part_Ram"; ram.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f); }
-
                 ApplyMaterial(visualRoot, CreateStationMaterial("Mat_PrensaEstacion", new Color(0.35f, 0.38f, 0.42f), 0.48f, 0.42f));
                 AlignModelToGroundAndCenter(visualRoot, press.transform, 2.40f);
-
-                var mech = press.GetComponent<PressMechanicalVisual>();
-                if (mech == null) mech = press.gameObject.AddComponent<PressMechanicalVisual>();
+                var mech = press.GetComponent<PressMechanicalVisual>() ?? press.gameObject.AddComponent<PressMechanicalVisual>();
                 mech.InitializeScrewPress(visualRoot.transform, ram != null ? ram.transform : null, pala != null ? pala.transform : null);
             }
             else if (existingVisual != null)
             {
-                var mech = press.GetComponent<PressMechanicalVisual>();
-                if (mech == null) mech = press.gameObject.AddComponent<PressMechanicalVisual>();
+                var mech = press.GetComponent<PressMechanicalVisual>() ?? press.gameObject.AddComponent<PressMechanicalVisual>();
                 mech.InitializeScrewPress(existingVisual, FindDeepChild(existingVisual, "Part_Ram"), FindDeepChild(existingVisual, "Part_Pala"));
             }
-
             var cubeRenderer = press.GetComponent<MeshRenderer>();
             if (cubeRenderer != null) cubeRenderer.enabled = false;
             var col = press.GetComponent<BoxCollider>();
-            if (col != null) { col.center = new Vector3(0f, 0.20f, 0f); col.size = new Vector3(2.2f, 2.50f, 2.0f); }
+            if (col != null) { col.center = new Vector3(0f, 1.25f, 0f); col.size = new Vector3(2.2f, 2.50f, 2.0f); }
         }
 
         private static void RemovePalancaIfPresent(Transform root)
@@ -194,8 +179,24 @@ namespace ForjaGame.Forge
 
         public static void RemoveMineVisual() => DestroyObj(GameObject.Find("MineEntrance_Structure"));
 
-        public static float GetGroundHeightAt(float worldX, float worldZ) =>
-            Physics.Raycast(new Vector3(worldX, 20f, worldZ), Vector3.down, out RaycastHit hit, 30f, ~0, QueryTriggerInteraction.Ignore) ? hit.point.y : 0f;
+        public static float GetGroundHeightAt(float worldX, float worldZ)
+        {
+            if (worldX >= -14.0f && worldX <= -5.0f && worldZ >= 3.20f && worldZ <= 16.80f) return 0.075f;
+            var hits = Physics.RaycastAll(new Vector3(worldX, 20f, worldZ), Vector3.down, 30f, ~0, QueryTriggerInteraction.Ignore);
+            float bestY = 0f, closest = float.MaxValue;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                var h = hits[i];
+                if (h.collider == null || h.collider.isTrigger) continue;
+                if (h.collider.GetComponentInParent<FurnaceStationController>() != null ||
+                    h.collider.GetComponentInParent<PressStationController>() != null ||
+                    h.collider.GetComponentInParent<AnvilStationController>() != null ||
+                    h.collider.GetComponentInParent<ForjaGame.Combat.CaveCreatureBase>() != null ||
+                    h.collider.GetComponentInParent<ForjaGame.Core.PlayerMovement>() != null) continue;
+                if (h.distance < closest) { closest = h.distance; bestY = h.point.y; }
+            }
+            return bestY;
+        }
 
         private static void AlignModelToGroundAndCenter(GameObject model, Transform station, float targetHeight)
         {

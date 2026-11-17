@@ -45,14 +45,17 @@ namespace ForjaGame.Combat
         private PlayerInput _playerInput;
         private PlayerEquipmentController _equipmentCtrl;
         private PlayerMovement _movementCtrl;
+        private PlayerStaminaController _staminaCtrl;
         private bool _attackInputRequested;
         public bool IsAttacking => _isAttacking;
         public int CurrentComboIndex => _currentComboIndex;
         public int MaxComboSteps => _maxComboSteps;
         public AttackMove ActiveMove => _activeMove;
         public bool IsHitStopped => Time.time < _hitStopUntil;
+        public float AttackProgress => _isAttacking && attackDuration > 0.01f ? Mathf.Clamp01((Time.time - _currentAttackStartTime) / attackDuration) : 0f;
         public bool HasPickaxeEquipped => _equippedWeapon != null && _equippedWeapon.weaponType == WeaponType.Pickaxe;
-        public event System.Action<int> OnAttackTriggered;
+        public event System.Action<int, int, float> OnAttackTriggered;
+        public event System.Action OnAttackEnded;
 
         private void Awake()
         {
@@ -63,15 +66,18 @@ namespace ForjaGame.Combat
             _playerInput = GetComponent<PlayerInput>();
             _equipmentCtrl = GetComponent<PlayerEquipmentController>();
             _movementCtrl = GetComponent<PlayerMovement>();
+            _staminaCtrl = GetComponent<PlayerStaminaController>() ?? gameObject.AddComponent<PlayerStaminaController>();
 
             SetupAttackHitboxVisualizer();
         }
 
         private void Update()
         {
+            if (ForjaGame.UI.PauseMenuPanel.IsGamePaused) return;
             var netObj = GetComponent<Unity.Netcode.NetworkObject>();
             bool isLocal = netObj == null || netObj.IsOwner;
-            bool mouseTriggered = isLocal && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+            UpdateBlockingAndBash(isLocal);
+            bool mouseTriggered = isLocal && !_isBlocking && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
             if (mouseTriggered || _attackInputRequested)
             {
                 _attackInputRequested = false;
@@ -141,6 +147,8 @@ namespace ForjaGame.Combat
         public void Attack()
         {
             if (UI.Core.UIPanelBase.IsAnyPanelOpen) return;
+            var roll = GetComponent<PlayerRollController>();
+            if (roll != null && roll.IsRolling) return;
             if (AnvilController.Instance != null && (AnvilController.Instance.IsForging || AnvilController.Instance.HasIngotOnAnvil || AnvilController.Instance.IsCarvingHandle)) return;
             if (gameStateController != null && !gameStateController.IsInState(GameState.Exploration)) return;
 
@@ -158,6 +166,7 @@ namespace ForjaGame.Combat
             }
 
             if (Time.time < _comboAvailableTime) return;
+            EnsureComboMoves();
 
             _hasBufferedNextStrike = false;
             ExecuteComboStrike(0);
@@ -165,6 +174,9 @@ namespace ForjaGame.Combat
 
         private void ExecuteComboStrike(int comboIndex)
         {
+            bool isPick = _equippedWeapon != null && _equippedWeapon.weaponType == WeaponType.Pickaxe;
+            if (isPick) comboIndex = 0;
+
             _isAttacking = true;
             _currentComboIndex = comboIndex;
             _currentAttackStartTime = Time.time;
@@ -178,52 +190,50 @@ namespace ForjaGame.Combat
 
             _activeMove = WeaponAnalyzer.ResolveMove(desired, _currentAnalysis);
 
+            float jitter = isPick ? UnityEngine.Random.Range(0.95f, 1.06f) : 1.0f;
             float baseDur = _activeMove != null ? _activeMove.baseDuration : (_equippedWeapon != null ? _equippedWeapon.GetBaseAttackDuration() : 1.05f);
-            float speedMult = _equippedWeapon != null ? Mathf.Max(0.5f, _equippedWeapon.attackSpeed) : 1.0f;
+            float speedMult = (_equippedWeapon != null ? Mathf.Max(0.5f, _equippedWeapon.attackSpeed) : 1.0f) * jitter;
             attackDuration = baseDur / speedMult;
-            float linkRatio = _activeMove != null ? Mathf.Clamp(_activeMove.hitWindowEnd + 0.20f, 0.82f, 0.88f) : (_equippedWeapon != null ? _equippedWeapon.GetComboLinkRatio() : 0.85f);
+            float linkRatio = _activeMove != null ? Mathf.Clamp(_activeMove.hitWindowEnd + 0.14f, 0.72f, 0.84f) : (_equippedWeapon != null ? _equippedWeapon.GetComboLinkRatio() : 0.78f);
             comboTransitionTime = attackDuration * linkRatio;
 
-            // Reorientar al iniciar el golpe hacia la dirección de ataque/cámara
             Vector3 attackDir = GetPlayerAttackInputDirection();
-            if (attackDir.sqrMagnitude > 0.01f)
-            {
-                transform.rotation = Quaternion.LookRotation(attackDir);
-            }
+            if (attackDir.sqrMagnitude > 0.01f) transform.rotation = Quaternion.LookRotation(attackDir);
 
-            // Zancada física sutil y controlada (paso marcial plantado, sin impulsos exagerados)
-            float lungeBase = _activeMove != null ? _activeMove.lungeDistance * 1.0f : 0.35f;
-            if (comboIndex == _maxComboSteps - 1) lungeBase *= 1.25f;
-            Vector3 forwardLunge = transform.forward * lungeBase;
-            if (_rb != null)
-            {
-                _rb.linearVelocity = new Vector3(forwardLunge.x, Mathf.Min(0f, _rb.linearVelocity.y), forwardLunge.z);
-            }
-
-            // Disparar animación correspondiente del combo en Mecanim
             var equip = GetEquipment();
             var paladinAnim = equip?.PaladinAnimator;
+            bool isMoving = (_movementCtrl != null && _movementCtrl.MoveInput.sqrMagnitude > 0.04f)
+                || (paladinAnim != null && paladinAnim.GetFloat("Speed") > 0.25f);
+
+            if (!isMoving)
+            {
+                float lungeBase = _activeMove != null ? _activeMove.lungeDistance * 0.65f : 0.26f;
+                if (isPick) lungeBase = 0.14f;
+                else if (comboIndex == _maxComboSteps - 1) lungeBase *= 1.18f;
+                Vector3 forwardLunge = transform.forward * lungeBase;
+                if (_rb != null && !_rb.isKinematic)
+                    _rb.linearVelocity = new Vector3(forwardLunge.x, Mathf.Min(0f, _rb.linearVelocity.y), forwardLunge.z);
+            }
+
             if (paladinAnim != null)
             {
+                float clipLen = DynamicEdgeAligner.ResolveAttackClipLength(paladinAnim, comboIndex, 1.15f);
+                float clipPlaySpeed = Mathf.Clamp(clipLen / Mathf.Max(0.28f, attackDuration * 0.96f), 0.48f, 2.35f);
+                bool useUpperBody = isMoving && paladinAnim.layerCount > 1;
+                if (equip?.EdgeAligner != null) equip.EdgeAligner.isUpperBodyAttack = useUpperBody;
+                if (paladinAnim.layerCount > 1) paladinAnim.SetLayerWeight(1, useUpperBody ? 1f : 0f);
+                if (paladinAnim.layerCount > 2) paladinAnim.SetLayerWeight(2, useUpperBody ? 0.45f : 0f);
                 paladinAnim.SetBool("MirrorAttack", false);
-                paladinAnim.SetFloat("AttackSpeed", speedMult);
+                paladinAnim.SetFloat("AttackSpeed", clipPlaySpeed);
                 paladinAnim.SetInteger("ComboIndex", comboIndex);
                 paladinAnim.SetBool("IsAttacking", true);
-                if (_equippedWeapon != null && _equippedWeapon.weaponType == WeaponType.Pickaxe)
-                {
-                    paladinAnim.CrossFadeInFixedTime("Attack1", 0.10f, 0);
-                }
-                else
-                {
-                    int combatLayer = (paladinAnim.layerCount > 1) ? 1 : 0;
-                    if (combatLayer == 1) paladinAnim.SetLayerWeight(1, 1f);
-                    paladinAnim.CrossFadeInFixedTime($"Attack{comboIndex + 1}", 0.12f, combatLayer);
-                }
+                paladinAnim.CrossFadeInFixedTime($"Attack{comboIndex + 1}", 0.08f, useUpperBody ? 1 : 0, 0f);
             }
             if (equip?.EdgeAligner != null) { equip.EdgeAligner.isAttacking = true; equip.EdgeAligner.NotifyCombatAlert(5.0f); }
             bool isHeavy2H = _equippedWeapon != null && _equippedWeapon.GetCombatStance() != WeaponCombatStance.OneHanded;
-            ForjaGame.Audio.ForgeAudioSystem.PlayWeaponSwing(transform.position, isHeavy2H);
-            OnAttackTriggered?.Invoke(comboIndex);
+            ForjaGame.Audio.ForgeAudioSystem.PlayWeaponSwing(transform.position, isHeavy2H, isPick);
+            int wType = _equippedWeapon != null ? (int)_equippedWeapon.weaponType : (int)WeaponType.Sword;
+            OnAttackTriggered?.Invoke(comboIndex, wType, speedMult);
         }
     }
 }

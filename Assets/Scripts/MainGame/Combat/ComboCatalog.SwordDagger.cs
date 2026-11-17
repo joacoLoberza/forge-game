@@ -9,7 +9,7 @@ namespace ForjaGame.Combat
             return new AttackMove[]
             {
                 // Golpe 1: Tajo diagonal descendente (45° Overhead Slice)
-                CreateMove("Espada: Tajo Diagonal", WeaponArchetype.Sword1H, AttackMotionType.HorizontalSlash,
+                CreateMove("Sword: Diagonal Slash", WeaponArchetype.Sword1H, AttackMotionType.HorizontalSlash,
                     WeaponCapabilities.CanSlash, 1.05f, 1.0f, 0.38f, new[]
                     {
                         new AttackWaypoint(new Vector3(0.24f, -0.12f, 0.36f), new Vector3(0.2f, 0.8f, 0.5f), TorsoAngles.Identity, 0.0f),
@@ -20,7 +20,7 @@ namespace ForjaGame.Combat
                     }),
 
                 // Golpe 2: Tajo reverso horizontal (Chest Cleave)
-                CreateMove("Espada: Tajo Reverso", WeaponArchetype.Sword1H, AttackMotionType.HorizontalSlash,
+                CreateMove("Sword: Reverse Slash", WeaponArchetype.Sword1H, AttackMotionType.HorizontalSlash,
                     WeaponCapabilities.CanSlash, 1.00f, 1.1f, 0.35f, new[]
                     {
                         new AttackWaypoint(new Vector3(-0.10f, -0.05f, 0.38f), new Vector3(-0.5f, 0.5f, 0.6f), TorsoAngles.Identity, 0.0f),
@@ -31,7 +31,7 @@ namespace ForjaGame.Combat
                     }),
 
                 // Golpe 3: Estocada penetrante recta (Thrust)
-                CreateMove("Espada: Estocada Penetrante", WeaponArchetype.Sword1H, AttackMotionType.Thrust,
+                CreateMove("Sword: Piercing Thrust", WeaponArchetype.Sword1H, AttackMotionType.Thrust,
                     WeaponCapabilities.CanThrust | WeaponCapabilities.CanSlash, 0.95f, 1.20f, 0.42f, new[]
                     {
                         new AttackWaypoint(new Vector3(0.24f, -0.10f, 0.25f), Vector3.forward, new TorsoAngles(new Vector3(0, 8f, 0), new Vector3(0, 12f, 0), new Vector3(0, 16f, 0)), 0.0f),
@@ -40,7 +40,7 @@ namespace ForjaGame.Combat
                     }),
 
                 // Golpe 4: Tajo de continuidad bajo-alto
-                CreateMove("Espada: Tajo de Continuidad", WeaponArchetype.Sword1H, AttackMotionType.HorizontalSlash,
+                CreateMove("Sword: Rising Slash", WeaponArchetype.Sword1H, AttackMotionType.HorizontalSlash,
                     WeaponCapabilities.CanSlash, 1.02f, 1.25f, 0.38f, new[]
                     {
                         new AttackWaypoint(new Vector3(-0.12f, -0.15f, 0.30f), new Vector3(-0.4f, -0.3f, 0.6f), TorsoAngles.Identity, 0.0f),
@@ -50,7 +50,7 @@ namespace ForjaGame.Combat
                     }),
 
                 // Golpe 5: Finisher - Tajo devastador de potencia
-                CreateMove("Espada: Tajo Potente Finisher", WeaponArchetype.Sword1H, AttackMotionType.HorizontalSlash,
+                CreateMove("Sword: Power Finisher", WeaponArchetype.Sword1H, AttackMotionType.HorizontalSlash,
                     WeaponCapabilities.CanSlash, 1.20f, 1.65f, 0.45f, new[]
                     {
                         new AttackWaypoint(new Vector3(0.28f, 0.05f, 0.28f), new Vector3(0.3f, 0.7f, 0.4f), TorsoAngles.Identity, 0.0f),
@@ -66,7 +66,7 @@ namespace ForjaGame.Combat
         {
             return new AttackMove[]
             {
-                CreateMove("Daga: Tajo Rápido", WeaponArchetype.Dagger, AttackMotionType.HorizontalSlash,
+                CreateMove("Dagger: Quick Slash", WeaponArchetype.Dagger, AttackMotionType.HorizontalSlash,
                     WeaponCapabilities.CanSlash, 0.58f, 0.85f, 0.18f, new[]
                     {
                         new AttackWaypoint(new Vector3(0.22f, -0.10f, 0.28f), Vector3.forward, TorsoAngles.Identity, 0.0f),
@@ -75,7 +75,7 @@ namespace ForjaGame.Combat
                         new AttackWaypoint(new Vector3(0.22f, -0.10f, 0.28f), Vector3.forward, TorsoAngles.Identity, 1.0f)
                     }),
 
-                CreateMove("Daga: Estocada Baja", WeaponArchetype.Dagger, AttackMotionType.Thrust,
+                CreateMove("Dagger: Low Thrust", WeaponArchetype.Dagger, AttackMotionType.Thrust,
                     WeaponCapabilities.CanThrust, 0.55f, 0.90f, 0.20f, new[]
                     {
                         new AttackWaypoint(new Vector3(0.20f, -0.16f, 0.22f), Vector3.forward, TorsoAngles.Identity, 0.0f),
@@ -83,7 +83,7 @@ namespace ForjaGame.Combat
                         new AttackWaypoint(new Vector3(0.22f, -0.10f, 0.28f), Vector3.forward, TorsoAngles.Identity, 1.0f)
                     }),
 
-                CreateMove("Daga: Tajo Reverso", WeaponArchetype.Dagger, AttackMotionType.HorizontalSlash,
+                CreateMove("Dagger: Backhand Slash", WeaponArchetype.Dagger, AttackMotionType.HorizontalSlash,
                     WeaponCapabilities.CanSlash, 0.58f, 0.95f, 0.22f, new[]
                     {
                         new AttackWaypoint(new Vector3(-0.10f, -0.05f, 0.28f), Vector3.forward, TorsoAngles.Identity, 0.0f),
@@ -91,7 +91,7 @@ namespace ForjaGame.Combat
                         new AttackWaypoint(new Vector3(0.22f, -0.10f, 0.28f), Vector3.forward, TorsoAngles.Identity, 1.0f)
                     }),
 
-                CreateMove("Daga: Estocada Media", WeaponArchetype.Dagger, AttackMotionType.Thrust,
+                CreateMove("Dagger: Mid Thrust", WeaponArchetype.Dagger, AttackMotionType.Thrust,
                     WeaponCapabilities.CanThrust, 0.60f, 1.05f, 0.25f, new[]
                     {
                         new AttackWaypoint(new Vector3(0.18f, -0.05f, 0.20f), Vector3.forward, TorsoAngles.Identity, 0.0f),
@@ -99,7 +99,7 @@ namespace ForjaGame.Combat
                         new AttackWaypoint(new Vector3(0.22f, -0.10f, 0.28f), Vector3.forward, TorsoAngles.Identity, 1.0f)
                     }),
 
-                CreateMove("Daga: Estocada con Lunge Finisher", WeaponArchetype.Dagger, AttackMotionType.Thrust,
+                CreateMove("Dagger: Lunging Finisher", WeaponArchetype.Dagger, AttackMotionType.Thrust,
                     WeaponCapabilities.CanThrust, 0.75f, 1.65f, 0.60f, new[]
                     {
                         new AttackWaypoint(new Vector3(0.22f, 0.05f, 0.15f), Vector3.forward, TorsoAngles.Identity, 0.0f),

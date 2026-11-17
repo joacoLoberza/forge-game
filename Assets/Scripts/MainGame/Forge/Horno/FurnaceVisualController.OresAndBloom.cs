@@ -22,49 +22,44 @@ namespace ForjaGame.Forge
 
         private void Update()
         {
-            if (!_isBuilt) EnsureBuilt();
-            if (furnaceController == null) return;
-
+            if (!_isBuilt || _fxRoot == null) EnsureBuilt();
             UpdateInternalFireFromHeat();
             AnimateStagedPreviewHover();
-            SyncCrucibleInsertedOres();
-            SyncBottomBloomVisual();
+            if (furnaceController != null)
+            {
+                SyncCrucibleInsertedOres();
+                SyncBottomBloomVisual();
+            }
             CheckDirectClickOnBottomBloom();
         }
 
         private void UpdateInternalFireFromHeat()
         {
-            float maxT = furnaceController.MaxTemperature > 0f ? furnaceController.MaxTemperature : 1600f;
-            float temp = furnaceController.CurrentTemperature;
-            float ratio = Mathf.Clamp01(temp / maxT);
+            float maxT = furnaceController != null && furnaceController.MaxTemperature > 0f ? furnaceController.MaxTemperature : 1600f;
+            float temp = furnaceController != null ? furnaceController.CurrentTemperature : 350f;
+            float ratio = Mathf.Max(0.24f, Mathf.Clamp01(temp / maxT));
             float flicker = 0.88f + 0.12f * Mathf.PerlinNoise(Time.time * 9.5f, 1.7f);
 
             Color fireCol = ratio < 0.35f
-                ? Color.Lerp(new Color(0.65f, 0.10f, 0.02f), new Color(1.0f, 0.36f, 0.05f), ratio / 0.35f)
-                : Color.Lerp(new Color(1.0f, 0.36f, 0.05f), new Color(1.0f, 0.88f, 0.42f), (ratio - 0.35f) / 0.65f);
+                ? Color.Lerp(new Color(0.85f, 0.28f, 0.05f), new Color(1.0f, 0.42f, 0.08f), ratio / 0.35f)
+                : Color.Lerp(new Color(1.0f, 0.42f, 0.08f), new Color(1.0f, 0.88f, 0.42f), (ratio - 0.35f) / 0.65f);
 
-            if (_hearthLight != null)
-            {
-                _hearthLight.color = fireCol;
-                _hearthLight.intensity = (temp > 5f ? Mathf.Lerp(0.45f, 6.2f, ratio) : 0f) * flicker;
-            }
-            if (_crucibleLight != null)
-            {
-                _crucibleLight.color = fireCol;
-                _crucibleLight.intensity = (temp > 80f ? Mathf.Lerp(0.2f, 3.2f, ratio) : 0f) * flicker;
-            }
+            if (_hearthLight != null) { _hearthLight.color = fireCol; _hearthLight.intensity = Mathf.Lerp(2.2f, 6.8f, ratio) * flicker; }
+            if (_crucibleLight != null) { _crucibleLight.color = fireCol; _crucibleLight.intensity = Mathf.Lerp(0.85f, 3.4f, ratio) * flicker; }
             if (_hearthFlamePs != null)
             {
+                if (!_hearthFlamePs.isPlaying) _hearthFlamePs.Play();
                 var em = _hearthFlamePs.emission;
-                em.rateOverTime = temp <= 8f ? 0f : Mathf.Lerp(6f, 58f, ratio);
+                em.rateOverTime = Mathf.Lerp(14f, 60f, ratio);
                 var main = _hearthFlamePs.main;
-                main.startSize = new ParticleSystem.MinMaxCurve(Mathf.Lerp(0.12f, 0.24f, ratio), Mathf.Lerp(0.22f, 0.44f, ratio));
-                main.startSpeed = new ParticleSystem.MinMaxCurve(Mathf.Lerp(0.28f, 0.65f, ratio), Mathf.Lerp(0.50f, 1.15f, ratio));
+                main.startSize = new ParticleSystem.MinMaxCurve(Mathf.Lerp(0.14f, 0.26f, ratio), Mathf.Lerp(0.24f, 0.46f, ratio));
+                main.startSpeed = new ParticleSystem.MinMaxCurve(Mathf.Lerp(0.30f, 0.65f, ratio), Mathf.Lerp(0.55f, 1.15f, ratio));
             }
             if (_chimneySparksPs != null)
             {
+                if (!_chimneySparksPs.isPlaying) _chimneySparksPs.Play();
                 var em = _chimneySparksPs.emission;
-                em.rateOverTime = temp <= 120f ? 0f : Mathf.Lerp(2f, 22f, ratio);
+                em.rateOverTime = Mathf.Lerp(6f, 24f, ratio);
             }
 
             Color emberEmission = fireCol * (Mathf.Pow(ratio, 0.85f) * 2.4f * flicker);

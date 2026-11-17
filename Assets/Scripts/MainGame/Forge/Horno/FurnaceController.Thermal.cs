@@ -75,14 +75,23 @@ namespace ForjaGame.Forge
             return true;
         }
 
+        public bool HasUsedBellowsThisSmelt { get; set; }
+        private float _nextBellowsSoundTime;
+
         /// <summary>
         /// Acciona el fuelle de enfriamiento rápido: baja la temperatura a velocidad constante (440°C/s).
         /// </summary>
         public void ApplyBellowsCooling(float deltaTime, float intensity = 1f)
         {
             float coolingForce = 440f * intensity;
+            if (currentTemperature >= targetMinTemp - 30f) HasUsedBellowsThisSmelt = true;
             targetTemperature = Mathf.Max(ambientTemperature, targetTemperature - (coolingForce * deltaTime));
             currentTemperature = Mathf.MoveTowards(currentTemperature, ambientTemperature, coolingForce * deltaTime);
+            if (Time.unscaledTime >= _nextBellowsSoundTime)
+            {
+                _nextBellowsSoundTime = Time.unscaledTime + 1.15f;
+                ForjaGame.Audio.ForgeAudioSystem.PlayFurnaceStoke(transform.position);
+            }
             TemperatureChanged?.Invoke(currentTemperature);
         }
 
@@ -91,8 +100,11 @@ namespace ForjaGame.Forge
         /// </summary>
         public void PulseBellows(float burst = 45f)
         {
+            if (currentTemperature >= targetMinTemp - 30f) HasUsedBellowsThisSmelt = true;
             targetTemperature = Mathf.Max(ambientTemperature, targetTemperature - burst);
             currentTemperature = Mathf.MoveTowards(currentTemperature, ambientTemperature, burst * 0.7f);
+            _nextBellowsSoundTime = Time.unscaledTime + 1.05f;
+            ForjaGame.Audio.ForgeAudioSystem.PlayFurnaceStoke(transform.position);
             TemperatureChanged?.Invoke(currentTemperature);
         }
 
@@ -109,7 +121,7 @@ namespace ForjaGame.Forge
             if (count <= 0) return false;
             float addedHeat = coalHeatBonus * count;
             targetTemperature = Mathf.Min(maxTemperature, Mathf.Max(currentTemperature, targetTemperature) + addedHeat);
-            ForjaGame.Audio.ForgeAudioSystem.PlayFurnaceStoke(transform.position);
+            ForjaGame.Audio.ForgeAudioSystem.PlayCoalAction(transform.position);
             return true;
         }
 

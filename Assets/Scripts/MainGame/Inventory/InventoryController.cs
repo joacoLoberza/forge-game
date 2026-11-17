@@ -35,7 +35,11 @@ namespace ForjaGame.Inventory
         private void Awake()
         {
             var netObj = GetComponent<Unity.Netcode.NetworkObject>();
-            if (netObj == null || netObj.IsOwner) LocalInstance = this;
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsListening)
+            {
+                if (netObj != null && netObj.IsOwner) LocalInstance = this;
+            }
+            else if (netObj == null || netObj.IsOwner) LocalInstance = this;
             _fallbackInstance = this;
         }
 
@@ -115,6 +119,7 @@ namespace ForjaGame.Inventory
         public void AddBloom(BloomData bloom)
         {
             if (bloom == null) return;
+            AlloyCodexRegistry.RegisterFromComposition(bloom.composition, false);
             _blooms.Add(bloom);
             InventoryUpdated?.Invoke();
         }
@@ -143,7 +148,12 @@ namespace ForjaGame.Inventory
         public void AddHandle(HandleData handle) { if (handle == null) return; _handles.Add(handle); InventoryUpdated?.Invoke(); }
         public bool RemoveHandle(HandleData handle) { if (handle != null && _handles.Remove(handle)) { InventoryUpdated?.Invoke(); return true; } return false; }
         public bool ConsumeHandle() { if (_handles.Count > 0) { _handles.RemoveAt(_handles.Count - 1); InventoryUpdated?.Invoke(); return true; } return false; }
-        public void AddWeapon(WeaponStats weapon) { if (weapon == null) return; _weapons.Add(weapon); InventoryUpdated?.Invoke(); }
+        public void AddWeapon(WeaponStats weapon)
+        {
+            if (weapon == null) return;
+            AlloyCodexRegistry.RegisterFromComposition(weapon.composition, false);
+            _weapons.Add(weapon); InventoryUpdated?.Invoke();
+        }
         public bool RemoveWeapon(WeaponStats weapon) { if (weapon != null && _weapons.Remove(weapon)) { InventoryUpdated?.Invoke(); return true; } return false; }
 
         public void Clear()

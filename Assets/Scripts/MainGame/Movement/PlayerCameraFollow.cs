@@ -223,7 +223,13 @@ namespace ForjaGame.Core
             }
         }
 
-        public void TriggerImpulse(float intensity = 0.22f) => _shakeIntensity = Mathf.Max(_shakeIntensity, intensity);
+        public void TriggerImpulse(float intensity = 0.22f)
+        {
+            if (GameLoopController.IsEndScreenOpen || GameStateController.State == GameState.Victory || GameStateController.State == GameState.Defeat) return;
+            _shakeIntensity = Mathf.Max(_shakeIntensity, intensity);
+        }
+
+        public void ResetShake() => _shakeIntensity = 0f;
 
 
         public void SetFollowing(bool follow) => _isOrbitEnabled = follow;

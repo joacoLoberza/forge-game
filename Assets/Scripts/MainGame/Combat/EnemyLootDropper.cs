@@ -62,6 +62,8 @@ namespace ForjaGame.Combat
         public void DropLoot(Vector3 position)
         {
             if (lootTable == null || lootTable.Count == 0) return;
+            Transform closestPlayer = CaveCreatureBase.FindClosestLivingPlayer(position);
+            if (closestPlayer == null || (closestPlayer.position - position).sqrMagnitude > 30f * 30f) return;
             lootTable.RemoveAll(e => e == null || e.itemId == "MonsterBones");
 
             foreach (var entry in lootTable)

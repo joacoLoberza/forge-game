@@ -98,6 +98,7 @@ namespace ForjaGame.UI.Core
 
             var trigger = button.gameObject.GetComponent<UnityEngine.EventSystems.EventTrigger>();
             if (trigger == null) trigger = button.gameObject.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            trigger.triggers.RemoveAll(t => t.eventID == UnityEngine.EventSystems.EventTriggerType.PointerDown);
 
             var entry = new UnityEngine.EventSystems.EventTrigger.Entry
             {
@@ -105,7 +106,14 @@ namespace ForjaGame.UI.Core
             };
             entry.callback.AddListener((_) =>
             {
-                if (button.interactable) action.Invoke();
+                if (ForjaGame.UI.PauseMenuPanel.IsGamePaused && !(this is ForjaGame.UI.PauseMenuPanel))
+                    return;
+
+                if (button.interactable)
+                {
+                    ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
+                    action.Invoke();
+                }
             });
             trigger.triggers.Add(entry);
         }

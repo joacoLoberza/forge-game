@@ -89,7 +89,7 @@ namespace ForjaGame.Forge
 
             // Deformación plástica progresiva de la Lupa 3D mientras baja la prensa
             float p = Mathf.Clamp01(pressController.PressProgress);
-            float squashY = Mathf.Lerp(1.0f, 0.25f, p);
+            float squashY = Mathf.Lerp(1.0f, 0.40f, p);
             float expandXZ = Mathf.Lerp(1.0f, 1.35f, p);
             _activeWorkpieceObj.transform.localScale = new Vector3(expandXZ, squashY, expandXZ);
         }

@@ -4,177 +4,197 @@ using System.Collections.Generic;
 using UnityEngine;
 using ForjaGame.Audio;
 using ForjaGame.Core;
+using ForjaGame.Environment;
+using ForjaGame.Resources;
 
 namespace ForjaGame.Combat
 {
     /// <summary>
-    /// Nido de crías arácnidas ("sus hijos") protegido por las arañas cavernícolas.
-    /// Genera sacos de huevos bioluminiscentes sobre seda densa y emite alertas ecológicas
-    /// cuando un ser vivo pisa el nido o lo golpea.
+    /// Nido de crías de araña (SpiderBroodNest) con modelo 3D orgánico procedural:
+    /// montículo fibroso de seda, capullos elongados pulsantes, filamentos de telaraña
+    /// tensados hacia la roca del nicho oscuro y alerta ecológica a la progenie.
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
     public class SpiderBroodNest : MonoBehaviour, IDamageable
     {
+        public static readonly List<SpiderBroodNest> ActiveNests = new();
         public static event Action<Vector3> OnBroodThreatened;
 
-        [SerializeField] private int maxHealth = 70;
-        [SerializeField] private float respawnSeconds = 42f;
+        [SerializeField] private int maxHealth = 95;
+        [SerializeField] private int currentHealth = 95;
 
-        private int _currentHealth;
-        private bool _isDestroyed;
-        private float _nextProximityAlertTime;
+        private Transform _visualRoot;
+        private Light _nestGlow;
         private SphereCollider _col;
-        private readonly List<Transform> _eggSacs = new();
-        private static Material _webMat;
-        private static Material _eggMat;
+        private bool _isDestroyed;
 
-        public bool IsAlive => !_isDestroyed && _currentHealth > 0;
-        public int CurrentHealth => _currentHealth;
-        public int MaxHealth => maxHealth;
+        public bool IsAlive => !_isDestroyed && currentHealth > 0;
 
-        private void Awake()
+        private void OnEnable()
         {
-            _currentHealth = maxHealth;
+            if (!ActiveNests.Contains(this)) ActiveNests.Add(this);
+        }
+
+        private void OnDisable()
+        {
+            ActiveNests.Remove(this);
+        }
+
+        public void InitializeNest(Vector3 worldPos)
+        {
+            _isDestroyed = false;
+            currentHealth = maxHealth;
+            float baseFloor = CaveDungeonBuilder.GetFloorY(worldPos.x, worldPos.z);
+            float groundY = UnitySafeUtility.ProbeGroundY(new Vector3(worldPos.x, baseFloor, worldPos.z), transform, 1.8f, 10.0f);
+            transform.position = new Vector3(worldPos.x, groundY + 0.02f, worldPos.z);
+
             _col = UnitySafeUtility.GetOrAdd<SphereCollider>(gameObject);
             _col.radius = 1.05f;
-            _col.center = new Vector3(0f, 0.45f, 0f);
-            BuildNestVisuals();
+            _col.center = new Vector3(0f, 0.52f, 0f);
+            _col.isTrigger = true;
+            _col.enabled = true;
+
+            if (!TryGetComponent<EnemyLootDropper>(out var dropper))
+            {
+                dropper = gameObject.AddComponent<EnemyLootDropper>();
+                dropper.SetLootTable(new List<LootDropEntry>
+                {
+                    new LootDropEntry("Coal", 0.85f, 1, 3),
+                    new LootDropEntry("Copper", 0.55f, 1, 2)
+                });
+            }
+
+            BuildOrganic3DNestVisual();
+        }
+
+        public void ResetNest()
+        {
+            _isDestroyed = false;
+            currentHealth = maxHealth;
+            if (_col != null) _col.enabled = true;
+            if (_visualRoot != null) _visualRoot.gameObject.SetActive(true);
+            if (_nestGlow != null) _nestGlow.enabled = true;
         }
 
         private void Update()
         {
-            if (!IsAlive || !Application.isPlaying) return;
-
-            // Latido orgánico sutil de las crías dentro de los huevos
-            float pulse = 1.0f + Mathf.Sin(Time.time * 2.8f + GetInstanceID() * 0.13f) * 0.055f;
-            for (int i = 0; i < _eggSacs.Count; i++)
-            {
-                if (_eggSacs[i] != null)
-                    _eggSacs[i].localScale = new Vector3(0.32f * pulse, 0.44f * (2f - pulse), 0.32f * pulse);
-            }
-
-            // Si un ser vivo pisa demasiado cerca de las crías, alerta a las madres cercanas
-            if (Time.time >= _nextProximityAlertTime)
-            {
-                Transform player = CaveCreatureBase.FindClosestLivingPlayer(transform.position);
-                if (player != null && (player.position - transform.position).sqrMagnitude <= 14.5f)
-                {
-                    _nextProximityAlertTime = Time.time + 3.6f;
-                    OnBroodThreatened?.Invoke(transform.position);
-                }
-            }
+            if (!IsAlive || _visualRoot == null) return;
+            float pulse = 1.0f + Mathf.Sin(Time.time * 2.8f + GetInstanceID()) * 0.045f;
+            _visualRoot.localScale = new Vector3(pulse, 1.0f / pulse, pulse);
         }
 
         public void TakeDamage(int amount)
         {
-            if (!IsAlive || amount <= 0) return;
-            _currentHealth = Mathf.Max(0, _currentHealth - amount);
+            if (!IsAlive) return;
+            currentHealth = Mathf.Max(0, currentHealth - amount);
             ForgeAudioSystem.PlaySpiderSound(transform.position, CreatureSoundType.Hurt);
             OnBroodThreatened?.Invoke(transform.position);
+            StartCoroutine(PulseHitVisualRoutine());
+            if (currentHealth <= 0) DestroyNest();
+        }
 
-            if (_currentHealth <= 0)
+        private void DestroyNest()
+        {
+            if (_isDestroyed) return;
+            _isDestroyed = true;
+            if (_col != null) _col.enabled = false;
+            if (_nestGlow != null) _nestGlow.enabled = false;
+            if (_visualRoot != null) _visualRoot.gameObject.SetActive(false);
+            GetComponent<EnemyLootDropper>()?.DropLoot(transform.position);
+            OnBroodThreatened?.Invoke(transform.position);
+        }
+
+        private IEnumerator PulseHitVisualRoutine()
+        {
+            if (_nestGlow != null) _nestGlow.intensity = 2.1f;
+            yield return new WaitForSeconds(0.14f);
+            if (_nestGlow != null && IsAlive) _nestGlow.intensity = 0.55f;
+        }
+
+        private void BuildOrganic3DNestVisual()
+        {
+            if (_visualRoot != null) return;
+            _visualRoot = new GameObject("OrganicBroodSacRoot").transform;
+            _visualRoot.SetParent(transform, false);
+
+            Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            Material silkMat = new Material(s) { name = "Mat_SpiderSilkMound", color = new Color(0.76f, 0.74f, 0.68f, 1f) };
+            if (silkMat.HasProperty("_BaseColor")) silkMat.SetColor("_BaseColor", silkMat.color);
+            if (silkMat.HasProperty("_Smoothness")) silkMat.SetFloat("_Smoothness", 0.18f);
+
+            Material cocoonMat = new Material(s) { name = "Mat_SpiderEggCocoon", color = new Color(0.84f, 0.88f, 0.76f, 1f) };
+            if (cocoonMat.HasProperty("_BaseColor")) cocoonMat.SetColor("_BaseColor", cocoonMat.color);
+            if (cocoonMat.HasProperty("_Smoothness")) cocoonMat.SetFloat("_Smoothness", 0.55f);
+            if (cocoonMat.HasProperty("_EmissionColor"))
             {
-                _isDestroyed = true;
-                StartCoroutine(RespawnNestRoutine());
+                cocoonMat.EnableKeyword("_EMISSION");
+                cocoonMat.SetColor("_EmissionColor", new Color(0.14f, 0.24f, 0.11f));
             }
-            else StartCoroutine(ShakeEggsRoutine());
-        }
 
-        private IEnumerator ShakeEggsRoutine()
-        {
-            Vector3 orig = transform.localScale;
-            transform.localScale = orig * 1.14f;
-            yield return new WaitForSeconds(0.09f);
-            transform.localScale = orig;
-        }
+            // 1) Base orgánica de seda fibrosa (malla facetada aplanada)
+            CreateOrganicMeshPart("SilkMoundBase", new Vector3(0f, 0.18f, 0f), new Vector3(1.55f, 0.45f, 1.45f),
+                Quaternion.identity, OreMeshGenerator.CreateFacetedChunkMesh(0.75f, 301), silkMat);
+            CreateOrganicMeshPart("SilkCoreDomed", new Vector3(0f, 0.46f, 0f), new Vector3(1.05f, 0.78f, 0.98f),
+                Quaternion.Euler(8f, 25f, -6f), OreMeshGenerator.CreateFacetedChunkMesh(0.58f, 307), silkMat);
 
-        private IEnumerator RespawnNestRoutine()
-        {
-            SetNestVisible(false);
-            yield return new WaitForSeconds(respawnSeconds);
-            _currentHealth = maxHealth;
-            _isDestroyed = false;
-            SetNestVisible(true);
-        }
-
-        private void SetNestVisible(bool visible)
-        {
-            if (_col != null) _col.enabled = visible;
-            foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = visible;
-            foreach (var l in GetComponentsInChildren<Light>(true)) l.enabled = visible;
-        }
-
-        private void BuildNestVisuals()
-        {
-            if (transform.Find("BroodWebBase") != null) return;
-            EnsureMaterials();
-
-            var webBase = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            webBase.name = "BroodWebBase";
-            webBase.transform.SetParent(transform, false);
-            webBase.transform.localPosition = new Vector3(0f, 0.12f, 0f);
-            webBase.transform.localScale = new Vector3(1.85f, 0.34f, 1.75f);
-            UnitySafeUtility.DestroySafe(webBase.GetComponent<Collider>());
-            webBase.GetComponent<MeshRenderer>().sharedMaterial = _webMat;
-
-            Vector3[] offsets =
+            // 2) Racimo de capullos de huevos elongados orgánicos
+            Vector3[] eggPos =
             {
-                new Vector3( 0.00f, 0.32f,  0.00f),
-                new Vector3(-0.36f, 0.26f,  0.24f),
-                new Vector3( 0.38f, 0.25f,  0.18f),
-                new Vector3(-0.22f, 0.24f, -0.34f),
-                new Vector3( 0.26f, 0.25f, -0.30f)
+                new(-0.42f, 0.36f, 0.28f), new(0.44f, 0.34f, -0.24f), new(0.18f, 0.58f, 0.36f),
+                new(-0.26f, 0.54f, -0.34f), new(0.02f, 0.76f, -0.04f), new(0.52f, 0.24f, 0.32f),
+                new(-0.54f, 0.25f, -0.18f)
             };
-
-            _eggSacs.Clear();
-            for (int i = 0; i < offsets.Length; i++)
+            for (int i = 0; i < eggPos.Length; i++)
             {
-                var egg = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                egg.name = $"SpiderEggSac_{i}";
-                egg.transform.SetParent(transform, false);
-                egg.transform.localPosition = offsets[i];
-                egg.transform.localRotation = Quaternion.Euler(UnityEngine.Random.Range(-14f, 14f), i * 67f, UnityEngine.Random.Range(-14f, 14f));
-                egg.transform.localScale = new Vector3(0.32f, 0.44f, 0.32f);
-                UnitySafeUtility.DestroySafe(egg.GetComponent<Collider>());
-                egg.GetComponent<MeshRenderer>().sharedMaterial = _eggMat;
-                _eggSacs.Add(egg.transform);
+                Mesh eggMesh = OreMeshGenerator.CreateFacetedChunkMesh(0.24f + (i % 3) * 0.04f, 410 + i * 19);
+                CreateOrganicMeshPart($"EggCocoon_{i}", eggPos[i], new Vector3(0.85f, 1.42f, 0.85f),
+                    Quaternion.Euler((i * 19f) % 28f - 14f, i * 47f, (i * 23f) % 24f - 12f), eggMesh, cocoonMat);
             }
 
-            var glowObj = new GameObject("BroodWarmGlow", typeof(Light));
-            glowObj.transform.SetParent(transform, false);
-            glowObj.transform.localPosition = new Vector3(0f, 0.65f, 0f);
-            var lt = glowObj.GetComponent<Light>();
-            lt.type = LightType.Point;
-            lt.color = new Color(0.85f, 0.96f, 0.52f);
-            lt.range = 4.6f;
-            lt.intensity = 0.85f;
+            // 3) Filamentos radiales de telaraña tensados hacia el suelo y el techo bajo del nicho
+            for (int w = 0; w < 8; w++)
+            {
+                float ang = w * Mathf.PI * 0.25f;
+                Vector3 from = new Vector3(Mathf.Cos(ang) * 0.35f, 0.62f, Mathf.Sin(ang) * 0.35f);
+                Vector3 to = (w % 2 == 0)
+                    ? new Vector3(Mathf.Cos(ang) * 1.95f, 0.04f, Mathf.Sin(ang) * 1.95f)
+                    : new Vector3(Mathf.Cos(ang) * 1.65f, 2.15f, Mathf.Sin(ang) * 1.65f);
+                CreateWebStrand($"WebStrand_{w}", from, to, silkMat);
+            }
+
+            // Bioluminiscencia tenue para mantener el nicho oscuro e inquietante
+            var lObj = new GameObject("BroodPulseLight", typeof(Light));
+            lObj.transform.SetParent(transform, false);
+            lObj.transform.localPosition = new Vector3(0f, 0.82f, 0f);
+            _nestGlow = lObj.GetComponent<Light>();
+            _nestGlow.type = LightType.Point;
+            _nestGlow.color = new Color(0.45f, 0.78f, 0.38f);
+            _nestGlow.range = 4.2f;
+            _nestGlow.intensity = 0.55f;
         }
 
-        private static void EnsureMaterials()
+        private void CreateOrganicMeshPart(string name, Vector3 pos, Vector3 scale, Quaternion rot, Mesh mesh, Material mat)
         {
-            if (_webMat == null)
-            {
-                Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                _webMat = new Material(s) { name = "Mat_SpiderWebMound" };
-                Color webCol = new Color(0.58f, 0.56f, 0.52f, 1f);
-                if (_webMat.HasProperty("_BaseColor")) _webMat.SetColor("_BaseColor", webCol);
-                if (_webMat.HasProperty("_Color")) _webMat.SetColor("_Color", webCol);
-                if (_webMat.HasProperty("_Smoothness")) _webMat.SetFloat("_Smoothness", 0.12f);
-            }
-            if (_eggMat == null)
-            {
-                Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                _eggMat = new Material(s) { name = "Mat_SpiderEggSac" };
-                Color eggCol = new Color(0.84f, 0.90f, 0.62f, 1f);
-                if (_eggMat.HasProperty("_BaseColor")) _eggMat.SetColor("_BaseColor", eggCol);
-                if (_eggMat.HasProperty("_Color")) _eggMat.SetColor("_Color", eggCol);
-                if (_eggMat.HasProperty("_EmissionColor"))
-                {
-                    _eggMat.EnableKeyword("_EMISSION");
-                    _eggMat.SetColor("_EmissionColor", new Color(0.34f, 0.42f, 0.14f));
-                }
-            }
+            var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(_visualRoot, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = rot;
+            go.transform.localScale = scale;
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+        }
+
+        private void CreateWebStrand(string name, Vector3 a, Vector3 b, Material mat)
+        {
+            var cyl = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cyl.name = name;
+            cyl.transform.SetParent(_visualRoot, false);
+            Vector3 diff = b - a;
+            cyl.transform.localPosition = (a + b) * 0.5f;
+            cyl.transform.localRotation = Quaternion.FromToRotation(Vector3.up, diff.normalized);
+            cyl.transform.localScale = new Vector3(0.028f, diff.magnitude * 0.5f, 0.028f);
+            cyl.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            if (cyl.TryGetComponent<Collider>(out var c)) UnitySafeUtility.DestroySafe(c);
         }
     }
 }
-

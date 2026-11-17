@@ -9,6 +9,7 @@ namespace ForjaGame.UI
     public static partial class BookTextureBuilder
     {
         private static Sprite _parchmentSprite;
+        private static Sprite _pageStackSprite;
         private static Sprite _leatherCoverSprite;
         private static Sprite _spineSprite;
         private static Sprite _ribbonTabSprite;
@@ -20,23 +21,49 @@ namespace ForjaGame.UI
 
             int w = 128, h = 128;
             Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { name = "Tex_ParchmentPage" };
-            Color baseCol = new Color(0.96f, 0.93f, 0.86f, 1f); // Pergamino crema suave
-            Color edgeCol = new Color(0.85f, 0.79f, 0.70f, 1f); // Sombra sepia en bordes
+            Color baseCol = new Color(0.96f, 0.92f, 0.84f, 1f);
+            Color edgeCol = new Color(0.84f, 0.77f, 0.66f, 1f);
+            Color outerTrim = new Color(0.56f, 0.45f, 0.34f, 1f);
 
             for (int y = 0; y < h; y++)
             {
                 for (int x = 0; x < w; x++)
                 {
-                    float edgeDist = Mathf.Min(Mathf.Min(x, w - 1 - x), Mathf.Min(y, h - 1 - y)) / 14f;
+                    bool trim = x == 0 || x == w - 1 || y == 0 || y == h - 1;
+                    if (trim) { tex.SetPixel(x, y, outerTrim); continue; }
+                    float edgeDist = Mathf.Min(Mathf.Min(x, w - 1 - x), Mathf.Min(y, h - 1 - y)) / 16f;
                     float t = Mathf.Clamp01(edgeDist);
-                    float noise = (Mathf.PerlinNoise(x * 0.15f, y * 0.15f) - 0.5f) * 0.04f;
-                    Color col = Color.Lerp(edgeCol, baseCol, t) + new Color(noise, noise, noise, 0f);
+                    float noise = (Mathf.PerlinNoise(x * 0.14f, y * 0.14f) - 0.5f) * 0.035f;
+                    float rule = (y > 22 && y < h - 22 && x > 14 && x < w - 14 && y % 12 == 0) ? -0.025f : 0f;
+                    Color col = Color.Lerp(edgeCol, baseCol, t) + new Color(noise + rule, noise + rule, noise + rule, 0f);
+                    col.a = 1f;
                     tex.SetPixel(x, y, col);
                 }
             }
             tex.Apply();
-            _parchmentSprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(12, 12, 12, 12));
+            _parchmentSprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(14, 14, 14, 14));
             return _parchmentSprite;
+        }
+
+        public static Sprite GetPageStackSprite()
+        {
+            if (_pageStackSprite != null) return _pageStackSprite;
+            int w = 96, h = 96;
+            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { name = "Tex_BookPageStack" };
+            Color paperLight = new Color(0.90f, 0.84f, 0.73f, 1f);
+            Color paperLine = new Color(0.62f, 0.52f, 0.40f, 1f);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int edge = Mathf.Min(Mathf.Min(x, w - 1 - x), Mathf.Min(y, h - 1 - y));
+                    bool isLayer = edge <= 9 && edge % 3 == 0;
+                    tex.SetPixel(x, y, isLayer ? paperLine : paperLight);
+                }
+            }
+            tex.Apply();
+            _pageStackSprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(12, 12, 12, 12));
+            return _pageStackSprite;
         }
 
         public static Sprite GetLeatherCoverSprite()
@@ -45,22 +72,24 @@ namespace ForjaGame.UI
 
             int w = 128, h = 128;
             Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { name = "Tex_LeatherCover" };
-            Color leatherCol = new Color(0.16f, 0.10f, 0.07f, 0.98f); // Cuero oscuro encuadernado
-            Color stitchCol = new Color(0.72f, 0.58f, 0.32f, 0.95f);  // Pespunte dorado/latón
+            Color leatherCol = new Color(0.18f, 0.11f, 0.08f, 0.99f);
+            Color bevelDark = new Color(0.10f, 0.06f, 0.04f, 1f);
+            Color subtleBrass = new Color(0.62f, 0.49f, 0.27f, 0.85f);
 
             for (int y = 0; y < h; y++)
             {
                 for (int x = 0; x < w; x++)
                 {
-                    bool isBorder = (x <= 5 || x >= w - 6 || y <= 5 || y >= h - 6);
-                    bool isStitch = ((x == 9 || x == w - 10) && (y % 6 < 4)) || ((y == 9 || y == h - 10) && (x % 6 < 4));
-
-                    Color c = isStitch ? stitchCol : isBorder ? new Color(0.12f, 0.07f, 0.05f, 1f) : leatherCol;
+                    bool isOuter = (x <= 3 || x >= w - 4 || y <= 3 || y >= h - 4);
+                    bool isTrim = (x == 6 || x == w - 7 || y == 6 || y == h - 7);
+                    float grain = (Mathf.PerlinNoise(x * 0.25f, y * 0.25f) - 0.5f) * 0.025f;
+                    Color c = isOuter ? bevelDark : (isTrim ? subtleBrass : leatherCol + new Color(grain, grain, grain, 0f));
+                    c.a = 0.99f;
                     tex.SetPixel(x, y, c);
                 }
             }
             tex.Apply();
-            _leatherCoverSprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(16, 16, 16, 16));
+            _leatherCoverSprite = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(14, 14, 14, 14));
             return _leatherCoverSprite;
         }
 

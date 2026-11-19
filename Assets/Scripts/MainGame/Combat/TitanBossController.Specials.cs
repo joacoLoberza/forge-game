@@ -89,7 +89,7 @@ namespace ForjaGame.Combat
 
             PlayerCameraFollow.Instance?.TriggerImpulse(0.28f);
             ForgeAudioSystem.PlayTitanSound(transform.position, CreatureSoundType.Attack);
-            TitanArenaHazardBuilder.SpawnExpandingShockwave(GetArenaFxRoot(), transform.position, 24.5f, 1.05f, 36);
+            TitanArenaHazardBuilder.SpawnExpandingShockwave(GetArenaFxRoot(), transform.position, 24.5f, 1.05f, 54);
             yield return WaitTitanClipTarget(2.10f, 1.5f);
             FinishSpecialRecovery();
         }
@@ -111,7 +111,7 @@ namespace ForjaGame.Combat
 
             PlayerCameraFollow.Instance?.TriggerImpulse(0.22f);
             ForgeAudioSystem.PlayTitanSound(transform.position, CreatureSoundType.Attack);
-            TitanArenaHazardBuilder.SpawnStalactiteBarrage(this, GetArenaFxRoot(), center, 7, 36);
+            TitanArenaHazardBuilder.SpawnStalactiteBarrage(this, GetArenaFxRoot(), center, 7, 54);
             yield return WaitTitanClipTarget(1.55f, 1.2f);
             FinishSpecialRecovery();
         }
@@ -142,9 +142,9 @@ namespace ForjaGame.Combat
             if (!IsAlive || _isStaggered) { FinishSpecialRecovery(); yield break; }
 
             ForgeAudioSystem.PlayTitanSound(transform.position, CreatureSoundType.Attack);
-            TitanArenaHazardBuilder.SpawnAbyssalSpireLine(this, GetArenaFxRoot(), transform.position + dir * 2.2f, dir, 6, 34);
-            TitanArenaHazardBuilder.SpawnAbyssalSpireLine(this, GetArenaFxRoot(), transform.position + leftDir * 2.2f, leftDir, 5, 34);
-            TitanArenaHazardBuilder.SpawnAbyssalSpireLine(this, GetArenaFxRoot(), transform.position + rightDir * 2.2f, rightDir, 5, 34);
+            TitanArenaHazardBuilder.SpawnAbyssalSpireLine(this, GetArenaFxRoot(), transform.position + dir * 2.2f, dir, 6, 52);
+            TitanArenaHazardBuilder.SpawnAbyssalSpireLine(this, GetArenaFxRoot(), transform.position + leftDir * 2.2f, leftDir, 5, 52);
+            TitanArenaHazardBuilder.SpawnAbyssalSpireLine(this, GetArenaFxRoot(), transform.position + rightDir * 2.2f, rightDir, 5, 52);
             yield return WaitTitanClipTarget(2.08f, 1.5f);
             FinishSpecialRecovery();
         }

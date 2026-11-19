@@ -187,9 +187,8 @@ namespace ForjaGame.Audio
 
         private void UpdateDynamicMusicAndStationFires()
         {
-            string sceneName = SceneManager.GetActiveScene().name;
-            bool isMainMenu = !string.IsNullOrEmpty(sceneName) && sceneName.ToLower().Contains("menu");
-            Camera cam = Camera.main;
+            bool isMainMenu = _isMainMenuScene;
+            Camera cam = GetCachedCamera();
             Vector3 listenerPos = cam != null ? cam.transform.position : Vector3.zero;
             bool inCave = !isMainMenu && listenerPos.z > 26.5f;
             bool inBossArena = !isMainMenu && listenerPos.z > 148f;

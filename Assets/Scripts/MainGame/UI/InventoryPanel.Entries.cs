@@ -21,8 +21,8 @@ namespace ForjaGame.UI
                 entryObj.transform.SetParent(targetContent, false);
 
                 var layout = entryObj.GetComponent<LayoutElement>();
-                layout.minHeight = 44f;
-                layout.preferredHeight = 44f;
+                layout.minHeight = 48f;
+                layout.preferredHeight = 48f;
                 layout.flexibleWidth = 1f;
 
                 var bg = entryObj.GetComponent<Image>();
@@ -30,7 +30,7 @@ namespace ForjaGame.UI
                 bg.type = Image.Type.Sliced;
                 bg.color = new Color(0.92f, 0.86f, 0.75f, 0.98f);
 
-                // Slot contenedor de cuero repujado para el icono (34x34)
+                // Slot contenedor de cuero repujado para el icono (36x36)
                 GameObject slotObj = new GameObject("IconSlot", typeof(RectTransform), typeof(Image));
                 slotObj.transform.SetParent(entryObj.transform, false);
                 var slotRt = slotObj.GetComponent<RectTransform>();
@@ -38,7 +38,7 @@ namespace ForjaGame.UI
                 slotRt.anchorMax = new Vector2(0, 0.5f);
                 slotRt.pivot = new Vector2(0, 0.5f);
                 slotRt.anchoredPosition = new Vector2(10, 0);
-                slotRt.sizeDelta = new Vector2(34, 34);
+                slotRt.sizeDelta = new Vector2(36, 36);
 
                 var slotImg = slotObj.GetComponent<Image>();
                 slotImg.sprite = BookTextureBuilder.GetLeatherCoverSprite();

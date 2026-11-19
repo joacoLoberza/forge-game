@@ -12,8 +12,10 @@ namespace ForjaGame.Combat
     public sealed class EnemyHealthBarHUD : MonoBehaviour
     {
         private static EnemyHealthBarHUD _instance;
-        private GUIStyle _nameStyle;
-        private Texture2D _leatherTex, _trackTex, _fillRedTex;
+        private static GUIStyle _nameStyle, _plaqueStyle, _plaqueTitleStyle, _plaqueValStyle, _plaqueSubStyle;
+        private static Texture2D _leatherTex, _trackTex, _fillRedTex, _bevelGoldTex, _grooveTex, _sheenTex, _ironRailTex;
+        private Camera _cachedMainCam;
+        private bool _isMainMenu;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoBootstrap()
@@ -23,34 +25,82 @@ namespace ForjaGame.Combat
                 _instance = new GameObject("[ENEMY_HEALTH_BARS]").AddComponent<EnemyHealthBarHUD>();
         }
 
+        private void OnEnable()
+        {
+            _isMainMenu = SceneManager.GetActiveScene().name == "MainMenu";
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+        private void OnDisable() => SceneManager.sceneLoaded -= OnSceneLoaded;
+        private void OnSceneLoaded(Scene s, LoadSceneMode m) { _isMainMenu = s.name == "MainMenu"; _cachedMainCam = null; }
         private void OnDestroy() { if (_instance == this) _instance = null; }
 
-        private void EnsureStyles()
+        private static Texture2D MakeBeveledTex(Color c, int h)
+        {
+            var t = new Texture2D(1, h, TextureFormat.RGBA32, false) { hideFlags = HideFlags.DontSave };
+            for (int y = 0; y < h; y++)
+            {
+                float hl = y >= h - 3 ? 1.22f : (y <= 1 ? 0.68f : 1f);
+                t.SetPixel(0, y, new Color(Mathf.Clamp01(c.r * hl), Mathf.Clamp01(c.g * hl), Mathf.Clamp01(c.b * hl), c.a));
+            }
+            t.Apply(); return t;
+        }
+
+        private static void EnsureStyles()
         {
             if (_nameStyle != null) return;
             _leatherTex = BookTextureBuilder.GetLeatherCoverSprite().texture;
             _trackTex = BookTextureBuilder.GetSliderTrackSprite().texture;
-            _fillRedTex = new Texture2D(1, 6, TextureFormat.RGBA32, false) { hideFlags = HideFlags.DontSave };
-            for (int y = 0; y < 6; y++)
-            {
-                float hl = y >= 4 ? 1.18f : (y <= 1 ? 0.72f : 1f);
-                _fillRedTex.SetPixel(0, y, new Color(Mathf.Clamp01(0.74f * hl), Mathf.Clamp01(0.15f * hl), Mathf.Clamp01(0.13f * hl), 1f));
-            }
-            _fillRedTex.Apply();
+            _fillRedTex = MakeBeveledTex(new Color(0.76f, 0.13f, 0.11f, 1f), 10);
+            _bevelGoldTex = MakeBeveledTex(new Color(0.72f, 0.56f, 0.24f, 1f), 6);
+            _grooveTex = MakeBeveledTex(new Color(0.06f, 0.05f, 0.05f, 0.96f), 6);
+            _sheenTex = MakeBeveledTex(new Color(1f, 0.98f, 0.92f, 0.28f), 4);
+            _ironRailTex = MakeBeveledTex(new Color(0.15f, 0.12f, 0.10f, 1f), 6);
 
-            _nameStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, fontSize = 11,
-                normal = { textColor = new Color(0.92f, 0.85f, 0.72f) }
-            };
+            _plaqueStyle = new GUIStyle { normal = { background = BookTextureBuilder.GetParchmentSprite().texture }, border = new RectOffset(14, 14, 14, 14), padding = new RectOffset(8, 8, 6, 6) };
+            _nameStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, fontSize = 11, normal = { textColor = new Color(0.92f, 0.85f, 0.72f) } };
+            _plaqueTitleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = true, fontSize = 13, normal = { textColor = ForgeCanvasThemeStyler.DarkInk } };
+            _plaqueValStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleRight, fontStyle = FontStyle.Bold, richText = true, fontSize = 10, normal = { textColor = new Color(0.98f, 0.95f, 0.88f) } };
+            _plaqueSubStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = true, fontSize = 11, normal = { textColor = ForgeCanvasThemeStyler.DarkInk } };
             MedievalTypographyProvider.ApplyToGUIStyle(_nameStyle, 11, FontStyle.Bold);
+            MedievalTypographyProvider.ApplyToGUIStyle(_plaqueTitleStyle, 13, FontStyle.Bold);
+            MedievalTypographyProvider.ApplyToGUIStyle(_plaqueValStyle);
+            MedievalTypographyProvider.ApplyToGUIStyle(_plaqueSubStyle, 11, FontStyle.Bold);
+        }
+
+        public static void DrawPlayerStyledHealthPlaque(Rect box, string title, int currentHp, int maxHp, string subtitle = null, float alpha = 1f)
+        {
+            EnsureStyles();
+            Color prev = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, alpha);
+            GUI.DrawTexture(new Rect(box.x - 4f, box.y - 4f, box.width + 8f, box.height + 8f), _leatherTex);
+            GUI.Box(box, GUIContent.none, _plaqueStyle);
+            GUI.Label(new Rect(box.x + 12f, box.y + 4f, box.width - 24f, 20f), $"<b>{title}</b>", _plaqueTitleStyle);
+
+            float barH = string.IsNullOrEmpty(subtitle) ? 18f : 15f;
+            Rect hpRect = new Rect(box.x + 18f, box.y + 25f, box.width - 36f, barH);
+            float ratio = Mathf.Clamp01((float)currentHp / Mathf.Max(1, maxHp));
+            GUI.DrawTexture(new Rect(hpRect.x - 1f, hpRect.y - 1f, hpRect.width + 2f, hpRect.height + 2f), _bevelGoldTex);
+            GUI.DrawTexture(hpRect, _grooveTex);
+            if (ratio > 0.004f)
+            {
+                float fillW = (hpRect.width - 4f) * ratio;
+                GUI.DrawTexture(new Rect(hpRect.x + 2f, hpRect.y + 2f, fillW, hpRect.height - 4f), _fillRedTex);
+                GUI.DrawTexture(new Rect(hpRect.x + 2f, hpRect.y + 2f, fillW, 3f), _sheenTex);
+            }
+            for (int tick = 1; tick <= 3; tick++)
+                GUI.DrawTexture(new Rect(hpRect.x + hpRect.width * (tick * 0.25f), hpRect.y + 2f, 1f, hpRect.height - 4f), _ironRailTex);
+            GUI.Label(new Rect(hpRect.x, hpRect.y, hpRect.width - 6f, hpRect.height), $"<b>{currentHp}</b><size=9.5>/{maxHp}</size>", _plaqueValStyle);
+            if (!string.IsNullOrEmpty(subtitle))
+                GUI.Label(new Rect(box.x + 10f, hpRect.yMax + 2f, box.width - 20f, 18f), subtitle, _plaqueSubStyle);
+            GUI.color = prev;
         }
 
         private void OnGUI()
         {
-            if (SceneManager.GetActiveScene().name == "MainMenu") return;
+            if (Event.current.type != EventType.Repaint || _isMainMenu) return;
             if (ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen || PauseMenuPanel.IsGamePaused || GameLoopController.IsEndScreenOpen) return;
-            Camera cam = Camera.main;
+            if (_cachedMainCam == null || !_cachedMainCam.isActiveAndEnabled) _cachedMainCam = Camera.main;
+            Camera cam = _cachedMainCam;
             var player = PlayerMovement.LocalInstance;
             if (cam == null || player == null) return;
 

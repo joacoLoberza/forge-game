@@ -16,6 +16,7 @@ namespace ForjaGame.Core
         public static GameLoopController Instance { get; private set; }
         public static bool IsEndScreenOpen { get; private set; }
         public static string LastOutcomeSummary { get; private set; } = string.Empty;
+        private bool _defeatSequenceRunning;
 
         [Header("Eventos de Interfaz")]
         public UnityEvent onVictory;
@@ -40,7 +41,7 @@ namespace ForjaGame.Core
             LastOutcomeSummary = string.Empty;
         }
 
-        private void Awake() { Instance = this; IsEndScreenOpen = false; ResolveEndPanelsAndButtons(); }
+        private void Awake() { Instance = this; IsEndScreenOpen = _defeatSequenceRunning = false; ResolveEndPanelsAndButtons(); }
 
         private void Start()
         {
@@ -117,21 +118,27 @@ namespace ForjaGame.Core
 
         public void TriggerDefeat()
         {
-            if (IsEndScreenOpen) return;
+            if (IsEndScreenOpen || _defeatSequenceRunning) return;
+            _defeatSequenceRunning = true;
             ReleaseAllOccupiedStations();
             ResolveEndPanelsAndButtons();
 
             var inv = Inventory.InventoryController.Instance;
-            LastOutcomeSummary = inv != null ? inv.ForfeitCurrentDelveLoot() : string.Empty;
+            Vector3 dropPos = Combat.PlayerHealthController.LocalInstance != null ? Combat.PlayerHealthController.LocalInstance.transform.position : Vector3.zero;
+            LastOutcomeSummary = inv != null ? inv.ForfeitCurrentDelveLoot(dropPos) : string.Empty;
+            StartCoroutine(DefeatSequenceRoutine());
+        }
 
-            IsEndScreenOpen = true;
+        private System.Collections.IEnumerator DefeatSequenceRoutine()
+        {
+            Time.timeScale = 0.75f;
+            yield return new WaitForSecondsRealtime(1.45f);
+            _defeatSequenceRunning = false; IsEndScreenOpen = true;
             GameStateController.ChangeState(GameState.Defeat);
             ForjaGame.UI.ForgeCanvasThemeStyler.StyleEndScreensAndMainMenu();
             if (defeatPanel != null) defeatPanel.SetActive(true);
             onDefeat?.Invoke();
-
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
             Time.timeScale = 0f;
         }
 
@@ -140,7 +147,7 @@ namespace ForjaGame.Core
 
         public void ReturnToMainMenu()
         {
-            Time.timeScale = 1f; IsEndScreenOpen = false;
+            StopAllCoroutines(); _defeatSequenceRunning = false; Time.timeScale = 1f; IsEndScreenOpen = false;
             ForjaGame.UI.VictoryCreditsOverlay.HideAll();
             ForjaGame.Speedrun.LANLeaderboardBroadcaster.Instance?.BroadcastLeaderboard();
             if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.IsListening)
@@ -151,27 +158,18 @@ namespace ForjaGame.Core
 
         private void CompleteEndScreenAndTeleportToInitialSpawn()
         {
-            Time.timeScale = 1f;
-            IsEndScreenOpen = false;
+            StopAllCoroutines(); _defeatSequenceRunning = false; Time.timeScale = 1f; IsEndScreenOpen = false;
             ForjaGame.UI.VictoryCreditsOverlay.HideAll();
-
             if (victoryPanel != null) victoryPanel.SetActive(false);
             if (defeatPanel != null) defeatPanel.SetActive(false);
-
             GameStateController.ChangeState(GameState.Exploration);
             ReleaseAllOccupiedStations();
             ForjaGame.Interaction.InteractionController.ResetAllInteractionControllers();
             ForjaGame.UI.Core.UIPanelBase.CloseAllPanels();
-
             TeleportAllActivePlayersToMapOrigin();
             Environment.ConsecrationAltarInteractable.LockAndHideSanctumAltar();
             ForjaGame.Resources.MineSpawnerController.Instance?.ResetAndRespawnCaveEnemies();
-
-            if (!ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            if (!ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
         }
 
         private void TeleportAllActivePlayersToMapOrigin()

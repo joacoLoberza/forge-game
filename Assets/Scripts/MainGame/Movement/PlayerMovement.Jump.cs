@@ -16,9 +16,20 @@ namespace ForjaGame.Core
         private bool _isAirborneJump, _jumpFallbackActive;
         private PlayableGraph _jumpFallbackGraph;
         private static AnimationClip _cachedJumpStartClip, _cachedJumpLoopClip;
+        private static readonly RaycastHit[] _groundHits = new RaycastHit[8];
 
-        private bool IsGrounded() =>
-            Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore);
+        private bool IsGrounded()
+        {
+            int count = Physics.RaycastNonAlloc(transform.position, Vector3.down, _groundHits, groundCheckDistance, groundLayer, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                Collider c = _groundHits[i].collider;
+                if (c == null || c.transform.IsChildOf(transform)) continue;
+                if (c.GetComponentInParent<ForjaGame.Combat.CaveCreatureBase>() != null) continue;
+                return true;
+            }
+            return false;
+        }
 
         private void ExecuteJump()
         {

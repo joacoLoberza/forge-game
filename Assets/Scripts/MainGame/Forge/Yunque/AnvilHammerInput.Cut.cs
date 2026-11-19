@@ -18,6 +18,8 @@ namespace ForjaGame.Forge
         private bool _hasHoverPoint;
         private bool _flipCutSide;
         private List<Vector3> _previewDiscardedTris;
+        private float _cutFeedbackUntil = -1f;
+        private string _cutFeedbackMsg = string.Empty;
 
         private void HandleToolModeHotkeys()
         {
@@ -72,6 +74,7 @@ namespace ForjaGame.Forge
             {
                 _flipCutSide = !_flipCutSide;
                 UpdateCutPreview();
+                ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyAnvilCutFlipped();
             }
 
             bool isUndo = Mouse.current.rightButton.wasPressedThisFrame || (Keyboard.current != null && Keyboard.current.backspaceKey.wasPressedThisFrame);
@@ -96,6 +99,8 @@ namespace ForjaGame.Forge
             var ptsCopy = new List<Vector3>(_cutPoints);
 
             bool success = anvilController.ApplyCut(_cutPoints, _flipCutSide);
+            if (!success && !string.IsNullOrEmpty(anvilController.LastCutBlockedMessage))
+            { _cutFeedbackMsg = anvilController.LastCutBlockedMessage; _cutFeedbackUntil = Time.time + 2.8f; ForjaGame.Audio.ForgeAudioSystem.PlayUIClick(); }
             if (success)
             {
                 if (sparkVFXPrefab != null && !anvilController.IsCarvingHandle)
@@ -109,6 +114,7 @@ namespace ForjaGame.Forge
                 anvilController.ThermalController?.TriggerHammerStrikeAndSparks(worldPos, 0.85f, true);
                 ForjaGame.Audio.ForgeAudioSystem.PlayChiselCut(worldPos, anvilController.IsCarvingHandle);
                 ResetCutState(true);
+                ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyAnvilCutExecuted();
 
                 if (anvilController.IsCarvingHandle && anvilController.CheckAndApplyHandleFracture(out bool fractured))
                 {
@@ -185,7 +191,8 @@ namespace ForjaGame.Forge
                 hotkeysInfo = "<color=#991B1B><b>[R] Execute Cut</b></color>  •  <b>[F] Flip Side</b>  •  <b>[Right Click] Undo</b>  •  <b>[Esc] Clear</b>";
             }
 
-            string info = $"<size=14><b>INTERACTIVE CUTTING TOOL</b></size>\n{modeInfo}\n{hotkeysInfo}";
+            string blockLine = Time.time < _cutFeedbackUntil && !string.IsNullOrEmpty(_cutFeedbackMsg) ? $"\n<color=#B91C1C><b>{_cutFeedbackMsg}</b></color>" : "";
+            string info = $"<size=14><b>INTERACTIVE CUTTING TOOL</b></size>\n{modeInfo}\n{hotkeysInfo}{blockLine}";
             GUI.Box(new Rect(x, y, w, h), info, _hudStyle);
         }
 

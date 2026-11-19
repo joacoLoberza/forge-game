@@ -39,7 +39,8 @@ namespace ForjaGame.Forge
             anvilController.ThermalController?.UpdateHammerHover(worldHitPoint, !IsMouseOverUI(), AnvilToolMode.Polish, isRubbing);
             if (isRubbing)
             {
-                bool polished = anvilController.PolishSurface(worldHitPoint, 0.035f, 4.0f);
+                bool polished = anvilController.PolishSurface(worldHitPoint, 0.042f, 1.55f);
+                ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyAnvilPolishing(Time.deltaTime);
                 if (polished && sparkVFXPrefab != null && !anvilController.IsCarvingHandle && Random.value < 0.20f)
                     Instantiate(sparkVFXPrefab, worldHitPoint + Vector3.up * 0.015f, Quaternion.identity);
                 if (Time.time >= _nextPolishScrapeTime)

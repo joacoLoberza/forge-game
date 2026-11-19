@@ -86,6 +86,7 @@ namespace ForjaGame.Environment
 
             if (_wobbleRoutine != null) StopCoroutine(_wobbleRoutine);
             _wobbleRoutine = StartCoroutine(HitWobbleRoutine(isEffective ? 0.22f : 0.08f));
+            if (wallType == TunnelWallType.Web) SpawnWebSilkShreds(transform.position + Vector3.up * 1.5f, isEffective ? 8 : 4);
 
             if (wallType == TunnelWallType.BrokenBricks && attacker != null)
             {
@@ -102,6 +103,22 @@ namespace ForjaGame.Environment
             }
 
             if (_currentHealth <= 0) BreakWall();
+        }
+
+        private void SpawnWebSilkShreds(Vector3 origin, int count)
+        {
+            var mat = DestructibleTunnelWallBuilder.GetWebMaterial();
+            for (int i = 0; i < count; i++)
+            {
+                var g = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                if (g.TryGetComponent<Collider>(out var c)) UnitySafeUtility.DestroySafe(c);
+                g.GetComponent<MeshRenderer>().sharedMaterial = mat;
+                g.transform.SetPositionAndRotation(origin + new Vector3(Random.Range(-1.4f, 1.4f), Random.Range(-0.8f, 0.9f), Random.Range(-0.4f, 0.4f)), Random.rotation);
+                g.transform.localScale = new Vector3(0.035f, Random.Range(0.28f, 0.55f), 0.035f);
+                var rb = g.AddComponent<Rigidbody>(); rb.mass = 0.2f;
+                rb.AddForce(new Vector3(Random.Range(-2.2f, 2.2f), Random.Range(1.2f, 2.8f), Random.Range(-2.2f, 2.2f)), ForceMode.Impulse);
+                Destroy(g, 0.85f);
+            }
         }
 
         private void PlayImpactSound(bool isHeavy, bool isEffective) =>
@@ -122,7 +139,7 @@ namespace ForjaGame.Environment
 
             string wallLabel = wallType switch { TunnelWallType.Web => "de Telaraña", TunnelWallType.WoodPlanks => "de Maderas", _ => "de Ladrillos Rotos" };
             Debug.Log($"<color=#33FFAA>[Pared Destruida]</color> ¡La barrera {wallLabel} ha sido derribada! Camino despejado.");
-            if (wallType == TunnelWallType.Web) StartCoroutine(TearWebRoutine());
+            if (wallType == TunnelWallType.Web) { ForgeTutorialDirector.Instance?.NotifyFirstWebWallBroken(this); StartCoroutine(TearWebRoutine()); }
             else StartCoroutine(CollapseDebrisRoutine());
         }
 
@@ -205,37 +222,15 @@ namespace ForjaGame.Environment
             float alpha = Mathf.Clamp01(1f - (dist - 4.5f) / 5.0f);
             if (alpha <= 0.05f) return;
 
-            string title = wallType switch { TunnelWallType.Web => "[WEB] COBWEB BARRIER", TunnelWallType.WoodPlanks => "[WOOD] WOODEN BARRICADE", _ => "[ROCK] CRUMBLING BRICK WALL" };
+            string title = wallType switch { TunnelWallType.Web => "COBWEB BARRIER", TunnelWallType.WoodPlanks => "WOODEN BARRICADE", _ => "CRUMBLING BRICK WALL" };
             string weakness = EffectiveWeapon switch { WeaponType.Sword => "Weak to: SWORD (x5)", WeaponType.Axe => "Weak to: AXE (x5)", _ => "Weak to: HAMMER (x5)" };
-
             bool bossActive = Combat.TitanBossController.Instance != null && Combat.TitanBossController.Instance.IsAlive && player.position.z >= 480f;
             bool tutBanner = UI.ForgeTutorialDirector.Instance != null && UI.ForgeTutorialDirector.Instance.HasTopBannerVisible;
-            float boxW = 460f, boxH = 64f, boxX = (Screen.width - boxW) * 0.5f, boxY = (tutBanner || bossActive) ? 106f : 24f;
-            Color prevBg = GUI.backgroundColor, prevColor = GUI.color;
-            GUI.color = new Color(1f, 1f, 1f, alpha);
-            GUI.Box(new Rect(boxX, boxY, boxW, boxH), GUIContent.none);
-
-            var titleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.90f, 0.65f) } };
-            MedievalTypographyProvider.ApplyToGUIStyle(titleStyle, 15, FontStyle.Bold);
-            GUI.Label(new Rect(boxX + 10, boxY + 4, boxW - 20, 20), title, titleStyle);
-
-            float hpPct = Mathf.Clamp01((float)_currentHealth / Mathf.Max(1, maxHealth));
-            Rect barBg = new Rect(boxX + 28, boxY + 27, boxW - 56, 11);
-            GUI.Box(barBg, GUIContent.none);
-
-            Color barColor = wallType switch { TunnelWallType.Web => new Color(0.85f, 0.88f, 0.78f), TunnelWallType.WoodPlanks => new Color(0.82f, 0.48f, 0.22f), _ => new Color(0.72f, 0.65f, 0.55f) };
-            GUI.color = new Color(barColor.r, barColor.g, barColor.b, alpha);
-            GUI.DrawTexture(new Rect(barBg.x + 1, barBg.y + 1, (barBg.width - 2) * hpPct, barBg.height - 2), Texture2D.whiteTexture);
-
-            var subStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.92f, 0.92f, 0.92f) }, fontSize = 12 };
+            float boxW = 440f, boxH = 62f, boxX = (Screen.width - boxW) * 0.5f, boxY = (tutBanner || bossActive) ? 106f : 22f;
             string footerText = (Time.time < _feedbackTime && !string.IsNullOrEmpty(_hitFeedbackText))
-                ? (_wasLastHitEffective ? $"<color=#FFD700><b>{_hitFeedbackText}</b></color>" : $"<color=#FFAA77>{_hitFeedbackText}</color>")
-                : $"<b>{_currentHealth}/{maxHealth} HP</b>  •  {weakness}";
-
-            GUI.color = new Color(1f, 1f, 1f, alpha);
-            GUI.Label(new Rect(boxX + 10, boxY + 41, boxW - 20, 18), footerText, subStyle);
-            GUI.backgroundColor = prevBg;
-            GUI.color = prevColor;
+                ? (_wasLastHitEffective ? $"<color=#8A5200><b>{_hitFeedbackText}</b></color>" : $"<color=#8F1D14>{_hitFeedbackText}</color>")
+                : $"<color=#4A2B12>{weakness}</color>";
+            EnemyHealthBarHUD.DrawPlayerStyledHealthPlaque(new Rect(boxX, boxY, boxW, boxH), title, _currentHealth, maxHealth, footerText, alpha);
         }
     }
 }

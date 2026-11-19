@@ -73,6 +73,11 @@ namespace ForjaGame.Core
                 float dampRate = isMoving ? 15f : 12f;
                 Vector3 blendedHVel = Vector3.Lerp(currentHVel, targetHVel, dampRate * Time.fixedDeltaTime);
                 float groundedY = Mathf.Min(0f, _rb.linearVelocity.y);
+                if (TryComputeSpiderSlideOff(out Vector3 atkSlide))
+                {
+                    blendedHVel += atkSlide;
+                    groundedY = Mathf.Min(groundedY, -2.2f);
+                }
                 _rb.linearVelocity = new Vector3(blendedHVel.x, groundedY, blendedHVel.z);
 
                 if (isMoving && moveDir.sqrMagnitude > 0.001f)
@@ -84,7 +89,13 @@ namespace ForjaGame.Core
             }
 
             Vector3 velocityXZ = moveDir * currentSpeed;
-            _rb.linearVelocity = new Vector3(velocityXZ.x, _rb.linearVelocity.y, velocityXZ.z);
+            float velY = _rb.linearVelocity.y;
+            if (TryComputeSpiderSlideOff(out Vector3 moveSlide))
+            {
+                velocityXZ += moveSlide;
+                if (velY <= 0.6f) velY = Mathf.Min(velY, -2.2f);
+            }
+            _rb.linearVelocity = new Vector3(velocityXZ.x, velY, velocityXZ.z);
             UpdateJumpPhysics();
 
             if (isMoving && moveDir.sqrMagnitude > 0.001f)
@@ -95,13 +106,47 @@ namespace ForjaGame.Core
             }
         }
 
+        private CapsuleCollider _playerCol;
         private float _slowMultiplier = 1.0f;
         private float _slowUntilTime = 0f;
-        public bool IsWebSlowed => Time.time < _slowUntilTime;
+        public bool IsWebSlowed => !ForjaGame.Combat.PlayerHealthController.IsGodModeActive && Time.time < _slowUntilTime;
+
+        private bool TryComputeSpiderSlideOff(out Vector3 slideXZ)
+        {
+            slideXZ = Vector3.zero;
+            var spiders = ForjaGame.Combat.SpiderEnemyController.ActiveSpiders;
+            if (spiders.Count == 0) return false;
+            if (_playerCol == null) _playerCol = GetComponent<CapsuleCollider>();
+            float playerFeetY = _playerCol != null ? _playerCol.bounds.min.y : (transform.position.y - 1.0f);
+            float playerR = _playerCol != null ? _playerCol.radius : 0.42f;
+            Vector3 push = Vector3.zero;
+            bool onSpider = false;
+            for (int i = 0; i < spiders.Count; i++)
+            {
+                var sp = spiders[i];
+                if (sp == null || !sp.IsAlive) continue;
+                Vector3 delta = transform.position - sp.transform.position; delta.y = 0f;
+                float minSep = sp.ColliderRadius + playerR + 0.18f;
+                if (delta.sqrMagnitude < minSep * minSep && playerFeetY >= sp.transform.position.y + 0.18f && playerFeetY <= sp.ColliderTopY + 0.50f)
+                {
+                    push += delta.sqrMagnitude > 0.0025f ? delta.normalized : (sp.transform.right + sp.transform.forward).normalized;
+                    onSpider = true;
+                }
+            }
+            if (!onSpider) return false;
+            slideXZ = (push.sqrMagnitude > 0.001f ? push.normalized : transform.right) * 7.4f;
+            return true;
+        }
+
+        public void ClearSlowdown()
+        {
+            _slowUntilTime = 0f; _slowMultiplier = 1.0f;
+            if (animator != null && animator.speed < 0.99f) animator.speed = 1.0f;
+        }
 
         public void ApplySlowdown(float factor, float duration)
         {
-            if (GameStateController.State == GameState.Victory || GameLoopController.IsEndScreenOpen) return;
+            if (ForjaGame.Combat.PlayerHealthController.IsGodModeActive || GameStateController.State == GameState.Victory || GameLoopController.IsEndScreenOpen) return;
             _slowMultiplier = Mathf.Clamp(factor, 0.30f, 0.65f);
             float safeDur = Mathf.Clamp(duration, 0.2f, 2.4f);
             _slowUntilTime = Mathf.Max(_slowUntilTime, Time.time + safeDur);

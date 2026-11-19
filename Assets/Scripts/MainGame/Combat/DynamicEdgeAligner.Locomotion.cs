@@ -99,7 +99,13 @@ namespace ForjaGame.Combat
                 : (t < 0.72f ? Mathf.Lerp(-12f, 20f, Mathf.SmoothStep(0f, 1f, (t - 0.28f) / 0.44f))
                              : Mathf.Lerp(20f, 0f, Mathf.SmoothStep(0f, 1f, (t - 0.72f) / 0.28f)));
 
-            if (move.motionType == AttackMotionType.OverheadSlam)
+            if (isPickaxeOrTool)
+            {
+                // Inclinación ligera de torso sin tocar brazos para preservar el agarre 2H IK del pico
+                float pickLean = t < 0.65f ? Mathf.Sin((t / 0.65f) * Mathf.PI) * 9f : 0f;
+                _chestBone.rotation = Quaternion.AngleAxis(pickLean, transform.right) * _chestBone.rotation;
+            }
+            else if (move.motionType == AttackMotionType.OverheadSlam)
             {
                 _chestBone.rotation = Quaternion.AngleAxis(arc * 0.7f, transform.right) * _chestBone.rotation;
                 if (!isTwoHandedWeapon && _rightUpperArm != null)

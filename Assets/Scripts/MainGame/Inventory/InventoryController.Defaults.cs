@@ -100,26 +100,51 @@ namespace ForjaGame.Inventory
         }
 
         /// <summary>
-        /// Pierde estrictamente todos los minerales y despojos cosechados durante la incursión actual al caer en combate.
+        /// Suelta físicamente en el suelo (como los enemigos) los minerales recolectados al morir en combate.
         /// </summary>
-        public string ForfeitCurrentDelveLoot()
+        public string ForfeitCurrentDelveLoot(Vector3? dropOrigin = null)
         {
             _isInCaveDelve = false;
-            if (_delveHarvestedItems.Count == 0)
-                return "No unsecured ores carried from this expedition.";
+            var toDrop = new Dictionary<string, int>();
+            if (_delveHarvestedItems.Count > 0)
+            {
+                foreach (var kv in _delveHarvestedItems) if (kv.Value > 0) toDrop[kv.Key] = kv.Value;
+            }
+            else
+            {
+                foreach (var kv in _items) if (kv.Value > 0) toDrop[kv.Key] = kv.Value;
+            }
+            if (toDrop.Count == 0) return "No ores carried when defeated.";
 
+            Vector3 origin = dropOrigin ?? transform.position;
             var sb = new StringBuilder();
             bool first = true;
-            foreach (var kv in _delveHarvestedItems)
+            foreach (var kv in toDrop)
             {
-                if (kv.Value <= 0) continue;
                 RemoveItem(kv.Key, kv.Value);
+                SpawnScatteredOreDrops(origin, kv.Key, kv.Value);
                 if (!first) sb.Append(", ");
                 sb.Append($"{TranslateResourceName(kv.Key)} x{kv.Value}");
                 first = false;
             }
             _delveHarvestedItems.Clear();
-            return first ? "No unsecured ores carried." : $"Ores lost in the cavern: {sb}.";
+            return first ? "No ores carried." : $"Ores dropped at your fall: {sb}.";
+        }
+
+        private static void SpawnScatteredOreDrops(Vector3 origin, string itemId, int totalQty)
+        {
+            int rem = totalQty;
+            while (rem > 0)
+            {
+                int batch = rem > 3 ? UnityEngine.Random.Range(1, 4) : rem;
+                rem -= batch;
+                Vector2 dir2 = UnityEngine.Random.insideUnitCircle;
+                if (dir2.sqrMagnitude < 0.05f) dir2 = Vector2.right;
+                dir2.Normalize();
+                Vector3 dropPos = origin + new Vector3(dir2.x * UnityEngine.Random.Range(0.9f, 2.1f), 0.40f, dir2.y * UnityEngine.Random.Range(0.9f, 2.1f));
+                Vector3 popVel = new Vector3(dir2.x * 3.4f, UnityEngine.Random.Range(2.6f, 4.4f), dir2.y * 3.4f);
+                ForjaGame.Resources.DroppedItemController.Spawn(dropPos, itemId, batch, popVel);
+            }
         }
 
         /// <summary>

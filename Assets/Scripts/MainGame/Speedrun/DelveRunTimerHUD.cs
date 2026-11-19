@@ -19,8 +19,9 @@ namespace ForjaGame.Speedrun
         private float _localStartTime;
         private bool _isTimerRunning;
         private float _cachedElapsed;
-        private bool _hasWon;
-        private float _finalTime;
+        private bool _hasWon, _isMainMenuScene;
+        private float _finalTime, _nextCurtainCheckTime;
+        private ForjaGame.UI.ShaderWarmupCurtain _cachedCurtain;
         private GUIStyle _plaqueStyle, _headerStyle, _timerStyle, _subStyle;
 
         public bool IsTimerRunning => _isTimerRunning;
@@ -50,7 +51,10 @@ namespace ForjaGame.Speedrun
 
         private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name == "MainMenu")
+            _isMainMenuScene = scene.name == "MainMenu";
+            _cachedCurtain = null;
+            _nextCurtainCheckTime = 0f;
+            if (_isMainMenuScene)
             {
                 _isTimerRunning = false; _hasWon = false; _finalTime = 0f;
                 return;
@@ -140,22 +144,21 @@ namespace ForjaGame.Speedrun
 
         private void Update()
         {
-            if (SceneManager.GetActiveScene().name == "MainMenu" || _hasWon) return;
+            if (_isMainMenuScene || _hasWon) return;
 
             // Autoinicio robusto: cuando la cortina de shaders haya terminado (o si no existe), iniciar el cronómetro
-            if (!_isTimerRunning)
+            if (!_isTimerRunning && Time.unscaledTime >= _nextCurtainCheckTime)
             {
-                var curtain = FindFirstObjectByType<ForjaGame.UI.ShaderWarmupCurtain>();
-                if (curtain == null || !curtain.IsWarming)
-                {
+                _nextCurtainCheckTime = Time.unscaledTime + 0.15f;
+                if (_cachedCurtain == null) _cachedCurtain = FindFirstObjectByType<ForjaGame.UI.ShaderWarmupCurtain>();
+                if (_cachedCurtain == null || !_cachedCurtain.IsWarming)
                     StartTimer();
-                }
             }
         }
 
         private void OnGUI()
         {
-            if (SceneManager.GetActiveScene().name == "MainMenu" || ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen
+            if (_isMainMenuScene || ForjaGame.UI.Core.UIPanelBase.IsAnyPanelOpen
                 || ForjaGame.Core.GameLoopController.IsEndScreenOpen || VictoryCreditsOverlay.IsBackdropActive) return;
             EnsureStyles();
 

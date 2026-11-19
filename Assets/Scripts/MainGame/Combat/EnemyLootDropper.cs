@@ -37,17 +37,36 @@ namespace ForjaGame.Combat
         private void Awake()
         {
             if (lootTable == null || lootTable.Count == 0)
-            {
-                // Tabla de botín por defecto si no ha sido configurada en inspector
-                lootTable = new List<LootDropEntry>
-                {
-                    new LootDropEntry("Iron", 0.75f, 1, 2),
-                    new LootDropEntry("Coal", 0.65f, 2, 4),
-                    new LootDropEntry("Copper", 0.50f, 1, 2),
-                    new LootDropEntry("Gold", 0.15f, 1, 1)
-                };
-            }
+                lootTable = BuildAreaLootTable(transform.position.z);
             lootTable.RemoveAll(e => e == null || e.itemId == "MonsterBones");
+        }
+
+        public static List<LootDropEntry> BuildAreaLootTable(float zPos, string preferredOre = null, bool isElite = false)
+        {
+            var table = new List<LootDropEntry>();
+            if (zPos < 145f)
+            {
+                // Zona inicial (Entrada, Cámara 1 y comienzo de Cámara 2): únicamente Carbón y Cobre
+                table.Add(new LootDropEntry("Coal", preferredOre == "Coal" ? 0.90f : 0.72f, 1, 3));
+                table.Add(new LootDropEntry("Copper", preferredOre == "Copper" ? 0.90f : 0.62f, 1, 2));
+            }
+            else if (zPos < 245f)
+            {
+                // Zona intermedia (Fondo Cámara 2 y Cámara 3 entrada): Carbón, Cobre y Hierro (sin Oro)
+                table.Add(new LootDropEntry("Coal", 0.52f, 1, 2));
+                table.Add(new LootDropEntry("Copper", preferredOre == "Copper" ? 0.85f : 0.58f, 1, 2));
+                table.Add(new LootDropEntry("Iron", preferredOre == "Iron" ? 0.92f : 0.68f, 1, 2));
+            }
+            else
+            {
+                // Zona profunda (Cámaras 3–6): Hierro y Oro (y Cobre residual antes de Z=290)
+                table.Add(new LootDropEntry("Iron", preferredOre == "Iron" ? 0.92f : 0.75f, 1, 3));
+                if (zPos < 290f) table.Add(new LootDropEntry("Copper", 0.35f, 1, 2));
+                float goldChance = (preferredOre == "Gold" || isElite) ? 0.85f : 0.36f;
+                table.Add(new LootDropEntry("Gold", goldChance, 1, isElite ? 2 : 1));
+                table.Add(new LootDropEntry("Coal", 0.42f, 1, 2));
+            }
+            return table;
         }
 
         public void SetLootTable(List<LootDropEntry> newTable)

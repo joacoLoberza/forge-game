@@ -18,7 +18,7 @@ namespace ForjaGame.Combat
         public static TitanBossController Instance { get; private set; }
 
         [Header("Estadísticas del Titán Abisal")]
-        [SerializeField] private int meleeDamage = 44;
+        [SerializeField] private int meleeDamage = 68;
         [SerializeField] private float moveSpeed = 4.65f;
         [SerializeField] private float targetBossHeight = 8.40f;
 
@@ -38,7 +38,7 @@ namespace ForjaGame.Combat
         private void Awake()
         {
             Instance = this;
-            maxHealth = currentHealth = 2600;
+            maxHealth = currentHealth = 4800;
             detectionRadius = 38f; deaggroRadius = 52f; attackRange = 5.75f;
         }
 
@@ -53,7 +53,7 @@ namespace ForjaGame.Combat
         {
             Instance = this;
             mapSpawnPoint = spawnPos; _zoneMinZ = zoneMinZ; _zoneMaxZ = zoneMaxZ;
-            maxHealth = currentHealth = 2600;
+            maxHealth = currentHealth = 4800;
             detectionRadius = 38f; deaggroRadius = 52f; attackRange = 5.75f;
             _staggerThresholdStep = 1;
             _hasAwakened = _isDead = _isAttacking = _isPerformingSpecial = _isStaggered = false;

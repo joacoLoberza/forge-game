@@ -47,9 +47,20 @@ namespace ForjaGame.Combat
             {
                 Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
                 mat = new Material(s) { name = "Mat_GolemRock" };
-                Texture2D tex = LoadCreatureAsset<Texture2D>("Assets/Models/Character/golem-animation/textures/GOLEM_SKIN_rock_12.png", "GolemTexture");
-                if (tex != null) { if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex); if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex); }
             }
+            else mat = new Material(mat);
+
+            Texture2D tex = LoadCreatureAsset<Texture2D>("Assets/Models/Character/golem-animation/textures/GOLEM_SKIN_rock_12.png", "GolemTexture");
+            if (tex != null)
+            {
+                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+            }
+            mat.color = Color.white;
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+            if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", Color.black);
+            mat.DisableKeyword("_EMISSION");
+
             foreach (var smr in visual.GetComponentsInChildren<SkinnedMeshRenderer>(true)) { smr.updateWhenOffscreen = true; smr.enabled = true; smr.sharedMaterial = mat; }
             foreach (var r in visual.GetComponentsInChildren<MeshRenderer>(true)) { r.enabled = true; r.sharedMaterial = mat; }
 
@@ -150,43 +161,69 @@ namespace ForjaGame.Combat
 
         private System.Collections.IEnumerator GolemCollapseRoutine()
         {
-            SetAnimatorSpeed(0.65f);
-            PlayGuardedAnim("roar", 0.06f, allowWhenDead: true, forceRestart: true);
-            yield return new WaitForSeconds(0.22f);
-            SetAnimatorSpeed(0f);
-
+            // Fase 1: Dobla rodillas y torso con el clip de impacto al suelo (attack3) mientras se agrieta el núcleo
+            SetAnimatorSpeed(0.82f);
+            PlayGuardedAnim("attack3", 0.05f, allowWhenDead: true, forceRestart: true);
             Transform vis = transform.Find("Visual_Golem");
-            Quaternion startR = vis != null ? vis.localRotation : Quaternion.identity;
-            Quaternion fallR = startR * Quaternion.Euler(86f, 0f, 14f);
+            Transform fxRoot = vis != null ? vis.Find("GolemMineralCoreFX") : null;
+
+            float phase1Dur = 0.42f;
             Vector3 startP = vis != null ? vis.localPosition : Vector3.zero;
-            for (float t = 0f; t < 0.62f; t += Time.deltaTime)
+            Quaternion startR = vis != null ? vis.localRotation : Quaternion.identity;
+            for (float t = 0f; t < phase1Dur; t += Time.deltaTime)
             {
-                float u = t / 0.62f; float ease = u * u;
-                if (vis != null) { vis.localRotation = Quaternion.Slerp(startR, fallR, ease); vis.localPosition = startP + new Vector3(0f, -0.35f * ease, 0.25f * ease); }
+                float u = t / phase1Dur;
+                if (vis != null)
+                {
+                    float shake = Mathf.Sin(t * 48f) * 0.035f;
+                    vis.localPosition = startP + new Vector3(shake, -0.22f * u, 0f);
+                    vis.localRotation = startR * Quaternion.Euler(14f * u, 0f, Mathf.Sin(t * 36f) * 3f);
+                }
                 yield return null;
             }
-            PlayerCameraFollow.Instance?.TriggerImpulse(0.18f);
+
+            // Fase 2: Colapso pesado al suelo soltando fragmentos del núcleo mineral y rocas
+            SetAnimatorSpeed(0.06f);
+            if (fxRoot != null) fxRoot.gameObject.SetActive(false);
+            SpawnShatterDebris(7, 130f);
+
+            Quaternion kneelR = startR * Quaternion.Euler(14f, 0f, 0f);
+            Quaternion fallR = startR * Quaternion.Euler(78f, 12f, 16f);
+            Vector3 kneelP = startP + new Vector3(0f, -0.22f, 0f);
+            for (float t = 0f; t < 0.48f; t += Time.deltaTime)
+            {
+                float ease = Mathf.Pow(t / 0.48f, 1.85f);
+                if (vis != null)
+                {
+                    vis.localRotation = Quaternion.Slerp(kneelR, fallR, ease);
+                    vis.localPosition = Vector3.Lerp(kneelP, startP + new Vector3(0f, -0.52f, 0.34f), ease);
+                }
+                yield return null;
+            }
+
+            PlayerCameraFollow.Instance?.TriggerImpulse(0.20f);
             ForgeAudioSystem.PlayGolemSound(transform.position, CreatureSoundType.Attack);
-            EnemyAttackTelegraph.EmitImpactDust(transform.position + Vector3.up * 0.35f, Vector3.up, 10, 0.95f);
-            SpawnShatterDebris();
-            yield return new WaitForSeconds(1.25f);
+            EnemyAttackTelegraph.EmitImpactDust(transform.position + Vector3.up * 0.35f, Vector3.up, 14, 1.05f);
+            SpawnShatterDebris(10, 210f);
+
+            yield return new WaitForSeconds(1.15f);
             Vector3 rootStart = transform.position;
-            for (float s = 0f; s < 1.25f; s += Time.deltaTime) { transform.position = rootStart - Vector3.up * (s * 1.1f); yield return null; }
+            for (float s = 0f; s < 1.25f; s += Time.deltaTime) { transform.position = rootStart - Vector3.up * (s * 1.15f); yield return null; }
             UnitySafeUtility.DestroyGameObjectSafe(gameObject);
         }
 
-        private void SpawnShatterDebris()
+        private void SpawnShatterDebris(int count = 10, float force = 180f)
         {
             var rockMat = ForjaGame.Environment.CaveDungeonBuilder.GetCaveRockMaterial();
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < count; i++)
             {
                 var c = new GameObject($"GolemDebris_{i}", typeof(MeshFilter), typeof(MeshRenderer));
-                c.GetComponent<MeshFilter>().sharedMesh = ForjaGame.Resources.OreMeshGenerator.CreateCrystalSpireMesh(0.22f, 0.36f, 200 + i * 17);
+                c.GetComponent<MeshFilter>().sharedMesh = ForjaGame.Resources.OreMeshGenerator.CreateCrystalSpireMesh(0.24f, 0.40f, 200 + i * 17);
                 c.GetComponent<MeshRenderer>().sharedMaterial = i % 3 == 0 && _golemCrystalMat != null ? _golemCrystalMat : rockMat;
-                c.transform.SetPositionAndRotation(transform.position + new Vector3(Random.Range(-0.7f, 0.7f), Random.Range(0.4f, 1.4f), Random.Range(-0.7f, 0.7f)), Random.rotation);
+                c.transform.SetPositionAndRotation(transform.position + new Vector3(Random.Range(-0.7f, 0.7f), Random.Range(0.4f, 1.5f), Random.Range(-0.7f, 0.7f)), Random.rotation);
                 var rb = c.AddComponent<Rigidbody>(); rb.mass = 8f;
-                rb.AddExplosionForce(180f, transform.position + Vector3.up * 0.5f, 3.0f, 1.2f);
-                Destroy(c, 2.2f);
+                rb.AddExplosionForce(force, transform.position + Vector3.up * 0.45f, 3.2f, 1.1f);
+                Destroy(c, 2.4f);
             }
         }
     }

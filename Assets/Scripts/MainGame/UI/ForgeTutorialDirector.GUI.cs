@@ -1,4 +1,5 @@
 using UnityEngine;
+using ForjaGame.Audio;
 using ForjaGame.Combat;
 using ForjaGame.Core;
 using ForjaGame.Environment;
@@ -7,7 +8,7 @@ using ForjaGame.Forge;
 namespace ForjaGame.UI
 {
     /// <summary>
-    /// Renderizado diegético de HUD y GUI del Tutorial (QTE, Forjado, Dummies de Combate y Primer Encuentro en Mina).
+    /// Renderizado diegetico de HUD y GUI del Tutorial (QTE, Forjado, Dummies de Combate y Primer Encuentro en Mina).
     /// </summary>
     public partial class ForgeTutorialDirector
     {
@@ -28,38 +29,25 @@ namespace ForjaGame.UI
             if (_activeSpotlightTarget != null && !string.IsNullOrEmpty(_activeSpotlightLabel))
             {
                 if (_anvilPanel != null && _anvilPanel.IsOpen && IsAnvilStep1Active())
-                    DrawUISpotlightOverlay(GetWeaponButtonsCombinedRect(), _activeSpotlightLabel, "<b>▼ CHOOSE 1 WEAPON ▼</b>");
+                    DrawUISpotlightOverlay(GetWeaponButtonsCombinedRect(), _activeSpotlightLabel, "<b>v CHOOSE 1 WEAPON v</b>");
                 else
                     DrawUISpotlightOverlay(_activeSpotlightTarget, _activeSpotlightLabel);
                 return;
             }
-            if (!string.IsNullOrEmpty(_activeSpotlightLabel))
-            {
-                DrawCenterAttentionCard(_activeSpotlightLabel);
-                return;
-            }
+            if (!string.IsNullOrEmpty(_activeSpotlightLabel)) { DrawCenterAttentionCard(_activeSpotlightLabel); return; }
 
             var asm = _anvilCtrl != null ? _anvilCtrl.GetComponent<AnvilAssemblyController>() : null;
             bool isAsm = asm != null && asm.IsAssembling;
-            if (_anvilCtrl != null && (_anvilCtrl.IsForging || _anvilCtrl.IsCarvingHandle || isAsm))
-            {
-                DrawAnvilStepByStepGuideCard(isAsm);
-                return;
-            }
-
-            if (Time.time < _mineBlockedTipUntil)
-            {
-                DrawCenterAttentionCard("Complete your Forging & Dummy Combat/Parry Training before entering the Mine!");
-                return;
-            }
+            if (_anvilCtrl != null && (_anvilCtrl.IsForging || _anvilCtrl.IsCarvingHandle || isAsm)) { DrawAnvilStepByStepGuideCard(isAsm); return; }
+            if (Time.time < _mineBlockedTipUntil) { DrawCenterAttentionCard("Complete Forging & ALL Dummy Training (Strike, Block, Parry & Dodge Roll) before entering the Mine!"); return; }
 
             if (_stage == TutorialStage.ControlsQTE) { DrawControlsQTEScreen(); return; }
             if (_stage == TutorialStage.FurnaceSmelt)
-                DrawTopContextualBanner("STEP 1/5: SMELTING FURNACE", "Approach the illuminated FURNACE and press [F] to smelt 3 ores into a Bloom (error-free tutorial).");
+                DrawTopContextualBanner("STEP 1/5: SMELTING FURNACE", "Approach the illuminated FURNACE and press <b><color=#FFD966>[F]</color></b> to smelt 3 ores into a Bloom.");
             else if (_stage == TutorialStage.PressCompact)
-                DrawTopContextualBanner("STEP 2/5: MECHANICAL PRESS", "Bloom obtained! Go to the illuminated PRESS next to the furnace and press [F] to compact it into an Ingot.");
+                DrawTopContextualBanner("STEP 2/5: MECHANICAL PRESS", "Bloom obtained! Go to the illuminated PRESS next to the furnace and press <b><color=#FFD966>[F]</color></b> to compact an Ingot.");
             else if (_stage == TutorialStage.AnvilForge)
-                DrawTopContextualBanner("STEP 3/5: FORGE YOUR FIRST WEAPON", "Ingot ready! Approach the illuminated ANVIL and press [F] to forge a Sword, Axe or Hammer.");
+                DrawTopContextualBanner("STEP 3/5: FORGE YOUR FIRST WEAPON", "Ingot ready! Approach the illuminated ANVIL and press <b><color=#FFD966>[F]</color></b> to forge a Sword, Axe or Hammer.");
             else if (_stage == TutorialStage.CombatTraining)
                 DrawCombatTrainingOverlay();
             else if (_stage == TutorialStage.MineFirstEncounter)
@@ -67,72 +55,55 @@ namespace ForjaGame.UI
             else
             {
                 Transform playerTr = PlayerMovement.LocalInstance != null ? PlayerMovement.LocalInstance.transform : null;
-                bool titanAlive = ForjaGame.Combat.TitanBossController.Instance != null && ForjaGame.Combat.TitanBossController.Instance.IsAlive;
+                bool titanAlive = TitanBossController.Instance != null && TitanBossController.Instance.IsAlive;
                 if (playerTr != null && playerTr.position.z >= CaveDungeonBuilder.VictoryAltarZ - 42f && !titanAlive)
-                    DrawTopContextualBanner("TITAN DEFEATED! VICTORY PILLAR UNLOCKED", "The Victory Pillar has emerged in the Sanctum. Press [F] to consecrate victory.");
+                    DrawTopContextualBanner("TITAN DEFEATED! VICTORY PILLAR UNLOCKED", "The Victory Pillar has emerged in the Sanctum. Press <b><color=#FFD966>[F]</color></b> to consecrate victory.");
                 else if (Time.time < _freePlayTipUntil)
-                    DrawTopContextualBanner(
-                        "TUTORIAL COMPLETE — YOU ARE FREE TO EXPLORE!",
-                        "<b>[E]</b> Bag & Gear  |  <b>[Q]</b> Dodge Roll (1s Invuln)  |  <b>[LMB]</b> Attack  |  <b>[Hold/Tap RMB]</b> Block/Parry"
-                    );
+                    DrawTopContextualBanner("CONGRATULATIONS! TUTORIAL COMPLETE!",
+                        "You are ready to explore the cavern freely, forge new alloys, and defeat the Titan!");
             }
+        }
+
+        private void DrawAttentionPanel(Rect box, string topRibbon, float flashGlow, Color? accentOverride = null)
+        {
+            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5.2f);
+            Color accent = accentOverride ?? new Color(1.0f, 0.84f, 0.26f, 1f);
+            Color prev = GUI.color;
+
+            // Sombra exterior y aura brillante pulsante para que nunca pase desapercibido
+            GUI.color = new Color(0f, 0f, 0f, 0.58f);
+            GUI.DrawTexture(new Rect(box.x - 3f, box.y - 2f, box.width + 8f, box.height + 9f), _goldBorderTex);
+            GUI.color = new Color(accent.r, accent.g, accent.b, 0.16f + pulse * 0.14f + flashGlow * 0.24f);
+            GUI.DrawTexture(new Rect(box.x - 8f, box.y - 8f, box.width + 16f, box.height + 16f), _goldBorderTex);
+            GUI.color = Color.white;
+
+            GUI.Box(box, GUIContent.none, _tipBoxStyle);
+            DrawGoldFrame(box, 3.5f + flashGlow * 2.0f, flashGlow, accentOverride);
+
+            // Filete interior sutil
+            GUI.color = new Color(accent.r, accent.g, accent.b, 0.30f);
+            GUI.DrawTexture(new Rect(box.x + 6f, box.y + 6f, box.width - 12f, 1f), _goldBorderTex);
+            GUI.DrawTexture(new Rect(box.x + 6f, box.yMax - 7f, box.width - 12f, 1f), _goldBorderTex);
+            GUI.color = Color.white;
+
+            if (!string.IsNullOrEmpty(topRibbon))
+            {
+                float rw = Mathf.Clamp(topRibbon.Length * 9.8f + 38f, 200f, box.width - 28f);
+                GUI.Box(new Rect(box.x + (box.width - rw) * 0.5f, box.y - 13f, rw, 24f), $"<b>{topRibbon}</b>", _spotlightBadgeStyle);
+            }
+            GUI.color = prev;
         }
 
         private void DrawCenterAttentionCard(string message)
         {
-            float w = 460f, h = 92f;
-            float x = (Screen.width - w) * 0.5f, y = 104f;
-            Rect box = new Rect(x, y, w, h);
-            GUI.Box(box, GUIContent.none, _tipBoxStyle);
-            DrawGoldFrame(box, 3f);
-            GUI.Label(new Rect(box.x + 10f, box.y + 8f, w - 20f, 22f), "⚠ GUIDE ⚠", _tipTitleStyle);
-            GUI.Label(new Rect(box.x + 12f, box.y + 32f, w - 24f, h - 38f), message, _tipBodyStyle);
+            float w = 540f, h = 108f;
+            Rect box = new Rect((Screen.width - w) * 0.5f, 108f, w, h);
+            DrawAttentionPanel(box, "ATTENTION - TUTORIAL", 0.35f, new Color(1f, 0.45f, 0.18f, 1f));
+            GUI.Label(new Rect(box.x + 14f, box.y + 16f, w - 28f, 24f), "[!] IMPORTANT GUIDE [!]", _tipTitleStyle);
+            GUI.Label(new Rect(box.x + 16f, box.y + 42f, w - 32f, h - 50f), message, _tipBodyStyle);
         }
 
-        private void DrawAnvilStepByStepGuideCard(bool isAssembling)
-        {
-            float w = 376f, h = 218f;
-            Rect box = new Rect(Screen.width - w - 18f, 140f, w, h);
-            GUI.Box(box, GUIContent.none, _tipBoxStyle); DrawGoldFrame(box, 3f);
-
-            float temp = _anvilCtrl.ThermalController != null ? _anvilCtrl.ThermalController.CurrentTemperature : 750f;
-            bool isReheating = _anvilCtrl.ThermalController != null && _anvilCtrl.ThermalController.IsReheating;
-            bool isQuenching = _anvilCtrl.QuenchDifferential != null && _anvilCtrl.QuenchDifferential.IsQuenching;
-
-            string stepTitle, stepInstructions;
-            if (isAssembling)
-            {
-                stepTitle = "STEP 5/5: ASSEMBLE SWORD";
-                stepInstructions = "• Use [WASD] to fit blade tang over handle, [Q/R] to rotate.\n• [LEFT CLICK] to lock & press [SPACE] to claim!";
-            }
-            else if (_anvilCtrl.IsCarvingHandle)
-            {
-                stepTitle = "STEP 4/5: WOOD HANDLE";
-                stepInstructions = "• Optional: shape wood edges with [2] Chisel + [R].\n• Tutorial protects your handle: press [SPACE] anytime to mount blade!";
-            }
-            else if (isQuenching || _anvilCtrl.IsEdgeComplete)
-            {
-                stepTitle = isQuenching ? "STEP 3/5: WATER QUENCHING" : "STEP 3/5: EDGE COMPLETE! QUENCH";
-                stepInstructions = isQuenching ? "• Submerging steel blade in water...\n• Almost ready for the handle!" : "• Blade beveling complete (100%)!\n• Press [SPACE] now to quench in water.";
-            }
-            else if (isReheating || temp < 500f)
-            {
-                stepTitle = isReheating ? $"STEP 1/5: HEATING ({temp:F0}°C)" : $"STEP 1/5: HEAT METAL ({temp:F0}°C)";
-                stepInstructions = isReheating
-                    ? (temp > 1220f ? "<color=#FF5533>• OVERHEAT BURNING!</color> Press [H] immediately to return to anvil!"
-                        : (temp >= 850f ? "• OPTIMAL HEAT! Press [H] to return to anvil." : "• Heating in hearth. Reach >850°C then press [H]."))
-                    : "• Metal is cool. Press [H] to heat it in the forge.";
-            }
-            else
-            {
-                stepTitle = $"STEP 2/5: FORGE EDGE ({Mathf.RoundToInt(_anvilCtrl.EdgeProgress * 100f)}%)";
-                stepInstructions = "• Keep [1] Hammer & [LEFT CLICK] along the glowing edges.\n• If heat drops <500°C, press [H] to reheat safely.";
-            }
-            GUI.Label(new Rect(box.x + 14f, box.y + 10f, w - 28f, 24f), stepTitle, _tipTitleStyle);
-            GUI.Label(new Rect(box.x + 16f, box.y + 38f, w - 32f, h - 48f), stepInstructions, _stepLeftStyle);
-        }
-
-        private void DrawUISpotlightOverlay(RectTransform target, string text, string badge = "<b>▼ CLICK HERE ▼</b>")
+        private void DrawUISpotlightOverlay(RectTransform target, string text, string badge = "<b>v CLICK HERE v</b>")
         {
             Vector3[] corners = new Vector3[4]; target.GetWorldCorners(corners);
             Vector2 min = RectTransformUtility.WorldToScreenPoint(null, corners[0]);
@@ -143,40 +114,56 @@ namespace ForjaGame.UI
         private void DrawUISpotlightOverlay(Rect frame, string text, string badge)
         {
             Color prev = GUI.color;
-            GUI.color = new Color(1.0f, 0.85f, 0.20f, 0.24f + 0.16f * Mathf.Sin(Time.unscaledTime * 6f));
-            GUI.DrawTexture(frame, _goldBorderTex);
+            // Atenuacion perimetral sutil para dirigir la vista directo al boton destacado
+            GUI.color = new Color(0.03f, 0.02f, 0.01f, 0.44f);
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Mathf.Max(0f, frame.y)), _goldBorderTex);
+            GUI.DrawTexture(new Rect(0f, frame.yMax, Screen.width, Mathf.Max(0f, Screen.height - frame.yMax)), _goldBorderTex);
+            GUI.DrawTexture(new Rect(0f, frame.y, Mathf.Max(0f, frame.x), frame.height), _goldBorderTex);
+            GUI.DrawTexture(new Rect(frame.xMax, frame.y, Mathf.Max(0f, Screen.width - frame.xMax), frame.height), _goldBorderTex);
+
+            GUI.color = new Color(1.0f, 0.85f, 0.20f, 0.22f + 0.18f * Mathf.Sin(Time.unscaledTime * 6.5f));
+            GUI.DrawTexture(new Rect(frame.x - 6f, frame.y - 6f, frame.width + 12f, frame.height + 12f), _goldBorderTex);
             GUI.color = prev;
-            DrawGoldFrame(frame, 5f);
-            float bounce = Mathf.Sin(Time.unscaledTime * 7.5f) * 5f, bw = 185f, bh = 24f, bx = frame.x + (frame.width - bw) * 0.5f;
-            float by = (frame.y - bh - 6f + bounce > 10f) ? (frame.y - bh - 6f + bounce) : (frame.yMax + 6f + bounce);
+            DrawGoldFrame(frame, 5.5f, 0.35f);
+
+            float bounce = Mathf.Sin(Time.unscaledTime * 7.5f) * 5f, bw = 210f, bh = 25f, bx = frame.x + (frame.width - bw) * 0.5f;
+            float by = (frame.y - bh - 8f + bounce > 10f) ? (frame.y - bh - 8f + bounce) : (frame.yMax + 8f + bounce);
             GUI.Box(new Rect(bx, by, bw, bh), badge, _spotlightBadgeStyle);
-            float tipW = 340f, tipH = 86f, tipX = (frame.xMax + 18f + tipW < Screen.width - 12f) ? (frame.xMax + 16f) : Mathf.Max(12f, frame.x - tipW - 16f), tipY = Mathf.Clamp(frame.y + (frame.height - tipH) * 0.5f, 16f, Screen.height - tipH - 16f);
+
+            float tipW = 390f, tipH = 110f;
+            float tipX = (frame.xMax + 20f + tipW < Screen.width - 12f) ? (frame.xMax + 18f) : Mathf.Max(12f, frame.x - tipW - 18f);
+            float tipY = Mathf.Clamp(frame.y + (frame.height - tipH) * 0.5f, 20f, Screen.height - tipH - 16f);
             Rect box = new Rect(tipX, tipY, tipW, tipH);
-            GUI.Box(box, GUIContent.none, _tipBoxStyle); DrawGoldFrame(box, 2.5f);
-            GUI.Label(new Rect(box.x + 8f, box.y + 6f, tipW - 16f, 20f), "★ ACTION REQUIRED ★", _tipTitleStyle);
-            GUI.Label(new Rect(box.x + 10f, box.y + 26f, tipW - 20f, tipH - 30f), text, _tipBodyStyle);
+            DrawAttentionPanel(box, "ACTION REQUIRED", 0.30f);
+            GUI.Label(new Rect(box.x + 14f, box.y + 16f, tipW - 28f, 24f), "FOLLOW THIS STEP:", _tipTitleStyle);
+            GUI.Label(new Rect(box.x + 16f, box.y + 42f, tipW - 32f, tipH - 50f), text, _tipBodyStyle);
         }
 
         private float ComputeBannerTransitionOffset(string key, out float flashGlow)
         {
-            if (_lastBannerAnimKey != key) { _lastBannerAnimKey = key; _bannerAnimStartTime = Time.unscaledTime; }
+            if (_lastBannerAnimKey != key)
+            {
+                if (!string.IsNullOrEmpty(_lastBannerAnimKey)) ForgeAudioSystem.PlayUITab();
+                _lastBannerAnimKey = key; _bannerAnimStartTime = Time.unscaledTime;
+            }
             float dt = Time.unscaledTime - _bannerAnimStartTime;
-            flashGlow = dt < 0.70f ? Mathf.Sin((dt / 0.70f) * Mathf.PI) : 0f;
+            flashGlow = dt < 0.85f ? Mathf.Sin((dt / 0.85f) * Mathf.PI) : 0f;
             if (dt >= 0.42f) return 0f;
             float u = dt / 0.42f;
             float back = 1f - Mathf.Pow(1f - u, 3f) + Mathf.Sin(u * Mathf.PI) * 0.14f;
             return (1f - back) * -36f;
         }
 
-        private void DrawGoldFrame(Rect r, float t, float glowBoost = 0f)
+        private void DrawGoldFrame(Rect r, float t, float glowBoost = 0f, Color? accentOverride = null)
         {
             Color prev = GUI.color;
+            Color accent = accentOverride ?? new Color(1.0f, 0.84f, 0.26f, 1f);
             if (glowBoost > 0.01f)
             {
-                GUI.color = new Color(1.0f, 0.85f, 0.25f, glowBoost * 0.24f);
+                GUI.color = new Color(accent.r, accent.g, accent.b, glowBoost * 0.22f);
                 GUI.DrawTexture(r, _goldBorderTex);
             }
-            GUI.color = new Color(1.0f, 0.84f, 0.26f, Mathf.Clamp01(0.68f + 0.32f * Mathf.Sin(Time.unscaledTime * 5.2f) + glowBoost * 0.35f));
+            GUI.color = new Color(accent.r, accent.g, accent.b, Mathf.Clamp01(0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 5.2f) + glowBoost * 0.35f));
             GUI.DrawTexture(new Rect(r.x, r.y, r.width, t), _goldBorderTex);
             GUI.DrawTexture(new Rect(r.x, r.yMax - t, r.width, t), _goldBorderTex);
             GUI.DrawTexture(new Rect(r.x, r.y, t, r.height), _goldBorderTex);
@@ -187,27 +174,28 @@ namespace ForjaGame.UI
         private void DrawTopContextualBanner(string title, string body)
         {
             float yOff = ComputeBannerTransitionOffset(title, out float flashGlow);
-            float scaleW = 680f + flashGlow * 22f;
-            Rect box = new Rect((Screen.width - scaleW) * 0.5f, 18f + yOff, scaleW, 74f);
-            GUI.Box(box, GUIContent.none, _tipBoxStyle);
-            DrawGoldFrame(box, 2.2f + flashGlow * 2.5f, flashGlow);
-            GUI.Label(new Rect(box.x + 16f, box.y + 7f, box.width - 32f, 22f), title, _tipTitleStyle);
-            GUI.Label(new Rect(box.x + 16f, box.y + 29f, box.width - 32f, 40f), body, _tipBodyStyle);
+            float scaleW = 760f + flashGlow * 26f;
+            Rect box = new Rect((Screen.width - scaleW) * 0.5f, 26f + yOff, scaleW, 92f);
+            DrawAttentionPanel(box, "TUTORIAL OBJECTIVE", flashGlow);
+            GUI.Label(new Rect(box.x + 18f, box.y + 15f, box.width - 36f, 24f), title, _tipTitleStyle);
+            GUI.Label(new Rect(box.x + 18f, box.y + 40f, box.width - 36f, 44f), body, _tipBodyStyle);
         }
 
         private void EnsureGuiStyles()
         {
             if (_tipBoxStyle != null) return;
             _goldBorderTex = new Texture2D(2, 2) { hideFlags = HideFlags.DontSave }; _goldBorderTex.SetPixels(new[] { Color.white, Color.white, Color.white, Color.white }); _goldBorderTex.Apply();
-            Color bg = new Color(0.10f, 0.07f, 0.05f, 0.96f);
+            Color ribbon = new Color(1.0f, 0.84f, 0.29f, 1f);
+            _goldRibbonTex = new Texture2D(2, 2) { hideFlags = HideFlags.DontSave }; _goldRibbonTex.SetPixels(new[] { ribbon, ribbon, ribbon, ribbon }); _goldRibbonTex.Apply();
+            Color bg = new Color(0.08f, 0.05f, 0.03f, 0.97f);
             _darkBoxTex = new Texture2D(2, 2) { hideFlags = HideFlags.DontSave }; _darkBoxTex.SetPixels(new[] { bg, bg, bg, bg }); _darkBoxTex.Apply();
             _tipBoxStyle = new GUIStyle(GUI.skin.box) { normal = { background = _darkBoxTex } };
-            _tipTitleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = true, normal = { textColor = new Color(1f, 0.84f, 0.32f) } };
-            _tipBodyStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true, richText = true, normal = { textColor = new Color(0.95f, 0.90f, 0.80f) } };
-            _stepLeftStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.UpperLeft, wordWrap = true, richText = true, normal = { textColor = new Color(0.96f, 0.92f, 0.84f) } };
-            _spotlightBadgeStyle = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, fontSize = 12, richText = true, normal = { background = _goldBorderTex, textColor = new Color(0.15f, 0.10f, 0.02f) } };
-            MedievalTypographyProvider.ApplyToGUIStyle(_tipTitleStyle, 14, FontStyle.Bold); MedievalTypographyProvider.ApplyToGUIStyle(_tipBodyStyle, 13, FontStyle.Normal);
-            MedievalTypographyProvider.ApplyToGUIStyle(_stepLeftStyle, 12, FontStyle.Normal); MedievalTypographyProvider.ApplyToGUIStyle(_spotlightBadgeStyle, 12, FontStyle.Bold);
+            _tipTitleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = true, normal = { textColor = new Color(1f, 0.91f, 0.49f) } };
+            _tipBodyStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true, richText = true, normal = { textColor = new Color(1f, 0.97f, 0.91f) } };
+            _stepLeftStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.UpperLeft, wordWrap = true, richText = true, normal = { textColor = new Color(1f, 0.97f, 0.91f) } };
+            _spotlightBadgeStyle = new GUIStyle(GUI.skin.box) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, richText = true, normal = { background = _goldRibbonTex, textColor = new Color(0.11f, 0.07f, 0.02f) } };
+            MedievalTypographyProvider.ApplyToGUIStyle(_tipTitleStyle, 16, FontStyle.Bold); MedievalTypographyProvider.ApplyToGUIStyle(_tipBodyStyle, 14, FontStyle.Normal);
+            MedievalTypographyProvider.ApplyToGUIStyle(_stepLeftStyle, 13, FontStyle.Normal); MedievalTypographyProvider.ApplyToGUIStyle(_spotlightBadgeStyle, 13, FontStyle.Bold);
         }
 
         private void UpdateDiegeticStationBeacon()

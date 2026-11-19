@@ -20,6 +20,9 @@ namespace ForjaGame.Multiplayer
         private Image _fillImg;
         private TextMeshProUGUI _hpLabel;
         private bool _isInitialized;
+        private Camera _cachedCam;
+        private string _lastName, _lastTeam;
+        private int _lastHp = -1, _lastMaxHp = -1;
         private const float TrackWidth = 140f;
         private const float TrackHeight = 10f;
 
@@ -130,11 +133,12 @@ namespace ForjaGame.Multiplayer
                 return;
             }
 
-            Camera cam = Camera.main;
+            if (_cachedCam == null || !_cachedCam.isActiveAndEnabled) _cachedCam = Camera.main;
+            Camera cam = _cachedCam;
             if (cam == null || _canvas == null) return;
 
-            float dist = Vector3.Distance(transform.position, cam.transform.position);
-            if (dist > 35f)
+            float sqDist = (transform.position - cam.transform.position).sqrMagnitude;
+            if (sqDist > 1225f)
             {
                 if (_canvas.enabled) _canvas.enabled = false;
                 return;
@@ -157,16 +161,20 @@ namespace ForjaGame.Multiplayer
             string tName = _bridge.NetworkTeamName.Value.ToString();
             if (string.IsNullOrWhiteSpace(pName)) pName = "Warrior";
 
-            if (_nameLabel != null)
+            if (pName != _lastName || tName != _lastTeam)
             {
-                if (!string.IsNullOrWhiteSpace(tName))
-                    _nameLabel.text = $"<size=11><color=#D4AF37>[{tName}]</color></size>\n<color=#FFF8DC><b>{pName}</b></color>";
-                else
-                    _nameLabel.text = $"<color=#FFF8DC><b>{pName}</b></color>";
+                _lastName = pName; _lastTeam = tName;
+                if (_nameLabel != null)
+                    _nameLabel.text = !string.IsNullOrWhiteSpace(tName)
+                        ? $"<size=11><color=#D4AF37>[{tName}]</color></size>\n<color=#FFF8DC><b>{pName}</b></color>"
+                        : $"<color=#FFF8DC><b>{pName}</b></color>";
             }
 
             int curHp = _bridge.NetworkCurrentHealth.Value;
             int maxHp = Mathf.Max(1, _bridge.NetworkMaxHealth.Value);
+            if (curHp == _lastHp && maxHp == _lastMaxHp) return;
+            _lastHp = curHp; _lastMaxHp = maxHp;
+
             float ratio = Mathf.Clamp01((float)curHp / maxHp);
 
             if (_fillRt != null)

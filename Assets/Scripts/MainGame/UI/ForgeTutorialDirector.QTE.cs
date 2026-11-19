@@ -116,7 +116,6 @@ namespace ForjaGame.UI
             {
                 if (!_qteShift && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed)) { _qteShift = true; ForgeAudioSystem.PlayUITab(); }
                 if (!_qteSpace && kb.spaceKey.isPressed) { _qteSpace = true; ForgeAudioSystem.PlayUITab(); }
-                if (!_qteRoll && kb.qKey.wasPressedThisFrame) { _qteRoll = true; ForgeAudioSystem.PlayUITab(); }
                 if (_qteShift && _qteSpace && _qteRoll) { ForgeAudioSystem.PlayItemSelect(); _qteAdvanceAt = Time.time + 0.45f; }
             }
             else if (_qteStep == 2)
@@ -152,15 +151,9 @@ namespace ForjaGame.UI
             string qteKey = $"QTE_{_qteStep}_{_qteInvOpened}";
             float yOff = ComputeBannerTransitionOffset(qteKey, out float flashGlow);
             float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5.2f);
-            float w = 600f, h = _qteStep == 0 ? 214f : 172f, x = (Screen.width - w) * 0.5f, y = 46f + yOff;
+            float w = 640f, h = _qteStep == 0 ? 222f : 184f, x = (Screen.width - w) * 0.5f, y = 40f + yOff;
             Rect box = new Rect(x, y, w, h);
-            GUI.color = new Color(1f, 0.72f, 0.15f, 0.14f + pulse * 0.10f);
-            GUI.DrawTexture(new Rect(x - 10f, y - 10f, w + 20f, h + 20f), _goldBorderTex);
-            GUI.color = Color.white;
-            GUI.Box(box, GUIContent.none, _tipBoxStyle);
-            DrawGoldFrame(box, 3.2f + flashGlow * 2.5f, flashGlow + pulse * 0.25f);
-
-            GUI.Box(new Rect(x + (w - 270f) * 0.5f, y - 13f, 270f, 24f), $"<b>★ TUTORIAL — STEP {_qteStep + 1}/4 ★</b>", _spotlightBadgeStyle);
+            DrawAttentionPanel(box, $"TUTORIAL - STEP {_qteStep + 1}/4", flashGlow);
             float barProg = _qteStep == 0 ? (((_qteW ? 1 : 0) + (_qteA ? 1 : 0) + (_qteS ? 1 : 0) + (_qteD ? 1 : 0)) / 16f) : (_qteStep * 0.25f + 0.08f);
             GUI.color = new Color(0.18f, 0.14f, 0.09f, 0.95f); GUI.DrawTexture(new Rect(x + 28f, y + 18f, w - 56f, 5f), _goldBorderTex);
             GUI.color = new Color(1f, 0.80f, 0.22f, 0.95f); GUI.DrawTexture(new Rect(x + 28f, y + 18f, (w - 56f) * Mathf.Clamp01(barProg), 5f), _goldBorderTex);
@@ -168,23 +161,23 @@ namespace ForjaGame.UI
             if (_qteStep == 0)
             {
                 int doneN = (_qteW ? 1 : 0) + (_qteA ? 1 : 0) + (_qteS ? 1 : 0) + (_qteD ? 1 : 0);
-                GUI.Label(new Rect(x + 12f, y + 26f, w - 24f, 24f), $"<size=15><b>MOVEMENT TRAINING — PRESS ALL 4 KEYS ({doneN}/4)</b></size>", _tipTitleStyle);
+                GUI.Label(new Rect(x + 12f, y + 28f, w - 24f, 24f), $"<size=15><b>MOVEMENT TRAINING — PRESS ALL 4 KEYS ({doneN}/4)</b></size>", _tipTitleStyle);
                 float cx = x + w * 0.5f;
                 DrawKeyChip(new Rect(cx - 29f, y + 58f, 58f, 44f), "W", _qteW); DrawKeyChip(new Rect(cx - 95f, y + 110f, 58f, 44f), "A", _qteA);
                 DrawKeyChip(new Rect(cx - 29f, y + 110f, 58f, 44f), "S", _qteS); DrawKeyChip(new Rect(cx + 37f, y + 110f, 58f, 44f), "D", _qteD);
-                GUI.Label(new Rect(x + 14f, y + 166f, w - 28f, 36f), "Press <b><color=#FFD966>W, A, S, D</color></b> to move around the workshop and unlock the next tutorial step.", _tipBodyStyle);
+                GUI.Label(new Rect(x + 16f, y + 168f, w - 32f, 42f), "Press <b><color=#FFD966>W, A, S, D</color></b> to move around the workshop and unlock the next step.", _tipBodyStyle);
                 return;
             }
             string hdr = _qteStep == 1 ? "<b>SPRINT, JUMP & ROLL TRAINING</b>" : (_qteStep == 2 ? "<b>JOURNAL & INVENTORY TRAINING</b>" : "<b>ENTER THE SMELTING FURNACE</b>");
-            GUI.Label(new Rect(x + 12f, y + 26f, w - 24f, 24f), hdr, _tipTitleStyle);
-            if (_qteStep == 1) { DrawKeyChip(new Rect(x + 34f, y + 60f, 166f, 44f), "SHIFT (Sprint)", _qteShift); DrawKeyChip(new Rect(x + 217f, y + 60f, 166f, 44f), "SPACE (Jump)", _qteSpace); DrawKeyChip(new Rect(x + 400f, y + 60f, 166f, 44f), "Q (Roll)", _qteRoll); }
-            else if (_qteStep == 2) { DrawKeyChip(new Rect(x + 95f, y + 60f, 195f, 44f), _qteInvOpened ? "E (Opened ✓)" : "E (Inventory)", _qteInvOpened && _qteInvClosed); DrawKeyChip(new Rect(x + 320f, y + 60f, 180f, 44f), "ESC (Pause)", true); }
-            else DrawKeyChip(new Rect(x + (w - 210f) * 0.5f, y + 60f, 210f, 44f), "F (Use Station)", false);
+            GUI.Label(new Rect(x + 12f, y + 28f, w - 24f, 24f), hdr, _tipTitleStyle);
+            if (_qteStep == 1) { DrawKeyChip(new Rect(x + 30f, y + 62f, 182f, 44f), "SHIFT (Sprint)", _qteShift); DrawKeyChip(new Rect(x + 229f, y + 62f, 182f, 44f), "SPACE (Jump)", _qteSpace); DrawKeyChip(new Rect(x + 428f, y + 62f, 182f, 44f), "Q (Roll)", _qteRoll); }
+            else if (_qteStep == 2) { DrawKeyChip(new Rect(x + 108f, y + 62f, 200f, 44f), _qteInvOpened ? "E (Opened)" : "E (Inventory)", _qteInvOpened && _qteInvClosed); DrawKeyChip(new Rect(x + 332f, y + 62f, 190f, 44f), "ESC (Pause)", true); }
+            else DrawKeyChip(new Rect(x + (w - 220f) * 0.5f, y + 62f, 220f, 44f), "F (Use Station)", false);
             string warmHint = (ShaderWarmupCurtain.Instance != null && ShaderWarmupCurtain.Instance.IsWarming) ? "<color=#9EE8FF>[Loading World — Practice keys now!]</color> " : "";
-            string msg = _qteStep == 1 ? $"{warmHint}Press <b><color=#FFD966>[SHIFT]</color></b> Sprint, <b><color=#FFD966>[SPACE]</color></b> Jump & <b><color=#FFD966>[Q + WASD]</color></b> Roll (1s Invuln)!"
+            string msg = _qteStep == 1 ? $"{warmHint}Press <b><color=#FFD966>[SHIFT]</color></b> Sprint, <b><color=#FFD966>[SPACE]</color></b> Jump & <b><color=#66EEFF>[Q + WASD]</color></b> Roll (1s Invuln)!"
                 : (_qteStep == 2 ? (_qteInvOpened ? "Great! Press <b>[E]</b> (or <b>[ESC]</b>) to close Inventory." : "Press <b><color=#FFD966>[E]</color></b> to open your Journal & Pickaxe, then close it.")
                 : "Walk toward the <b><color=#FFD966>illuminated FURNACE</color></b> ahead and press <b>[F]</b> to begin forging!");
-            GUI.Label(new Rect(x + 14f, y + 118f, w - 28f, 38f), msg, _tipBodyStyle);
+            GUI.Label(new Rect(x + 16f, y + 120f, w - 32f, 48f), msg, _tipBodyStyle);
         }
 
         private void DrawKeyChip(Rect r, string label, bool done)
@@ -215,16 +208,16 @@ namespace ForjaGame.UI
 
             if (spar != null && spar.IsTelegraphingStrike && _dummyHits >= 3 && (!_dummyBlocked || !_dummyParried || !_dummyRolled))
             {
-                float bw = 440f, bh = 58f, bx = (Screen.width - bw) * 0.5f, by = 100f;
+                float bw = 480f, bh = 74f, bx = (Screen.width - bw) * 0.5f, by = 134f;
                 Rect box = new Rect(bx, by, bw, bh);
-                GUI.Box(box, GUIContent.none, _tipBoxStyle); DrawGoldFrame(box, 3f);
+                DrawAttentionPanel(box, "COMBAT ALERT", 0.35f, IsDummyRollLessonActive ? new Color(0.28f, 0.92f, 1f, 1f) : null);
                 bool parryNow = _dummyBlocked && !_dummyParried && spar.IsInParrySweetSpot;
                 string alert = !_dummyBlocked ? "<color=#66CCFF><b>DUMMY ATTACKING — HOLD [RMB] TO BLOCK!</b></color>"
-                    : (!_dummyParried ? (parryNow ? "<color=#FFE044><b>★ PARRY NOW! TAP [RMB]! ★</b></color>" : "<color=#FF8866>DUMMY WINDING UP — READY TO TAP [RMB]...</color>")
-                    : "<color=#66EEFF><b>★ DODGE ROLL NOW! PRESS [Q + WASD] (1s INVULN)! ★</b></color>");
-                GUI.Label(new Rect(bx + 10f, by + 6f, bw - 20f, 24f), alert, _tipBodyStyle);
-                Rect bar = new Rect(bx + 24f, by + 35f, bw - 48f, 12f);
-                GUI.color = new Color(0.15f, 0.12f, 0.10f, 0.9f); GUI.DrawTexture(bar, _goldBorderTex);
+                    : (!_dummyParried ? (parryNow ? "<color=#FFE044><b>* PARRY NOW! TAP [RMB]! *</b></color>" : "<color=#FF8866>DUMMY WINDING UP — READY TO TAP [RMB]...</color>")
+                    : "<color=#66EEFF><b>* DODGE ROLL NOW! PRESS [Q + WASD] (1s INVULN)! *</b></color>");
+                GUI.Label(new Rect(bx + 12f, by + 16f, bw - 24f, 24f), alert, _tipBodyStyle);
+                Rect bar = new Rect(bx + 26f, by + 46f, bw - 52f, 13f);
+                GUI.color = new Color(0.15f, 0.12f, 0.10f, 0.95f); GUI.DrawTexture(bar, _goldBorderTex);
                 GUI.color = _dummyParried ? new Color(0.24f, 0.88f, 1f) : (parryNow ? new Color(1f, 0.86f, 0.16f) : (_dummyBlocked ? new Color(0.92f, 0.35f, 0.22f) : new Color(0.28f, 0.72f, 1f)));
                 GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * spar.WindupNormalized, bar.height), _goldBorderTex);
                 GUI.color = Color.white;

@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 using ForjaGame.Core;
+using ForjaGame.Forge;
 
 namespace ForjaGame.Combat
 {
@@ -34,6 +37,8 @@ namespace ForjaGame.Combat
         private float _lastBlockHitTime = -99f;
         private bool _isDefeated = false;
         private PlayerMovement _playerMovement;
+        private PlayableGraph _deathGraph;
+        private static AnimationClip _cachedDeathClip;
 
         public int CurrentHealth => currentHealth;
         public int MaxHealth => maxHealth;
@@ -44,6 +49,7 @@ namespace ForjaGame.Combat
 
         private void OnEnable() { if (!AllPlayers.Contains(this)) AllPlayers.Add(this); }
         private void OnDisable() { AllPlayers.Remove(this); if (LocalInstance == this) LocalInstance = null; }
+        private void OnDestroy() => StopDeathAnimation();
 
         private void Awake()
         {
@@ -90,12 +96,16 @@ namespace ForjaGame.Combat
         {
             if (!IsAlive || _isDefeated || IsGodModeActive || GameStateController.State == GameState.Victory || GameLoopController.IsEndScreenOpen) return false;
             if (IsRollInvulnerable) { if (attacker is TrainingDummyController) ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyDummyRolled(); return false; }
+            bool wasBlocked = false, wasGuardBroken = false;
             var atk = GetComponent<AttackController>();
             if (atk != null && atk.IsBlocking)
             {
                 bool timedParry = atk.IsTimedParryWindow && !unparriable;
+                var eq = GetComponent<PlayerEquipmentController>();
+                WeaponStats curWep = eq != null ? eq.CurrentWeapon : null;
                 GetComponentInChildren<DynamicEdgeAligner>()?.TriggerParryAnimation();
                 atk.SpawnVisceralCombatImpact(transform.position + transform.forward * 0.75f + Vector3.up * 1.05f, true, timedParry);
+                AlloyPassiveCombatResolver.OnDefenseTriggered(gameObject, curWep, attacker, timedParry);
                 if (timedParry)
                 {
                     _consecutiveBlockedHits = 0;
@@ -103,7 +113,7 @@ namespace ForjaGame.Combat
                     if (!isRanged && attacker != null && attacker.IsAlive)
                     {
                         if (attacker is TitanBossController boss) boss.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(amount * 0.10f)));
-                        else attacker.ApplyParryStun(1.05f);
+                        else attacker.ApplyParryStun(1.05f, ignoreImmunity: true);
                     }
                     return true;
                 }
@@ -111,9 +121,10 @@ namespace ForjaGame.Combat
                 _lastBlockHitTime = Time.time;
                 _consecutiveBlockedHits += (unparriable || amount >= 18) ? 2 : 1;
 
-                var eq = GetComponent<PlayerEquipmentController>();
-                float blockMult = eq != null && eq.CurrentWeapon != null ? eq.CurrentWeapon.GetPassiveBlockDamageMultiplier() : 0.68f;
-                bool guardBroken = !(attacker is TrainingDummyController) && _consecutiveBlockedHits >= 2;
+                var passiveKind = AlloyPassiveResolver.Resolve(curWep).Kind;
+                int breakThreshold = passiveKind == AlloyPassiveKind.FerricBronze ? 4 : 2;
+                float blockMult = curWep != null ? curWep.GetPassiveBlockDamageMultiplier() : 0.68f;
+                bool guardBroken = !(attacker is TrainingDummyController) && _consecutiveBlockedHits >= breakThreshold;
                 if (guardBroken)
                 {
                     _consecutiveBlockedHits = 0;
@@ -127,6 +138,7 @@ namespace ForjaGame.Combat
                     if (push.sqrMagnitude > 0.01f) _rb.AddForce(push.normalized * (guardBroken ? 5.6f : 3.8f), ForceMode.VelocityChange);
                 }
                 amount = Mathf.Max(1, Mathf.RoundToInt(amount * blockMult));
+                wasBlocked = !guardBroken; wasGuardBroken = guardBroken;
                 ForjaGame.Audio.ForgeAudioSystem.PlayHitImpact(transform.position, true, guardBroken);
                 if (attacker is TrainingDummyController) ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyDummyBlocked();
             }
@@ -138,13 +150,17 @@ namespace ForjaGame.Combat
             if (_bodyHurtbox != null) { _bodyHurtbox.IsConnecting = true; _hurtboxBlackUntil = Time.time + 0.30f; }
 
             bool isLocal = (LocalInstance == this) || (GetComponent<Unity.Netcode.NetworkObject>()?.IsOwner ?? true);
-            if (isLocal && currentHealth > 0)
+            if (isLocal)
             {
-                float hpRatio = Mathf.Clamp01((float)currentHealth / Mathf.Max(1, maxHealth));
-                ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzDanioSegunVida(hpRatio);
-                GetComponent<PlayerScreenEffectsHUD>()?.TriggerDamageHit(amount, maxHealth);
-                var cam = _playerMovement != null && _playerMovement.PlayerCamera != null ? _playerMovement.PlayerCamera.GetComponent<PlayerCameraFollow>() : PlayerCameraFollow.Instance;
-                cam?.TriggerImpulse(0.12f);
+                CombatDamageNumberHUD.SpawnPlayerBarDamage(amount, wasBlocked, wasGuardBroken);
+                if (currentHealth > 0)
+                {
+                    float hpRatio = Mathf.Clamp01((float)currentHealth / Mathf.Max(1, maxHealth));
+                    ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzDanioSegunVida(hpRatio);
+                    GetComponent<PlayerScreenEffectsHUD>()?.TriggerDamageHit(amount, maxHealth);
+                    var cam = _playerMovement != null && _playerMovement.PlayerCamera != null ? _playerMovement.PlayerCamera.GetComponent<PlayerCameraFollow>() : PlayerCameraFollow.Instance;
+                    cam?.TriggerImpulse(0.12f);
+                }
             }
             if (currentHealth <= 0) TriggerPlayerDefeat();
             return false;
@@ -159,26 +175,16 @@ namespace ForjaGame.Combat
             int pNum = (_playerMovement != null ? _playerMovement.PlayerIndex : 0) + 1;
             Debug.Log($"<color=red><b>[Jugador {pNum}] ¡HAS SIDO DERROTADO!</b></color>");
 
-            if (_rb != null && !_rb.isKinematic)
-            {
-                _rb.linearVelocity = Vector3.zero;
-                _rb.angularVelocity = Vector3.zero;
-            }
+            if (_rb != null && !_rb.isKinematic) { _rb.linearVelocity = Vector3.zero; _rb.angularVelocity = Vector3.zero; }
             _playerMovement?.SetMovementEnabled(false);
+            PlayDeathAnimation();
 
-            // En cooperativo local, comprobar si todos los jugadores fueron derrotados
             bool anyOtherAlive = false;
             for (int i = 0; i < AllPlayers.Count; i++)
             {
                 var p = AllPlayers[i];
-                if (p != null && p != this && p.gameObject.activeInHierarchy && p.IsAlive)
-                {
-                    anyOtherAlive = true;
-                    break;
-                }
+                if (p != null && p != this && p.gameObject.activeInHierarchy && p.IsAlive) { anyOtherAlive = true; break; }
             }
-
-            // Si ningún jugador queda vivo, disparar fin de partida global
             if (!anyOtherAlive)
             {
                 Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
@@ -186,8 +192,47 @@ namespace ForjaGame.Combat
             }
         }
 
+        private void PlayDeathAnimation()
+        {
+            var atk = GetComponent<AttackController>(); atk?.CancelAttackForRoll(); atk?.CancelBlockForRoll();
+            var eq = GetComponent<PlayerEquipmentController>();
+            Animator anim = eq != null && eq.PaladinAnimator != null ? eq.PaladinAnimator : GetComponentInChildren<Animator>();
+            if (eq?.EdgeAligner != null) eq.EdgeAligner.isRolling = true;
+            if (anim == null) return;
+            if (anim.layerCount > 1) anim.SetLayerWeight(1, 0f);
+            if (anim.layerCount > 2) anim.SetLayerWeight(2, 0f);
+            AnimationClip clip = GetDeathClip();
+            if (clip == null) return;
+            StopDeathAnimation();
+            clip.wrapMode = WrapMode.ClampForever;
+            _deathGraph = PlayableGraph.Create("PlayerDeath");
+            var output = AnimationPlayableOutput.Create(_deathGraph, "Death", anim);
+            var pl = AnimationClipPlayable.Create(_deathGraph, clip);
+            pl.SetSpeed(0.85f); output.SetSourcePlayable(pl); _deathGraph.Play();
+        }
+
+        private void StopDeathAnimation() { if (_deathGraph.IsValid()) _deathGraph.Destroy(); }
+
+        private static AnimationClip GetDeathClip()
+        {
+            if (_cachedDeathClip != null) return _cachedDeathClip;
+            foreach (var res in new[] { "Animations/Combat/PlayerDeath", "Animations/Roll/UAL1_Standard" })
+            {
+                var all = UnityEngine.Resources.LoadAll<AnimationClip>(res);
+                for (int i = 0; all != null && i < all.Length; i++)
+                    if (all[i] != null && !all[i].name.StartsWith("__preview__") && all[i].name.Contains("Death")) { _cachedDeathClip = all[i]; return _cachedDeathClip; }
+            }
+            return null;
+        }
+
+        public void Heal(int amount) { if (IsAlive && amount > 0) currentHealth = Mathf.Min(maxHealth, currentHealth + amount); }
+
         public void RestoreHealthFull()
         {
+            StopDeathAnimation();
+            var eq = GetComponent<PlayerEquipmentController>();
+            if (eq?.EdgeAligner != null) eq.EdgeAligner.isRolling = false;
+            if (eq?.PaladinAnimator != null) eq.PaladinAnimator.CrossFadeInFixedTime("Locomotion", 0.1f, 0);
             currentHealth = maxHealth; _isDefeated = false; Time.timeScale = 1f;
             GetComponent<PlayerStaminaController>()?.RestoreFull();
             _playerMovement?.SetMovementEnabled(true);

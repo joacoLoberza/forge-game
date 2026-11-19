@@ -20,6 +20,7 @@ namespace ForjaGame.Combat
         private Material _telegraphMat;
         private float _wobbleAmp, _wobbleTimer, _sparPhaseTimer, _sparCooldown = 0.9f, _manualSparUntil;
         private int _sparPhase; // 0=Idle, 1=Windup, 2=SwingFollowThrough
+        private bool _dodgedCurrentWindup;
 
         public DummyRole Role => role;
         public bool IsTelegraphingStrike => role == DummyRole.SparringTrainer && _sparPhase == 1 && !IsStunned;
@@ -104,6 +105,7 @@ namespace ForjaGame.Combat
             currentHealth = maxHealth;
             _wobbleAmp = Mathf.Min(16f, _wobbleAmp + 10f);
             _wobbleTimer = 0.55f;
+            CombatDamageNumberHUD.SpawnAbove(transform, amount, false, amount >= 25);
             if (role == DummyRole.SparringTrainer) _manualSparUntil = Time.time + 15f;
             ForgeAudioSystem.PlayWallHit(transform.position + Vector3.up * 1.1f, 1, true);
             ForgeTutorialDirector.Instance?.NotifyDummyHit(this);
@@ -163,7 +165,7 @@ namespace ForjaGame.Combat
                 _sparCooldown -= Time.deltaTime;
                 if (_armPivot != null) _armPivot.localRotation = Quaternion.Lerp(_armPivot.localRotation, Quaternion.identity, Time.deltaTime * 8f);
                 if (_telegraphRingRenderer != null) _telegraphRingRenderer.enabled = false;
-                if (_sparCooldown <= 0f) { _sparPhase = 1; _sparPhaseTimer = 0f; ForgeAudioSystem.PlayWeaponSwing(transform.position, false); }
+                if (_sparCooldown <= 0f) { _sparPhase = 1; _sparPhaseTimer = 0f; _dodgedCurrentWindup = false; ForgeAudioSystem.PlayWeaponSwing(transform.position, false); }
             }
             else if (_sparPhase == 1)
             {
@@ -203,16 +205,23 @@ namespace ForjaGame.Combat
             _telegraphRingRenderer.enabled = true;
             bool inParrySpot = IsInParrySweetSpot;
             bool isParryLesson = ForgeTutorialDirector.Instance != null && ForgeTutorialDirector.Instance.IsDummyParryLessonActive;
-            Color col = (isParryLesson && inParrySpot) ? new Color(1f, 0.82f, 0.14f) : (isParryLesson ? new Color(0.95f, 0.30f, 0.16f) : new Color(0.24f, 0.68f, 1.0f));
-            _telegraphMat.color = col;
-            if (_telegraphMat.HasProperty("_BaseColor")) _telegraphMat.SetColor("_BaseColor", col);
-            if (_telegraphMat.HasProperty("_EmissionColor")) _telegraphMat.SetColor("_EmissionColor", col * (inParrySpot ? 3.2f : 1.5f));
+            bool isRollLesson = ForgeTutorialDirector.Instance != null && ForgeTutorialDirector.Instance.IsDummyRollLessonActive;
+            Color col = isRollLesson ? (WindupNormalized >= 0.30f ? new Color(0.28f, 0.95f, 1f) : new Color(0.18f, 0.55f, 0.95f)) : ((isParryLesson && inParrySpot) ? new Color(1f, 0.82f, 0.14f) : (isParryLesson ? new Color(0.95f, 0.30f, 0.16f) : new Color(0.24f, 0.68f, 1.0f)));
+            _telegraphMat.color = col; if (_telegraphMat.HasProperty("_BaseColor")) _telegraphMat.SetColor("_BaseColor", col);
+            if (_telegraphMat.HasProperty("_EmissionColor")) _telegraphMat.SetColor("_EmissionColor", col * ((inParrySpot || (isRollLesson && WindupNormalized >= 0.30f)) ? 3.2f : 1.5f));
+        }
+
+        public void NotifyPlayerRollAttempt(ForgeTutorialDirector tut)
+        {
+            if (tut == null || !tut.IsDummyRollLessonActive) return;
+            if (IsTelegraphingStrike && WindupNormalized >= 0.30f) _dodgedCurrentWindup = true; else tut.NotifyDummyRollTooEarly();
         }
 
         private void DeliverDummySwingImpact(Transform player)
         {
+            bool dodged = _dodgedCurrentWindup; _dodgedCurrentWindup = false;
             ForgeAudioSystem.PlayWeaponSwing(transform.position, true);
-            if (player == null || Vector3.Distance(transform.position, player.position) > 3.35f) return;
+            if (player == null || Vector3.Distance(transform.position, player.position) > 3.35f) { if (dodged) ForgeTutorialDirector.Instance?.NotifyDummyRolled(); return; }
             var hp = player.GetComponentInParent<PlayerHealthController>();
             if (hp == null || !hp.IsAlive) return;
             hp.TakeDamageFrom(4, this, isRanged: false);
@@ -229,8 +238,7 @@ namespace ForjaGame.Combat
 
         private static void MakePart(PrimitiveType type, Transform parent, string name, Vector3 pos, Vector3 scale, Quaternion rot, Material mat)
         {
-            var go = GameObject.CreatePrimitive(type);
-            go.name = name; go.transform.SetParent(parent, false);
+            var go = GameObject.CreatePrimitive(type); go.name = name; go.transform.SetParent(parent, false);
             go.transform.localPosition = pos; go.transform.localScale = scale; go.transform.localRotation = rot;
             if (go.TryGetComponent<Collider>(out var c)) UnitySafeUtility.DestroySafe(c);
             go.GetComponent<MeshRenderer>().sharedMaterial = mat;

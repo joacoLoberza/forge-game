@@ -57,10 +57,14 @@ namespace ForjaGame.Forge
                     _ => $"{lenLabel} Sword (5-Hit Slash & Thrust Combo)"
                 } : "5-Hit Combo";
 
+                var passive = ForjaGame.Combat.AlloyPassiveResolver.Resolve(_previewStats);
+                string passiveLine = passive.Kind != ForjaGame.Combat.AlloyPassiveKind.None
+                    ? $"\n<color={passive.ColorHex}><b>Passive [{passive.PassiveName}]:</b></color> {passive.Summary}" : "";
+
                 string card = $"<b>★ ARTISAN WEAPON SUCCESSFULLY FORGED ★</b>\n" +
                               $"<color=#845512><size=17><b>{nm}</b> [{q}]</size></color>\n" +
                               $"Damage: <b>{d:F1} DMG</b>  •  Speed: <b>{s:F2}x</b>  •  Weight: <b>{mKg:F1} kg</b>  •  Reach: <b>{r:F2}m</b>\n" +
-                              $"Combat Style: <color=#966014><b>{comboDesc}</b></color>";
+                              $"Combat Style: <color=#966014><b>{comboDesc}</b></color>{passiveLine}";
                 GUI.Box(new Rect(x, y, w, h), card, _hudCardStyle);
                 float btnRowY = y + h - 44f;
                 if (GUI.Button(new Rect(x + 60f, btnRowY, 310f, 34f), "<b>« RETURN TO HANDLE [BACKSPACE]</b>", _actionBtnStyle))

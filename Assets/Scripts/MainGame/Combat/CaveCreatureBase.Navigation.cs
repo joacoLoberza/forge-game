@@ -20,7 +20,7 @@ namespace ForjaGame.Combat
         protected void MoveAlongCave(Vector3 targetWorldPos, float speed, float turnRate = 7.5f) =>
             MoveDirectionInCave(SteerAroundObstacles(ComputeCaveGuidedDirection(transform.position, targetWorldPos), targetWorldPos), speed, turnRate);
 
-        protected void MoveDirectionInCave(Vector3 dir, float speed, float turnRate = 7.5f)
+        protected void MoveDirectionInCave(Vector3 dir, float speed, float turnRate = 7.5f, Vector3? lookDirOverride = null)
         {
             if (_rb == null || _rb.isKinematic) return;
             if (IsStunned) { StopHorizontalMovement(); return; }
@@ -68,12 +68,14 @@ namespace ForjaGame.Combat
 
             _smoothedMoveDir = _smoothedMoveDir.sqrMagnitude < 0.01f ? dir : Vector3.Slerp(_smoothedMoveDir, dir, Time.deltaTime * 7.0f).normalized;
             Vector3 moveDir = turnRate > 0.5f ? _smoothedMoveDir : dir;
+            Vector3 faceDir = (lookDirOverride.HasValue && lookDirOverride.Value.sqrMagnitude > 0.001f) ? lookDirOverride.Value.normalized : moveDir;
 
-            float effSpeed = speed;
+            float effSpeed = speed * PassiveSpeedMultiplier;
             if (turnRate > 0.5f)
             {
-                FaceDirection(moveDir, turnRate);
-                effSpeed = speed * Mathf.Clamp(Mathf.InverseLerp(0.05f, 0.88f, Vector3.Dot(transform.forward, moveDir)), 0.18f, 1.0f);
+                FaceDirection(faceDir, turnRate);
+                if (!lookDirOverride.HasValue)
+                    effSpeed *= Mathf.Clamp(Mathf.InverseLerp(0.05f, 0.88f, Vector3.Dot(transform.forward, moveDir)), 0.18f, 1.0f);
             }
 
             if (Physics.Raycast(transform.position + Vector3.up * 0.6f, Vector3.down, out RaycastHit gHit, 1.6f, ~0, QueryTriggerInteraction.Ignore))
@@ -169,8 +171,8 @@ namespace ForjaGame.Combat
         protected void FaceDirection(Vector3 dir, float speed)
         {
             dir.y = 0f; if (dir.sqrMagnitude <= 0.001f || speed <= 0.01f) return;
-            Quaternion next = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir.normalized), Time.deltaTime * Mathf.Min(speed, 7.5f));
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, next, Mathf.Clamp(speed * 26f, 85f, 220f) * Time.deltaTime);
+            Quaternion next = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir.normalized), Time.deltaTime * Mathf.Min(speed, 14f));
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, next, Mathf.Clamp(speed * 32f, 95f, 420f) * Time.deltaTime);
         }
         protected void PlaceOnCaveFloor(Vector3 desiredPos)
         {
@@ -194,27 +196,29 @@ namespace ForjaGame.Combat
             if (_animator.runtimeAnimatorController != null) _animator.CrossFadeInFixedTime(stateName, fade, 0, 0f);
         }
 
+        private static readonly RaycastHit[] _wallHitBuffer = new RaycastHit[24];
+
         public bool HasWallBetween(Vector3 targetWorldPos)
         {
             Vector3 from = transform.position + Vector3.up * 0.75f, to = targetWorldPos + Vector3.up * 0.85f;
             Vector3 d = to - from; float dist = d.magnitude;
             if (dist < 0.15f) return false;
-            RaycastHit[] hits = Physics.RaycastAll(from, d / dist, dist, ~0, QueryTriggerInteraction.Ignore);
-            for (int i = 0; i < hits.Length; i++)
+            int hitCount = Physics.RaycastNonAlloc(from, d / dist, _wallHitBuffer, dist, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hitCount; i++)
             {
-                Collider c = hits[i].collider;
+                Collider c = _wallHitBuffer[i].collider;
                 if (c == null || c.transform.IsChildOf(transform)) continue;
                 if (c.GetComponentInParent<IDestructibleTunnelWall>() != null) return true;
                 if (c.GetComponentInParent<CaveCreatureBase>() != null || c.GetComponentInParent<PlayerHealthController>() != null || c.GetComponentInParent<PlayerMovement>() != null) continue;
-                if (hits[i].normal.y < 0.45f) return true;
+                if (_wallHitBuffer[i].normal.y < 0.45f) return true;
             }
             return false;
         }
 
-        protected bool TryDealConeDamageToPlayer(float maxReach, float halfConeAngle, float closePointBlank, int dmg)
+        protected bool TryDealConeDamageToPlayer(float maxReach, float halfConeAngle, float closePointBlank, int dmg, float verticalReachOverride = -1f)
         {
             if (!IsAlive || _playerTransform == null || GameStateController.State == GameState.Victory || GameLoopController.IsEndScreenOpen) return false;
-            float maxVerticalReach = _col != null ? Mathf.Clamp(_col.height * 0.85f, 1.35f, 2.60f) : 1.55f;
+            float maxVerticalReach = verticalReachOverride > 0f ? verticalReachOverride : (_col != null ? Mathf.Clamp(_col.height * 0.85f, 1.35f, 2.60f) : 1.55f);
             if (Mathf.Abs(_playerTransform.position.y - transform.position.y) > maxVerticalReach) return false;
             Vector3 diff = new Vector3(_playerTransform.position.x - transform.position.x, 0f, _playerTransform.position.z - transform.position.z);
             float dist = diff.magnitude;

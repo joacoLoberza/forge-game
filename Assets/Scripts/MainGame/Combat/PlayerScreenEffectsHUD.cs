@@ -1,189 +1,167 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using ForjaGame.Core;
 using ForjaGame.UI;
 
 namespace ForjaGame.Combat
 {
     /// <summary>
-    /// Efectos visuales periféricos y atmosféricos en pantalla para estados de combate:
-    /// impacto al recibir daño (+FOV kick y venas carmesí en bordes), vida baja <=15% (latido y pavesas)
-    /// y estamina baja <=15% (bruma fría periférica de fatiga), sin cubrir ni entorpecer la interfaz central.
+    /// Marcos periféricos en un Canvas dedicado al fondo (sortingOrder = -500) para quedar siempre
+    /// detrás de toda la UI (cronómetro, barras de vida/estamina, inventario y pausa).
+    /// - Rojo: daño recibido y vida baja, expandiéndose suavemente al centro sin temblor.
+    /// - Azul frío: cansancio estricto por debajo de 50 puntos de estamina, sin temblor.
     /// </summary>
     public sealed class PlayerScreenEffectsHUD : MonoBehaviour
     {
-        private struct EdgeSpark { public float xNorm, yNorm, speed, size, phase; public bool rightSide; }
-
         private PlayerHealthController _health;
         private PlayerStaminaController _stamina;
         private PlayerMovement _movement;
 
-        private float _damageFlashStrength, _damageFovKick, _baseFov = 60f, _staminaFrostBlend, _lowHpBlend;
+        private float _damageFlashStrength, _baseFov = 60f, _staminaFrostBlend, _lowHpBlend;
         private bool _hasCapturedBaseFov;
-        private EdgeSpark[] _sparks;
-        private static Texture2D _organicVignetteTex, _softMoteTex;
+        private GameObject _overlayRoot;
+        private readonly RawImage[] _redEdges = new RawImage[4];
+        private readonly RawImage[] _blueEdges = new RawImage[4];
+        private static Texture2D _gradTopTex, _gradBottomTex, _gradLeftTex, _gradRightTex;
 
         private void Awake()
         {
             _health = GetComponent<PlayerHealthController>();
             _stamina = GetComponent<PlayerStaminaController>();
             _movement = GetComponent<PlayerMovement>();
-            InitEdgeSparks();
         }
 
-        private void InitEdgeSparks()
+        private void OnDestroy()
         {
-            _sparks = new EdgeSpark[14];
-            for (int i = 0; i < _sparks.Length; i++)
-                _sparks[i] = new EdgeSpark
-                {
-                    xNorm = Random.Range(0.01f, 0.085f), yNorm = Random.value,
-                    speed = Random.Range(0.14f, 0.34f), size = Random.Range(5f, 11f),
-                    phase = Random.value * 6.28f, rightSide = (i & 1) == 1
-                };
+            if (_overlayRoot != null) Destroy(_overlayRoot);
         }
 
         public void TriggerDamageHit(int damage, int maxHp)
         {
             float sev = Mathf.Clamp01(damage / Mathf.Max(15f, maxHp * 0.25f));
             _damageFlashStrength = Mathf.Max(_damageFlashStrength, Mathf.Lerp(0.55f, 1.0f, sev));
-            _damageFovKick = Mathf.Max(_damageFovKick, Mathf.Lerp(1.8f, 3.6f, sev));
         }
 
         private void Update()
         {
-            if (SceneManager.GetActiveScene().name == "MainMenu") return;
-            _damageFlashStrength = Mathf.MoveTowards(_damageFlashStrength, 0f, Time.deltaTime * 2.1f);
-            _damageFovKick = Mathf.Lerp(_damageFovKick, 0f, Time.deltaTime * 9.5f);
+            if (SceneManager.GetActiveScene().name == "MainMenu") { SetOverlayVisible(false); return; }
+            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
+            if (netObj != null && !netObj.IsOwner) { SetOverlayVisible(false); return; }
+
+            float dt = Time.unscaledDeltaTime;
+            _damageFlashStrength = Mathf.MoveTowards(_damageFlashStrength, 0f, dt * 1.9f);
 
             bool alive = _health == null || _health.IsAlive;
             float hpR = _health != null ? Mathf.Clamp01((float)_health.CurrentHealth / Mathf.Max(1, _health.MaxHealth)) : 1f;
-            float stmR = _stamina != null ? _stamina.Normalized : 1f;
-            _lowHpBlend = Mathf.MoveTowards(_lowHpBlend, (alive && hpR <= 0.15f) ? 1f : 0f, Time.deltaTime * 2.8f);
-            _staminaFrostBlend = Mathf.MoveTowards(_staminaFrostBlend, (alive && stmR <= 0.15f) ? 1f : 0f, Time.deltaTime * 3.5f);
+            float curStm = _stamina != null ? _stamina.CurrentStamina : 100f;
+            float missingHp = alive ? Mathf.Clamp01((0.88f - hpR) / 0.88f) : 1f;
+            float rawFatigue = (alive && curStm < 50f) ? Mathf.Clamp01((50f - curStm) / 50f) : 0f;
+            _lowHpBlend = Mathf.MoveTowards(_lowHpBlend, missingHp, dt * 2.8f);
+            _staminaFrostBlend = Mathf.MoveTowards(_staminaFrostBlend, rawFatigue, dt * 3.2f);
+            RestoreSteadyFov();
 
-            UpdateFovFeedback();
-            if (_lowHpBlend > 0.02f && _sparks != null)
-            {
-                for (int i = 0; i < _sparks.Length; i++)
-                {
-                    _sparks[i].yNorm -= _sparks[i].speed * Time.deltaTime;
-                    if (_sparks[i].yNorm < -0.05f) { _sparks[i].yNorm = 1.04f; _sparks[i].xNorm = Random.Range(0.01f, 0.085f); }
-                }
-            }
+            bool blocked = GameLoopController.IsEndScreenOpen || VictoryCreditsOverlay.IsBackdropActive
+                || (ShaderWarmupCurtain.Instance != null && ShaderWarmupCurtain.Instance.IsWarming);
+            float redFrame = blocked ? 0f : Mathf.Clamp01(Mathf.Max(_lowHpBlend, _damageFlashStrength * 0.78f));
+            float blueFrame = blocked ? 0f : _staminaFrostBlend;
+
+            if (redFrame <= 0.01f && blueFrame <= 0.01f) { SetOverlayVisible(false); return; }
+
+            EnsureOverlayCanvas();
+            _overlayRoot.SetActive(true);
+            UpdateEdgeFrame(_redEdges, redFrame, new Color(0.82f, 0.06f, 0.05f));
+            UpdateEdgeFrame(_blueEdges, blueFrame, new Color(0.20f, 0.48f, 0.68f));
         }
 
-        private void UpdateFovFeedback()
+        private void RestoreSteadyFov()
         {
             Camera cam = (_movement != null && _movement.PlayerCamera != null) ? _movement.PlayerCamera : Camera.main;
             if (cam == null) return;
             if (!_hasCapturedBaseFov) { _baseFov = cam.fieldOfView; _hasCapturedBaseFov = true; }
-            bool suppressed = UI.Core.UIPanelBase.IsAnyPanelOpen || GameLoopController.IsEndScreenOpen || PauseMenuPanel.IsGamePaused;
-            float hbWave = _lowHpBlend > 0.01f ? (Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Time.time * 3.7f)), 4f) * 1.15f * _lowHpBlend) : 0f;
-            float targetFov = suppressed ? _baseFov : Mathf.Clamp(_baseFov + _damageFovKick + hbWave, 45f, 82f);
-            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFov, Time.deltaTime * 14f);
+            if (!Mathf.Approximately(cam.fieldOfView, _baseFov))
+                cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, _baseFov, Time.unscaledDeltaTime * 14f);
         }
 
-        private void OnGUI()
+        private void SetOverlayVisible(bool visible)
         {
-            if (SceneManager.GetActiveScene().name == "MainMenu") return;
-            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
-            if (netObj != null && !netObj.IsOwner) return;
-            if (UI.Core.UIPanelBase.IsAnyPanelOpen || GameLoopController.IsEndScreenOpen || VictoryCreditsOverlay.IsBackdropActive) return;
-            if (ShaderWarmupCurtain.Instance != null && ShaderWarmupCurtain.Instance.IsWarming) return;
-            if (_damageFlashStrength <= 0.01f && _lowHpBlend <= 0.01f && _staminaFrostBlend <= 0.01f) return;
+            if (_overlayRoot != null && _overlayRoot.activeSelf != visible) _overlayRoot.SetActive(visible);
+        }
 
+        private void EnsureOverlayCanvas()
+        {
+            if (_overlayRoot != null) return;
             EnsureTextures();
-            GUI.depth = -120;
-            Color prev = GUI.color;
-            Rect screen = new Rect(0f, 0f, Screen.width, Screen.height);
+            _overlayRoot = new GameObject("PlayerScreenEffectsBackdropCanvas", typeof(Canvas));
+            var canvas = _overlayRoot.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = -500; // Siempre al fondo detrás de cronómetro, barras de vida, inventario y pausa
+            canvas.overrideSorting = true;
 
-            // 1) Destello radial de venas carmesí-ámbar al recibir un golpe
-            if (_damageFlashStrength > 0.01f)
-            {
-                float a = Mathf.Pow(_damageFlashStrength, 0.85f) * 0.56f;
-                GUI.color = new Color(0.88f, 0.14f, 0.08f, a);
-                GUI.DrawTexture(screen, _organicVignetteTex);
-                GUI.color = new Color(1.0f, 0.52f, 0.16f, a * 0.35f);
-                GUI.DrawTexture(new Rect(-18f, -18f, Screen.width + 36f, Screen.height + 36f), _organicVignetteTex);
-            }
-
-            // 2) Vida crítica <=15%: doble latido orgánico de fragua + pavesas ascendentes en los márgenes
-            if (_lowHpBlend > 0.01f)
-            {
-                float cyc = (Time.time * 1.15f) % 1f;
-                float beat = Mathf.Exp(-Mathf.Pow((cyc - 0.12f) / 0.07f, 2f)) + 0.65f * Mathf.Exp(-Mathf.Pow((cyc - 0.30f) / 0.08f, 2f));
-                float a = _lowHpBlend * (0.18f + 0.24f * beat);
-                GUI.color = new Color(0.76f, 0.07f, 0.06f, a);
-                GUI.DrawTexture(screen, _organicVignetteTex);
-                DrawCornerEmbers(_lowHpBlend * (0.45f + 0.35f * beat));
-            }
-
-            // 3) Estamina crítica <=15%: bruma fría azulada en el perímetro exterior (respiración lenta)
-            if (_staminaFrostBlend > 0.01f)
-            {
-                float breath = 0.5f + 0.5f * Mathf.Sin(Time.time * 3.1f);
-                float a = _staminaFrostBlend * (0.14f + 0.14f * breath);
-                GUI.color = new Color(0.24f, 0.52f, 0.72f, a);
-                GUI.DrawTexture(screen, _organicVignetteTex);
-            }
-
-            GUI.color = prev;
+            BuildEdgeGroup(_overlayRoot.transform, "RedDamage", _redEdges);
+            BuildEdgeGroup(_overlayRoot.transform, "BlueFatigue", _blueEdges);
         }
 
-        private void DrawCornerEmbers(float alphaMult)
+        private static void BuildEdgeGroup(Transform parent, string prefix, RawImage[] target)
         {
-            if (_sparks == null || _softMoteTex == null) return;
-            for (int i = 0; i < _sparks.Length; i++)
+            Texture2D[] texs = { _gradTopTex, _gradBottomTex, _gradLeftTex, _gradRightTex };
+            Vector2[] aMin = { new(0f, 1f), new(0f, 0f), new(0f, 0f), new(1f, 0f) };
+            Vector2[] aMax = { new(1f, 1f), new(1f, 0f), new(0f, 1f), new(1f, 1f) };
+            Vector2[] piv  = { new(0.5f, 1f), new(0.5f, 0f), new(0f, 0.5f), new(1f, 0.5f) };
+
+            for (int i = 0; i < 4; i++)
             {
-                var s = _sparks[i];
-                float sway = Mathf.Sin(Time.time * 2.8f + s.phase) * 0.012f;
-                float px = (s.rightSide ? (1f - s.xNorm + sway) : (s.xNorm + sway)) * Screen.width;
-                float py = s.yNorm * Screen.height;
-                float flicker = 0.65f + 0.35f * Mathf.Sin(Time.time * 7.5f + s.phase);
-                GUI.color = new Color(1.0f, 0.55f, 0.16f, alphaMult * flicker * 0.65f);
-                GUI.DrawTexture(new Rect(px - s.size * 0.5f, py - s.size * 0.5f, s.size, s.size), _softMoteTex);
+                var go = new GameObject($"{prefix}_{i}", typeof(RectTransform), typeof(RawImage));
+                go.transform.SetParent(parent, false);
+                var rt = go.GetComponent<RectTransform>();
+                rt.anchorMin = aMin[i]; rt.anchorMax = aMax[i]; rt.pivot = piv[i];
+                rt.anchoredPosition = Vector2.zero; rt.sizeDelta = Vector2.zero;
+                var img = go.GetComponent<RawImage>();
+                img.texture = texs[i];
+                img.raycastTarget = false;
+                img.enabled = false;
+                target[i] = img;
+            }
+        }
+
+        private static void UpdateEdgeFrame(RawImage[] edges, float intensity, Color col)
+        {
+            bool show = intensity > 0.01f;
+            float tx = Mathf.Max(24f, Screen.width * Mathf.Lerp(0.025f, 0.34f, intensity));
+            float ty = Mathf.Max(24f, Screen.height * Mathf.Lerp(0.03f, 0.34f, intensity));
+            Color c = new Color(col.r, col.g, col.b, Mathf.Clamp01(0.26f + 0.54f * intensity));
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (edges[i] == null) continue;
+                edges[i].enabled = show;
+                if (!show) continue;
+                edges[i].color = c;
+                edges[i].rectTransform.sizeDelta = i < 2 ? new Vector2(0f, ty) : new Vector2(tx, 0f);
             }
         }
 
         private static void EnsureTextures()
         {
-            if (_organicVignetteTex == null)
+            if (_gradTopTex != null) return;
+            _gradTopTex = MakeEdgeGrad(false, true);
+            _gradBottomTex = MakeEdgeGrad(false, false);
+            _gradLeftTex = MakeEdgeGrad(true, true);
+            _gradRightTex = MakeEdgeGrad(true, false);
+        }
+
+        private static Texture2D MakeEdgeGrad(bool horizontal, bool fromZero)
+        {
+            const int N = 64;
+            var t = new Texture2D(horizontal ? N : 1, horizontal ? 1 : N, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.DontSave };
+            for (int i = 0; i < N; i++)
             {
-                const int S = 192;
-                var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.DontSave };
-                for (int y = 0; y < S; y++)
-                {
-                    float ny = (y / (float)(S - 1)) * 2f - 1f;
-                    for (int x = 0; x < S; x++)
-                    {
-                        float nx = (x / (float)(S - 1)) * 2f - 1f;
-                        float rad = Mathf.Sqrt(nx * nx * 0.92f + ny * ny * 1.08f);
-                        float edge = Mathf.SmoothStep(0.58f, 1.32f, rad);
-                        float vein = Mathf.PerlinNoise(nx * 4.5f + 13.7f, ny * 4.5f + 29.1f) * 0.65f
-                                   + Mathf.PerlinNoise(nx * 10.5f + 5.3f, ny * 10.5f + 8.9f) * 0.35f;
-                        float alpha = Mathf.Clamp01(edge * Mathf.Lerp(0.62f, 1.28f, vein) * Mathf.Pow(edge, 0.65f));
-                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
-                    }
-                }
-                tex.Apply();
-                _organicVignetteTex = tex;
+                float u = i / (float)(N - 1);
+                float edgeDist = horizontal ? (fromZero ? u : 1f - u) : (fromZero ? 1f - u : u);
+                float a = Mathf.Pow(Mathf.Clamp01(1f - edgeDist), 1.65f);
+                t.SetPixel(horizontal ? i : 0, horizontal ? 0 : i, new Color(1f, 1f, 1f, a));
             }
-            if (_softMoteTex == null)
-            {
-                const int M = 24;
-                var mote = new Texture2D(M, M, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, hideFlags = HideFlags.DontSave };
-                for (int y = 0; y < M; y++)
-                    for (int x = 0; x < M; x++)
-                    {
-                        float d = Vector2.Distance(new Vector2(x, y), new Vector2((M - 1) * 0.5f, (M - 1) * 0.5f)) / (M * 0.5f);
-                        float a = Mathf.Clamp01(1f - d);
-                        mote.SetPixel(x, y, new Color(1f, 1f, 1f, a * a));
-                    }
-                mote.Apply();
-                _softMoteTex = mote;
-            }
+            t.Apply(); return t;
         }
     }
 }
-

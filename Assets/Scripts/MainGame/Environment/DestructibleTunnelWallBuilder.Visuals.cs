@@ -8,53 +8,64 @@ namespace ForjaGame.Environment
         private static void BuildWebVisual(Transform root, float span, float height, int seed)
         {
             Material mat = GetWebMaterial();
-            float halfSpan = span * 0.52f;
+            float halfSpan = span * 0.56f;
+            float rx = halfSpan * 0.98f, ry = height * 0.54f;
 
-            // 1. Cables y filamentos diagonales cruzados de extremo a extremo de la roca
-            int strands = 16;
-            for (int i = 0; i < strands; i++)
+            // Dos telarañas orbitales completas superpuestas (frontal y posterior) con radios, espirales y filamentos de anclaje
+            for (int layer = 0; layer < 2; layer++)
             {
-                float t = i / (float)(strands - 1);
-                float y1 = Mathf.Lerp(0.2f, height * 0.96f, t);
-                float y2 = Mathf.Lerp(height * 0.96f, 0.2f, t);
-                float x1 = (i % 2 == 0) ? -halfSpan : halfSpan;
-                float x2 = (i % 2 == 0) ? halfSpan : -halfSpan;
+                float zOff = layer == 0 ? -0.15f : 0.16f;
+                Vector3 hub = new Vector3(layer == 0 ? -span * 0.05f : span * 0.06f, height * (layer == 0 ? 0.54f : 0.48f), zOff);
+                int spokes = 18, rings = 7;
+                var anchors = new Vector3[spokes];
 
-                Vector3 p1 = new Vector3(x1, y1, (i % 3 - 1) * 0.14f);
-                Vector3 p2 = new Vector3(x2, y2, (i % 3 - 1) * 0.14f);
-                CreateStrand(root, $"SilkStrand_{i}", p1, p2, 0.10f, mat);
+                for (int i = 0; i < spokes; i++)
+                {
+                    float ang = (i / (float)spokes) * Mathf.PI * 2f + layer * 0.17f;
+                    float jitter = 0.92f + Mathf.Abs(Mathf.Sin((i + seed) * 2.1f)) * 0.16f;
+                    float ax = Mathf.Clamp(hub.x + Mathf.Cos(ang) * rx * jitter, -halfSpan, halfSpan);
+                    float ay = Mathf.Clamp(hub.y + Mathf.Sin(ang) * ry * jitter, 0.05f, height * 1.04f);
+                    anchors[i] = new Vector3(ax, ay, zOff + Mathf.Sin(i * 1.7f) * 0.08f);
+                    CreateStrand(root, $"WebSpoke_{layer}_{i}", hub, anchors[i], layer == 0 ? 0.052f : 0.044f, mat);
+                }
+
+                for (int r = 1; r <= rings; r++)
+                {
+                    float ringT = Mathf.Pow(r / (float)rings, 0.88f);
+                    for (int i = 0; i < spokes; i++)
+                    {
+                        int next = (i + 1) % spokes;
+                        Vector3 pA = Vector3.Lerp(hub, anchors[i], ringT) + Vector3.down * (0.04f * r * Mathf.Abs(Mathf.Sin(i)));
+                        Vector3 pB = Vector3.Lerp(hub, anchors[next], ringT) + Vector3.down * (0.04f * r * Mathf.Abs(Mathf.Sin(next)));
+                        CreateStrand(root, $"WebRing_{layer}_{r}_{i}", pA, pB, r >= rings - 1 ? 0.042f : 0.030f, mat);
+                    }
+                }
             }
 
-            // 2. Láminas densas de seda continua sellando herméticamente todo el ancho del túnel
-            int sheets = Mathf.Max(8, Mathf.CeilToInt(span / 1.7f));
-            float stepX = span / sheets;
-            for (int s = 0; s < sheets; s++)
+            // Filamentos cruzados gruesos entre arcos, suelo y laterales + hebras rasgadas de anclaje
+            for (int d = 0; d < 24; d++)
             {
-                float x = -span * 0.5f + (s + 0.5f) * stepX;
-                var sheet = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                sheet.name = $"WebSheet_{s}";
-                sheet.transform.SetParent(root, false);
-                UnitySafeUtility.DestroySafe(sheet.GetComponent<Collider>());
-                sheet.GetComponent<MeshRenderer>().sharedMaterial = mat;
-
-                sheet.transform.localPosition = new Vector3(x, height * 0.50f, ((s % 3) - 1) * 0.10f);
-                sheet.transform.localRotation = Quaternion.Euler(Random.Range(-3f, 3f), Random.Range(-5f, 5f), Random.Range(-8f, 8f));
-                sheet.transform.localScale = new Vector3(stepX * 1.40f, height * 1.05f, 0.08f);
+                float t = d / 23f;
+                float x1 = (d % 2 == 0 ? -1f : 1f) * Mathf.Lerp(halfSpan * 0.55f, halfSpan, (d % 4) / 3f);
+                float x2 = -x1 * Random.Range(0.55f, 0.98f);
+                float y1 = Mathf.Lerp(0.12f, height * 0.98f, t);
+                float y2 = Mathf.Clamp(y1 + ((d % 3) - 1) * height * 0.28f, 0.10f, height * 1.02f);
+                CreateStrand(root, $"SilkCable_{d}", new Vector3(x1, y1, ((d % 3) - 1) * 0.18f), new Vector3(x2, y2, (((d + 1) % 3) - 1) * 0.18f), 0.036f, mat);
             }
 
-            // 3. Capullos de presas colgando de la telaraña
-            for (int c = 0; c < 4; c++)
+            // Capullos de seda ahusados colgados entre los radios con ataduras en anillo
+            for (int c = 0; c < 5; c++)
             {
                 var cocoon = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 cocoon.name = $"WebCocoon_{c}";
                 cocoon.transform.SetParent(root, false);
                 UnitySafeUtility.DestroySafe(cocoon.GetComponent<Collider>());
                 cocoon.GetComponent<MeshRenderer>().sharedMaterial = mat;
-
-                float cx = (c - 1.5f) * (span * 0.22f);
-                float cy = height * 0.62f - (c % 2) * 0.45f;
-                cocoon.transform.localPosition = new Vector3(cx, cy, 0.12f);
-                cocoon.transform.localScale = new Vector3(0.55f, 1.10f, 0.55f);
+                float cx = (c - 2f) * (span * 0.19f), cy = height * (0.58f - (c % 2) * 0.14f);
+                cocoon.transform.localPosition = new Vector3(cx, cy, (c % 2 == 0 ? -0.10f : 0.12f));
+                cocoon.transform.localRotation = Quaternion.Euler(Random.Range(-10f, 10f), 0f, Random.Range(-14f, 14f));
+                cocoon.transform.localScale = new Vector3(0.42f, 0.96f, 0.42f);
+                CreateStrand(root, $"CocoonTether_{c}", new Vector3(cx, height, 0f), cocoon.transform.localPosition + Vector3.up * 0.42f, 0.042f, mat);
             }
         }
 

@@ -22,7 +22,7 @@ namespace ForjaGame.UI
                     if (s.name.ToLowerInvariant().Contains("temp")) tempSlider = s; else progSlider = s;
 
             CreateOrGetTitleBanner(root, "FurnaceTopTitlePlaque", "SMELTING FURNACE",
-                new Vector2(0f, -14f), new Vector2(440f, 52f), fontSize: 22f, topAnchored: true);
+                new Vector2(0f, -14f), new Vector2(468f, 56f), fontSize: 22.5f, topAnchored: true);
 
             RectTransform leftBody = CreateOrGetParchmentCard(root, "LeftFurnaceCard", new Vector2(-665f, -32f), new Vector2(480f, 820f));
             RectTransform rightBody = CreateOrGetParchmentCard(root, "RightFurnaceCard", new Vector2(665f, -32f), new Vector2(480f, 820f));
@@ -57,16 +57,18 @@ namespace ForjaGame.UI
             if (panel.ExtractOreButton != null)
                 StyleForgeButton(panel.ExtractOreButton, primary: false, leftBody, new Vector2(0f, -114f), new Vector2(400f, 40f));
 
-            EnsureHelperNote(leftBody, "LeftControlsHint",
-                "• Click: select ore  |  Shift+Click: batch x3",
-                new Vector2(0f, -345f), new Vector2(400f, 34f));
+            var leftHintBox = BookJournalTemplateBuilder.CreateOrGetPageInset(leftBody, "LeftControlsHintBox", new Vector2(0f, -342f), new Vector2(404f, 44f), new Color(0.90f, 0.84f, 0.72f, 0.80f));
+            EnsureHelperNote(leftHintBox, "LeftControlsHint",
+                "Click: select ore  |  Shift+Click: batch x3",
+                Vector2.zero, new Vector2(384f, 34f));
 
-            // Tarjeta Derecha: Temperatura + Rango objetivo perfectamente separados
+            // Tarjeta Derecha: Temperatura + Rango objetivo en placa termica unificada
+            var thermalBox = BookJournalTemplateBuilder.CreateOrGetPageInset(rightBody, "ThermalReadoutPlaque", new Vector2(0f, 304f), new Vector2(404f, 48f), new Color(0.91f, 0.85f, 0.74f, 0.90f));
             if (panel.TemperatureText != null)
-                PlaceBodyText(panel.TemperatureText, rightBody, new Vector2(-124f, 304f), new Vector2(156f, 40f), 22f, TextAlignmentOptions.Left, new Color(0.68f, 0.20f, 0.06f, 1f), bold: true);
+                PlaceBodyText(panel.TemperatureText, thermalBox, new Vector2(-114f, 0f), new Vector2(156f, 38f), 22f, TextAlignmentOptions.Left, new Color(0.68f, 0.18f, 0.05f, 1f), bold: true);
 
             if (panel.TargetRangeText != null)
-                PlaceBodyText(panel.TargetRangeText, rightBody, new Vector2(82f, 304f), new Vector2(236f, 40f), 13.5f, TextAlignmentOptions.Right, SubInk, bold: true);
+                PlaceBodyText(panel.TargetRangeText, thermalBox, new Vector2(76f, 0f), new Vector2(226f, 38f), 13.5f, TextAlignmentOptions.Right, SubInk, bold: true);
 
             if (tempSlider != null)
             {
@@ -88,9 +90,10 @@ namespace ForjaGame.UI
             else if (panel.AddCoalButton != null)
                 StyleForgeButton(panel.AddCoalButton, primary: true, rightBody, new Vector2(0f, 158f), new Vector2(400f, 48f));
 
-            EnsureHelperNote(rightBody, "RightVentHint",
+            var rightHintBox = BookJournalTemplateBuilder.CreateOrGetPageInset(rightBody, "RightVentHintBox", new Vector2(0f, 102f), new Vector2(404f, 50f), new Color(0.90f, 0.84f, 0.72f, 0.80f));
+            EnsureHelperNote(rightHintBox, "RightVentHint",
                 "Timing: [Shift] Heat up quickly  |  [Space] Bellows cool down rapidly",
-                new Vector2(0f, 102f), new Vector2(400f, 48f));
+                Vector2.zero, new Vector2(384f, 42f));
 
             CreateOrGetTitleBanner(rightBody, "ProgressSubHeader", "SMELTING PROGRESS",
                 new Vector2(0f, 38f), new Vector2(390f, 36f), fontSize: 15f);

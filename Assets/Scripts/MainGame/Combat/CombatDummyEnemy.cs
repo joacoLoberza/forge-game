@@ -8,6 +8,7 @@ namespace ForjaGame.Combat
     /// </summary>
     public partial class CombatDummyEnemy : MonoBehaviour, IDamageable
     {
+        public static readonly System.Collections.Generic.List<CombatDummyEnemy> ActiveDummies = new();
         public static CombatDummyEnemy Instance { get; private set; }
 
         [SerializeField] private int maxHealth = 300;
@@ -26,14 +27,19 @@ namespace ForjaGame.Combat
             currentHealth = maxHealth;
         }
 
+        private void OnEnable() { if (!ActiveDummies.Contains(this)) ActiveDummies.Add(this); }
+        private void OnDisable() { ActiveDummies.Remove(this); }
+
         private void OnDestroy()
         {
+            ActiveDummies.Remove(this);
             if (Instance == this) Instance = null;
         }
 
         public void TakeDamage(int amount)
         {
             currentHealth = Mathf.Max(0, currentHealth - amount);
+            CombatDamageNumberHUD.SpawnAbove(transform, amount, false, amount >= 25);
         }
     }
 }

@@ -19,7 +19,7 @@ namespace ForjaGame.UI
             {
                 Transform ch = root.GetChild(i);
                 string cn = ch.name;
-                if (cn == "BookPageStackLeft" || cn == "BookPageStackRight" || cn == "LeftPage" || cn == "RightPage" || cn == "BookSpine" || cn == "BtnPauseCloseTab")
+                if (cn == "BookPageStackLeft" || cn == "BookPageStackRight" || cn == "LeftPage" || cn == "RightPage" || cn == "BookSpine" || cn == "BtnPauseCloseTab" || cn.StartsWith("BookCorner"))
                     continue;
 
                 if (existingSlider == null) existingSlider = ch.GetComponentInChildren<Slider>(true);
@@ -41,7 +41,7 @@ namespace ForjaGame.UI
             }
 
             // Misma plantilla de libro abierto que el Inventario
-            var (leftPage, rightPage) = BookJournalTemplateBuilder.EnsureOpenBookShell(root);
+            var (leftPage, rightPage) = BookJournalTemplateBuilder.EnsureOpenBookShell(root, resetRootRect: true, bookScale: 1.18f);
 
             if (existingSlider == null) existingSlider = rightPage.GetComponentInChildren<Slider>(true);
             foreach (var b in rightPage.GetComponentsInChildren<Button>(true))
@@ -51,29 +51,32 @@ namespace ForjaGame.UI
                 else if (backBtn == null && (n.Contains("back") || n.Contains("menu") || n.Contains("salir"))) backBtn = b;
             }
 
-            // Página Izquierda: Referencia rápida del taller y controles
+            // Página Izquierda: Identidad del herrero + tarjeta de guía del taller y controles
             ForgeCanvasThemeStyler.CreateOrGetTitleBanner(leftPage, "PauseCodexHeader", "EXPEDITION CODEX",
-                new Vector2(0f, 184f), new Vector2(346f, 40f), 17f);
+                new Vector2(0f, 184f), new Vector2(354f, 42f), 17f);
 
             string player = ForjaGame.Multiplayer.GameSessionData.PlayerName;
             string team = ForjaGame.Multiplayer.GameSessionData.TeamName;
-            string who = string.IsNullOrWhiteSpace(team) ? $"<b>Blacksmith:</b> {player}" : $"<b>Blacksmith:</b> {player}  •  <b>Party:</b> {team}";
+            string who = string.IsNullOrWhiteSpace(team) ? $"Blacksmith: {player}" : $"{player}  |  {team}";
+            ForgeCanvasThemeStyler.CreateOrGetTitleBanner(leftPage, "PauseIdentityPlaque", MedievalTypographyProvider.SanitizeForTMP(who),
+                new Vector2(0f, 134f), new Vector2(354f, 30f), 12.5f);
+
+            var guideCard = BookJournalTemplateBuilder.CreateOrGetPageInset(leftPage, "PauseGuideCard", new Vector2(0f, -44f), new Vector2(358f, 302f), new Color(0.92f, 0.86f, 0.75f, 0.78f));
             string guideText =
-                $"{who}\n\n" +
-                "<b>WORKSHOP FLOW:</b>\n" +
+                "<color=#6D3A10><b>WORKSHOP FLOW</b></color>\n" +
                 "1. Smelt raw ores & coal in the <b>Furnace</b> into a Bloom.\n" +
                 "2. Compact the Bloom in the <b>Mechanical Press</b>.\n" +
                 "3. Heat, shape, quench and assemble at the <b>Anvil</b>.\n\n" +
-                "<b>COMBAT & EXPLORATION:</b>\n" +
-                "• <b>[WASD]</b> Move  |  <b>[Shift]</b> Sprint  |  <b>[Space]</b> Jump\n" +
-                "• <b>[Q]</b> Dodge Roll (1s Invuln)  |  <b>[LMB]</b> Strike\n" +
-                "• <b>[RMB]</b> Block / Timed Parry  |  <b>[F]</b> Interact\n" +
-                "• <b>[E]</b> Open Inventory Tome";
-            EnsurePausePageBody(leftPage, "PauseGuideBody", guideText, new Vector2(0f, -20f), new Vector2(354f, 326f));
+                "<color=#6D3A10><b>COMBAT & EXPLORATION</b></color>\n" +
+                "- <b>[WASD]</b> Move  |  <b>[Shift]</b> Sprint  |  <b>[Space]</b> Jump\n" +
+                "- <b>[Q]</b> Dodge Roll  |  <b>[LMB]</b> Strike\n" +
+                "- <b>[RMB]</b> Block / Timed Parry  |  <b>[F]</b> Interact\n" +
+                "- <b>[E]</b> Inventory  |  <b>[F10]</b> Display 2 Board";
+            EnsurePausePageBody(guideCard, "PauseGuideBody", guideText, Vector2.zero, new Vector2(334f, 282f));
 
             // Página Derecha: Controles de Pausa + Slider de volumen KISS
             ForgeCanvasThemeStyler.CreateOrGetTitleBanner(rightPage, "PauseTitleBanner", "PAUSE MENU",
-                new Vector2(0f, 184f), new Vector2(346f, 40f), 17f);
+                new Vector2(0f, 184f), new Vector2(354f, 42f), 17f);
 
             ForgeCanvasThemeStyler.EnsureStyledVolumeChassis(
                 rightPage, "PauseVolumeChassis", new Vector2(0f, 102f), 344f,

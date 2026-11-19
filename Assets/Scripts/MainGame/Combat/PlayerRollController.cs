@@ -240,8 +240,8 @@ namespace ForjaGame.Combat
             if (tut == null) return;
             tut.NotifyPlayerRolled();
             var spar = ForjaGame.Environment.TrainingDummyArenaBuilder.SparringDummy;
-            if (spar != null && PlayerMovement.LocalInstance != null && Vector3.Distance(PlayerMovement.LocalInstance.transform.position, spar.transform.position) <= 6.2f)
-                tut.NotifyDummyRolled();
+            if (spar != null && PlayerMovement.LocalInstance != null && Vector3.Distance(PlayerMovement.LocalInstance.transform.position, spar.transform.position) <= 5.2f)
+                spar.NotifyPlayerRollAttempt(tut);
         }
 
         private static Vector3 FlattenXZ(Vector3 v) => new Vector3(v.x, 0f, v.z);

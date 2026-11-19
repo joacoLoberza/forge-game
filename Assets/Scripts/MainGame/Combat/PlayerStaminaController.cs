@@ -30,6 +30,7 @@ namespace ForjaGame.Combat
         public float CurrentStamina => _currentStamina;
         public float MaxStamina => maxStamina;
         public float Normalized => maxStamina > 0f ? Mathf.Clamp01(_currentStamina / maxStamina) : 1f;
+        public bool IsExhaustedFlash => Time.time < _lowStaminaFlashUntil || Time.time < _sprintExhaustedUntil;
 
         private void Awake()
         {
@@ -98,6 +99,12 @@ namespace ForjaGame.Combat
         }
 
         public bool TryConsumeForRoll() => TryConsume(rollStaminaCost);
+
+        public void RestoreStamina(float amount)
+        {
+            if (amount <= 0f) return;
+            _currentStamina = Mathf.Min(maxStamina, _currentStamina + amount);
+        }
 
         public bool TryConsume(float amount)
         {

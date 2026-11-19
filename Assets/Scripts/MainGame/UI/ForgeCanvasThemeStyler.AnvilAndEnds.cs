@@ -22,7 +22,7 @@ namespace ForjaGame.UI
             if (rootImg != null) rootImg.enabled = false;
 
             CreateOrGetTitleBanner(root, "AnvilTopTitlePlaque", "BLACKSMITH ANVIL",
-                new Vector2(0f, -14f), new Vector2(420f, 50f), fontSize: 21f, topAnchored: true);
+                new Vector2(0f, -14f), new Vector2(468f, 56f), fontSize: 22.5f, topAnchored: true);
 
             RectTransform leftBody = CreateOrGetParchmentCard(root, "LeftAnvilCard", new Vector2(-665f, -32f), new Vector2(480f, 820f));
             RectTransform rightBody = CreateOrGetParchmentCard(root, "RightAnvilCard", new Vector2(665f, -32f), new Vector2(480f, 820f));
@@ -30,12 +30,13 @@ namespace ForjaGame.UI
             CreateOrGetTitleBanner(rightBody, "RightAnvilHeader", "FORGE GUIDE",
                 new Vector2(0f, 355f), new Vector2(400f, 42f), fontSize: 17f);
 
-            Transform guideObj = rightBody.Find("AnvilGuideText");
+            var guideCard = BookJournalTemplateBuilder.CreateOrGetPageInset(rightBody, "AnvilGuideInset", new Vector2(0f, 60f), new Vector2(416f, 520f), new Color(0.91f, 0.85f, 0.74f, 0.80f));
+            Transform guideObj = guideCard.Find("AnvilGuideText") ?? rightBody.Find("AnvilGuideText");
             TMP_Text guideTxt = guideObj != null ? guideObj.GetComponent<TMP_Text>() : null;
             if (guideTxt == null)
             {
                 var go = new GameObject("AnvilGuideText", typeof(RectTransform), typeof(TextMeshProUGUI));
-                go.transform.SetParent(rightBody, false);
+                go.transform.SetParent(guideCard, false);
                 guideTxt = go.GetComponent<TextMeshProUGUI>();
             }
             guideTxt.gameObject.name = "AnvilGuideText";
@@ -45,7 +46,7 @@ namespace ForjaGame.UI
                             "<b>3. Hammering & Cutting:</b>\n[1] Spread metal with hammer.\n[2] Trim excess with chisel.\n[3] Polish and refine edges.\n\n" +
                             "<b>4. Hearth & Quenching:</b>\n[H] Reheat workpiece if cooling.\n[Space] Quench in water once edge is ready.\n\n" +
                             "<b>5. Assembly:</b>\nAlign handle tang and consecrate weapon.";
-            PlaceBodyText(guideTxt, rightBody, new Vector2(0f, 55f), new Vector2(400f, 500f), 13.5f, TextAlignmentOptions.TopLeft, DarkInk);
+            PlaceBodyText(guideTxt, guideCard, Vector2.zero, new Vector2(384f, 490f), 13.5f, TextAlignmentOptions.TopLeft, DarkInk);
 
             for (int i = root.childCount - 1; i >= 0; i--)
             {
@@ -131,11 +132,11 @@ namespace ForjaGame.UI
             DecorateTitleText(header, 17.5f);
 
             StyleLargeWeaponOptionButton(swordBtn, step1, new Vector2(0f, 154f), new Vector2(404f, 138f),
-                "<size=21><b>SWORD</b></size>\n<size=13.5>Balanced blade · Swift strikes & high control</size>");
+                "<size=21><b>SWORD</b></size>\n<size=13.5>Balanced blade  |  Swift strikes & high control</size>");
             StyleLargeWeaponOptionButton(axeBtn, step1, new Vector2(0f, 2f), new Vector2(404f, 138f),
-                "<size=21><b>AXE</b></size>\n<size=13.5>Heavy blade · High cleave damage</size>");
+                "<size=21><b>AXE</b></size>\n<size=13.5>Heavy blade  |  High cleave damage</size>");
             StyleLargeWeaponOptionButton(hammerBtn, step1, new Vector2(0f, -150f), new Vector2(404f, 138f),
-                "<size=21><b>HAMMER</b></size>\n<size=13.5>Blunt maul · Crushing impact against armor</size>");
+                "<size=21><b>HAMMER</b></size>\n<size=13.5>Blunt maul  |  Crushing impact against armor</size>");
         }
 
         private static void CleanButtonPlaques(Transform step1, params Button[] buttons)

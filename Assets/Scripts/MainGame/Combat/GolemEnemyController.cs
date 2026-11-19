@@ -27,7 +27,7 @@ namespace ForjaGame.Combat
 
         [Header("Estadísticas Específicas del Golem")]
         [SerializeField] private GolemTier golemTier = GolemTier.IronGuardian;
-        [SerializeField] private int attackDamage = 12;
+        [SerializeField] private int attackDamage = 24;
         [SerializeField] private float moveSpeed = 2.55f;
         [SerializeField] private float visualScaleMultiplier = 1.0f;
 
@@ -36,23 +36,17 @@ namespace ForjaGame.Combat
         private AnimationClipPlayable _currentClipPlayable;
         private readonly Dictionary<string, AnimationClip> _fallbackClips = new();
         private ResourceNodeController _boundVein;
-        private readonly string[] _attackSequence = { "attack6", "attack7", "attack4", "attack3" };
-        private int _currentAttackIndex;
+        private string _lastUsedAttackAnim;
+        private int _meleeSwingsSinceSlam;
         private bool _hasRoaredThisEngagement, _isRoaring, _isBullCharging;
-        private float _nextAttackCooldown, _nextRoarAllowedTime, _nextChargeCooldown, _nextFissureCooldown, _lastStepDustTime;
+        private float _nextAttackCooldown, _nextRoarAllowedTime, _nextChargeCooldown, _nextFissureCooldown, _nextGroundSlamCooldown, _lastStepDustTime;
 
         public GolemTier Tier => golemTier;
         protected override string DeathAnimKey => "roar";
         protected override void Die() => ExecuteGolemDeathSequence();
         public override void TakeDamage(int amount) => base.TakeDamage(amount);
 
-        protected override void OnHurtAudio()
-        {
-            ForgeAudioSystem.PlayGolemSound(transform.position, CreatureSoundType.Hurt);
-            // Sin gritos repetitivos ni congelar pose en combate: mantiene presión reduciendo levemente el enfriamiento entre golpes
-            if (IsAlive && !_isAttacking && !_isRoaring && Time.time < _nextAttackCooldown)
-                _nextAttackCooldown = Mathf.Min(_nextAttackCooldown, Time.time + 0.35f);
-        }
+        protected override void OnHurtAudio() => ForgeAudioSystem.PlayGolemSound(transform.position, CreatureSoundType.Hurt);
 
         protected override void OnEnable()
         {
@@ -69,7 +63,7 @@ namespace ForjaGame.Combat
         private void Awake()
         {
             Instance = this;
-            if (maxHealth <= 0 || maxHealth > 200) maxHealth = 110;
+            if (maxHealth <= 0) maxHealth = 220;
             currentHealth = maxHealth;
             _ecoBrain.Initialize(mapSpawnPoint, CreatureEcologyRole.VeinGuardianGolem, detectionRadius, deaggroRadius, GetInstanceID(), _boundVein);
             EnsureVisualsAndComponents();
@@ -96,30 +90,21 @@ namespace ForjaGame.Combat
             attackDamage = dmg;
             visualScaleMultiplier = Mathf.Clamp(scaleMult, 0.85f, 2.30f);
             moveSpeed = Mathf.Clamp(2.35f / Mathf.Pow(Mathf.Max(0.75f, visualScaleMultiplier), 0.30f), 1.80f, 2.60f);
-            detectionRadius = Mathf.Min(detectionRadius, 6.5f);
-            deaggroRadius = Mathf.Min(deaggroRadius, 15.0f);
+            detectionRadius = Mathf.Max(detectionRadius, 11.5f);
+            deaggroRadius = Mathf.Min(deaggroRadius, 18.0f);
             attackRange = Mathf.Clamp(2.20f * Mathf.Lerp(1f, visualScaleMultiplier, 0.65f), 2.2f, 4.8f);
             _boundVein = homeVein;
             _ecoBrain.Initialize(mapSpawnPoint, CreatureEcologyRole.VeinGuardianGolem, detectionRadius, deaggroRadius, GetInstanceID(), homeVein);
             EnsureVisualsAndComponents();
             ApplyTierAppearance(tier);
+            GetComponent<EnemyLootDropper>()?.SetLootTable(EnemyLootDropper.BuildAreaLootTable(spawnPos.z, homeVein?.ItemId, tier == GolemTier.EliteColossus));
         }
 
         private void ApplyTierAppearance(GolemTier tier)
         {
-            string oreId = _boundVein != null ? _boundVein.ItemId : string.Empty;
-            if (oreId == "Coal")
-                SetCreatureTint(new Color(0.58f, 0.52f, 0.50f), new Color(0.24f, 0.08f, 0.02f), isElite: tier == GolemTier.EliteColossus);
-            else if (oreId == "Copper")
-                SetCreatureTint(new Color(0.92f, 0.72f, 0.54f), new Color(0.05f, 0.22f, 0.16f), isElite: tier == GolemTier.EliteColossus);
-            else if (oreId == "Gold")
-                SetCreatureTint(new Color(0.98f, 0.86f, 0.46f), new Color(0.36f, 0.24f, 0.04f), isElite: true);
-            else if (tier == GolemTier.MinorVein)
-                SetCreatureTint(new Color(0.92f, 0.80f, 0.68f), Color.black, isElite: false);
-            else if (tier == GolemTier.EliteColossus)
-                SetCreatureTint(new Color(0.58f, 0.52f, 0.50f), new Color(0.34f, 0.16f, 0.03f), isElite: true);
-            else
-                SetCreatureTint(new Color(0.84f, 0.88f, 0.94f), new Color(0.04f, 0.08f, 0.15f), isElite: false);
+            // Conserva la textura pétrea original del Gólem sin teñidos planos ni emisión artificial
+            bool elite = tier == GolemTier.EliteColossus || (_boundVein != null && _boundVein.ItemId == "Gold");
+            SetCreatureTint(Color.white, Color.black, isElite: elite);
             RefreshGolemMineralCoreColor();
         }
 
@@ -127,7 +112,7 @@ namespace ForjaGame.Combat
         {
             StopAllCoroutines();
             _isDead = _hasRoaredThisEngagement = _isRoaring = _isAttacking = false;
-            _nextRoarAllowedTime = 0f;
+            _nextRoarAllowedTime = _nextGroundSlamCooldown = 0f; _meleeSwingsSinceSlam = 0; _lastUsedAttackAnim = null;
             _activeAnimKey = string.Empty;
             currentHealth = maxHealth;
             _ecoBrain.Initialize(mapSpawnPoint, CreatureEcologyRole.VeinGuardianGolem, detectionRadius, deaggroRadius, GetInstanceID(), _boundVein);

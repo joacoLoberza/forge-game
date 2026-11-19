@@ -145,7 +145,10 @@ namespace ForjaGame.Resources
                     if (localInv != null) localPlayer = localInv.transform;
                 }
                 if (localPlayer != null && Vector3.Distance(transform.position, localPlayer.position) <= magnetRadius)
-                    _targetPlayer = localPlayer;
+                {
+                    var hp = localPlayer.GetComponentInParent<ForjaGame.Combat.PlayerHealthController>();
+                    if (hp == null || hp.IsAlive) _targetPlayer = localPlayer;
+                }
             }
 
             if (_targetPlayer != null)
@@ -177,6 +180,8 @@ namespace ForjaGame.Resources
         private void TryCollect(GameObject collector)
         {
             if (_pickedUp || collector == null) return;
+            var hp = collector.GetComponentInParent<ForjaGame.Combat.PlayerHealthController>();
+            if (hp != null && !hp.IsAlive) return;
 
             IInventoryReceiver inventory = collector.GetComponentInParent<IInventoryReceiver>();
             if (inventory == null) inventory = collector.GetComponentInChildren<IInventoryReceiver>();

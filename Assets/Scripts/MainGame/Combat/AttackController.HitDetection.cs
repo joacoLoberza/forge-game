@@ -142,36 +142,31 @@ namespace ForjaGame.Combat
                 float comboMult = (_activeMove != null ? _activeMove.damageMultiplier : (isFinisher ? 1.65f : 1.0f)) * (isBackCrit ? 1.30f : 1.0f);
                 int finalDamage = Mathf.Max(1, Mathf.RoundToInt(damage * comboMult));
 
+                Vector3 hitPoint = target.ClosestPoint(worldCenter);
                 if (d is IDestructibleTunnelWall wall)
                     wall.TakeWeaponDamage(finalDamage, _equippedWeapon != null ? _equippedWeapon.weaponType : null, gameObject);
                 else if (d is ResourceNodeController node)
-                { node.TakeDamageFrom(finalDamage, gameObject); SpawnVisceralCombatImpact(target.ClosestPoint(worldCenter), true, HasPickaxeEquipped); TriggerImpulseOnPlayerCamera(HasPickaxeEquipped ? 0.055f : 0.025f); }
+                { node.TakeDamageFrom(finalDamage, gameObject); SpawnVisceralCombatImpact(hitPoint, true, HasPickaxeEquipped); TriggerImpulseOnPlayerCamera(HasPickaxeEquipped ? 0.055f : 0.025f); }
                 else
                 {
                     d.TakeDamage(finalDamage);
                     bool isStone = d is GolemEnemyController or TitanBossController;
                     bool heavyHit = isFinisher || isBackCrit || (_equippedWeapon != null && _equippedWeapon.GetCombatStance() != WeaponCombatStance.OneHanded);
-                    SpawnVisceralCombatImpact(target.ClosestPoint(worldCenter), isStone, heavyHit);
+                    SpawnVisceralCombatImpact(hitPoint, isStone, heavyHit);
                     ForjaGame.Audio.ForgeAudioSystem.PlayHitImpact(target.transform.position, isStone, heavyHit);
                 }
-
+                AttackMotionType mot = _activeMove != null ? _activeMove.motionType : AttackMotionType.HorizontalSlash;
+                bool skipWear = AlloyPassiveCombatResolver.OnWeaponHit(this, _equippedWeapon, d, hitPoint, finalDamage, _currentComboIndex, isFinisher, isBackCrit, mot);
                 TriggerImpulseOnPlayerCamera(isFinisher ? 0.09f : 0.04f);
+                TriggerHitStop(isFinisher ? 0.10f : (_activeMove != null ? _activeMove.hitStopDuration : 0.055f));
 
-                // Activar Hit-Stop táctil para sensación de impacto contundente
-                float hitStopDur = isFinisher ? 0.10f : (_activeMove != null ? _activeMove.hitStopDuration : 0.055f);
-                TriggerHitStop(hitStopDur);
-
-                // Retroceso físico (Knockback) en el objetivo
-                Vector3 pushDir = (target.transform.position - transform.position);
+                Vector3 pushDir = target.transform.position - transform.position;
                 if (d is CaveCreatureBase creature) creature.ApplyKnockback(pushDir, isFinisher ? 9.5f : 5.2f);
                 Rigidbody targetRb = target.attachedRigidbody;
                 if (targetRb != null && !targetRb.isKinematic)
-                {
-                    pushDir.y = 0.15f;
-                    targetRb.AddForce(pushDir.normalized * (isFinisher ? 10.0f : 5.5f), ForceMode.Impulse);
-                }
+                { pushDir.y = 0.15f; targetRb.AddForce(pushDir.normalized * (isFinisher ? 10.0f : 5.5f), ForceMode.Impulse); }
 
-                if (_equippedWeapon != null)
+                if (_equippedWeapon != null && !skipWear)
                 {
                     _equippedWeapon.ConsumeSharpness(1.0f);
                     damage = Mathf.Max(1, Mathf.RoundToInt(_equippedWeapon.EffectiveDamage));

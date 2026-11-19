@@ -104,18 +104,12 @@ namespace ForjaGame.Combat
                 new AttackWaypoint(new Vector3(0.04f, -0.30f, 0.52f), new Vector3(0.05f, -0.6f, 0.8f), new TorsoAngles(new Vector3(6f, 0, 0), new Vector3(14f, 0, 0), new Vector3(24f, 0, 0)), 0.46f),
                 new AttackWaypoint(new Vector3(0.22f, -0.15f, 0.32f), Vector3.forward, TorsoAngles.Identity, 1.0f)
             };
-            AttackWaypoint[] angled =
-            {
-                new AttackWaypoint(new Vector3(0.38f, 0.30f, 0.14f), new Vector3(0.45f, 0.8f, 0.1f), new TorsoAngles(new Vector3(0, 14f, 0), new Vector3(0, 18f, 0), new Vector3(0, 22f, 0)), 0.0f),
-                new AttackWaypoint(new Vector3(-0.18f, -0.18f, 0.48f), new Vector3(-0.4f, -0.35f, 0.8f), new TorsoAngles(new Vector3(0, -12f, 0), new Vector3(0, -18f, 0), new Vector3(0, -24f, 0)), 0.46f),
-                new AttackWaypoint(new Vector3(0.22f, -0.15f, 0.32f), Vector3.forward, TorsoAngles.Identity, 1.0f)
-            };
             return new[]
             {
                 CreateMove("Pickaxe: Overhead Strike", WeaponArchetype.Pickaxe, AttackMotionType.OverheadSlam, WeaponCapabilities.CanSmash, 0.78f, 1.00f, 0.14f, overhead),
-                CreateMove("Pickaxe: Quarry Chop", WeaponArchetype.Pickaxe, AttackMotionType.HorizontalSlash, WeaponCapabilities.CanChop, 0.76f, 1.05f, 0.14f, angled),
+                CreateMove("Pickaxe: Quarry Cleave", WeaponArchetype.Pickaxe, AttackMotionType.OverheadSlam, WeaponCapabilities.CanSmash, 0.78f, 1.05f, 0.14f, overhead),
                 CreateMove("Pickaxe: Deep Vein Strike", WeaponArchetype.Pickaxe, AttackMotionType.OverheadSlam, WeaponCapabilities.CanSmash, 0.78f, 1.08f, 0.14f, overhead),
-                CreateMove("Pickaxe: Fracture Cleave", WeaponArchetype.Pickaxe, AttackMotionType.HorizontalSlash, WeaponCapabilities.CanChop, 0.76f, 1.12f, 0.14f, angled),
+                CreateMove("Pickaxe: Fracture Slam", WeaponArchetype.Pickaxe, AttackMotionType.OverheadSlam, WeaponCapabilities.CanSmash, 0.78f, 1.12f, 0.14f, overhead),
                 CreateMove("Pickaxe: Shatter Strike", WeaponArchetype.Pickaxe, AttackMotionType.OverheadSlam, WeaponCapabilities.CanSmash, 0.90f, 1.35f, 0.18f, overhead)
             };
         }

@@ -18,6 +18,22 @@ namespace ForjaGame.Combat
             if (_currentClipPlayable.IsValid()) _currentClipPlayable.SetSpeed(Mathf.Max(0.05f, speed));
         }
 
+        public void SyncSpiderLocomotion(string animKey, float targetMoveSpeed)
+        {
+            float rbSpd = (_rb != null && !_rb.isKinematic) ? new Vector2(_rb.linearVelocity.x, _rb.linearVelocity.z).magnitude : targetMoveSpeed;
+            float effSpd = Mathf.Max(rbSpd, targetMoveSpeed * 0.72f);
+            float strideScale = Mathf.Clamp(visualLegSpan / 2.59f, 0.62f, 1.65f);
+            if (animKey == "idle" || effSpd < 0.12f)
+            { SetAnimatorSpeed(0.08f); PlayGuardedAnim("idle"); return; }
+            float spd = animKey == "run"
+                ? Mathf.Clamp(effSpd / (2.55f * strideScale), 1.45f, 2.75f)
+                : (animKey == "walkBack"
+                    ? Mathf.Clamp(effSpd / (1.32f * strideScale), 1.35f, 2.50f)
+                    : Mathf.Clamp(effSpd / (1.38f * strideScale), 1.35f, 2.55f));
+            SetAnimatorSpeed(spd);
+            PlayGuardedAnim(animKey);
+        }
+
         protected override void PlayGuardedAnim(string stateName, float fade = 0.12f, bool allowWhenDead = false, bool forceRestart = false)
         {
             if ((_isDead && !allowWhenDead) || _animator == null) return;

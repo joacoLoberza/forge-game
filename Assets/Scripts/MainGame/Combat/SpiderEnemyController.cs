@@ -26,8 +26,8 @@ namespace ForjaGame.Combat
 
         [Header("Estadísticas Específicas de la Araña")]
         [SerializeField] private SpiderTier spiderTier = SpiderTier.Common;
-        [SerializeField] private int biteDamage = 7;
-        [SerializeField] private int lungeDamage = 10;
+        [SerializeField] private int biteDamage = 14;
+        [SerializeField] private int lungeDamage = 20;
         [SerializeField] private float walkSpeed = 1.90f;
         [SerializeField] private float runSpeed = 2.85f;
         [SerializeField] private float lungeMinRange = 2.60f;
@@ -44,9 +44,19 @@ namespace ForjaGame.Combat
         private int _attackComboCount, _strafeSign = 1;
         private Vector3 _retreatDir;
 
+        private static PhysicsMaterial _slipperySpiderMat;
         public SpiderTier Tier => spiderTier;
+        public float ColliderRadius => _col != null ? _col.radius : 0.55f;
+        public float ColliderTopY => _col != null ? _col.bounds.max.y : (transform.position.y + 1.25f);
         protected override bool AllowsCrossChamberHunt => true;
         protected override string DeathAnimKey => "die";
+
+        private static PhysicsMaterial GetSlipperyMaterial()
+        {
+            if (_slipperySpiderMat == null)
+                _slipperySpiderMat = new PhysicsMaterial("Mat_SpiderSlippery") { dynamicFriction = 0f, staticFriction = 0f, bounciness = 0f, frictionCombine = PhysicsMaterialCombine.Minimum, bounceCombine = PhysicsMaterialCombine.Minimum };
+            return _slipperySpiderMat;
+        }
         protected override void OnHurtAudio()
         {
             ForgeAudioSystem.PlaySpiderSound(transform.position, CreatureSoundType.Hurt);
@@ -73,7 +83,7 @@ namespace ForjaGame.Combat
 
         private void Awake()
         {
-            if (maxHealth <= 0) maxHealth = 55;
+            if (maxHealth <= 0) maxHealth = 110;
             currentHealth = maxHealth;
             if (visualLegSpan < 2.2f && spiderTier == SpiderTier.Common) visualLegSpan = 2.59f;
             else if (visualLegSpan < 1.5f && spiderTier == SpiderTier.Scout) visualLegSpan = 1.71f;
@@ -112,6 +122,7 @@ namespace ForjaGame.Combat
             _ecoBrain.Initialize(mapSpawnPoint, CreatureEcologyRole.BroodHunterSpider, detectionRadius, deaggroRadius, GetInstanceID());
             EnsureVisualsAndComponents();
             ApplySpiderTierAppearance(tier);
+            GetComponent<EnemyLootDropper>()?.SetLootTable(EnemyLootDropper.BuildAreaLootTable(spawnPos.z, null, tier == SpiderTier.EliteMatriarch));
         }
 
         private void ApplySpiderTierAppearance(SpiderTier tier)
@@ -146,6 +157,7 @@ namespace ForjaGame.Combat
             _col.radius = spiderR;
             _col.height = spiderH;
             _col.center = new Vector3(0f, spiderH * 0.5f, 0f);
+            _col.sharedMaterial = GetSlipperyMaterial();
 
             _rb = UnitySafeUtility.GetOrAdd<Rigidbody>(gameObject);
             _rb.isKinematic = false;
@@ -157,12 +169,7 @@ namespace ForjaGame.Combat
             if (!TryGetComponent<EnemyLootDropper>(out var dropper))
             {
                 dropper = gameObject.AddComponent<EnemyLootDropper>();
-                dropper.SetLootTable(new List<LootDropEntry>
-                {
-                    new LootDropEntry("Coal", 0.70f, 1, 3),
-                    new LootDropEntry("Copper", 0.45f, 1, 2),
-                    new LootDropEntry("Iron", 0.55f, 1, 2)
-                });
+                dropper.SetLootTable(EnemyLootDropper.BuildAreaLootTable(mapSpawnPoint.z, null, spiderTier == SpiderTier.EliteMatriarch));
             }
 
             SetupSpiderModelVisual();

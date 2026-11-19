@@ -93,7 +93,7 @@ namespace ForjaGame.Forge
         }
 
         public static bool GetCutPreviewTriangles(
-            Mesh currentMesh, Vector3[] columns,
+            Mesh currentMesh, Vector3[] columns, int[] perimIndices,
             List<Vector3> cutPointsLocal, Vector2 keepPoint, bool flipSide,
             out List<Vector3> discardedTrisLocal)
         {
@@ -119,7 +119,7 @@ namespace ForjaGame.Forge
             List<int> discarded = new List<int>();
             if (pts2D.Count == 1)
             {
-                int kClose = FindClosestVertexIn2D(pts2D[0], columns, null);
+                int kClose = FindClosestVertexIn2D(pts2D[0], columns, perimIndices);
                 Vector2 vB = new Vector2(columns[kClose].x, columns[kClose].z);
                 CutTrianglesByPolyline(new List<Vector2> { vB, pts2D[0] }, keepPoint, verts, tris, discarded, flipSide);
             }
@@ -133,6 +133,31 @@ namespace ForjaGame.Forge
             for (int i = 0; i < discarded.Count; i++)
                 discardedTrisLocal.Add(verts[discarded[i]]);
             return true;
+        }
+
+        public static bool TryPruneSpikyVertex(
+            Mesh currentMesh, Vector3[] columns, int tipColIdx, Vector3 baseSize,
+            out Vector3[] newColumns, out int[] newPerimIndices, out Mesh newMesh)
+        {
+            newColumns = columns; newPerimIndices = null; newMesh = null;
+            if (currentMesh == null || columns == null || columns.Length <= 14 || tipColIdx < 0 || tipColIdx >= columns.Length) return false;
+            int M = columns.Length;
+            List<Vector3> verts = new List<Vector3>(columns);
+            List<int> tris = new List<int>();
+            int[] allTris = currentMesh.triangles;
+            for (int i = 0; i < allTris.Length; i += 3)
+            {
+                int a = allTris[i], b = allTris[i + 1], c = allTris[i + 2];
+                if (a < M && b < M && c < M && a != tipColIdx && b != tipColIdx && c != tipColIdx)
+                { tris.Add(a); tris.Add(b); tris.Add(c); }
+            }
+            if (tris.Count < 18) return false;
+            List<int> perim = ExtractPerimeterLoop(verts, tris, out int[] loopLens);
+            if (loopLens == null || loopLens.Length != 1 || perim.Count < 4) return false;
+            CompactVertices(verts, tris, perim, out newColumns, out newPerimIndices);
+            if (newColumns.Length < 10) return false;
+            newMesh = AssemblePrismaticMesh(newColumns, newPerimIndices, loopLens, tris, baseSize);
+            return newMesh != null;
         }
 
         private static void CompactVertices(

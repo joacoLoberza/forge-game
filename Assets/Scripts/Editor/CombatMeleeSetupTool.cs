@@ -16,9 +16,13 @@ namespace ForjaGame.EditorTools
     public static partial class CombatMeleeSetupTool
     {
         private const string KayKitMeleeFbx = "Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx";
+        private const string Ual1Fbx = "Assets/Resources/Animations/Roll/UAL1_Standard.fbx";
         private const string Ual2Fbx = "Assets/Universal Animation Library 2[Standard]/Unity/UAL2_Standard.fbx";
+        private const string PickDownFbx = "Assets/Resources/Animations/Combat/PickaxeDownwardStrike.fbx";
+        private const string SwordSlash1Fbx = "Assets/Resources/Animations/Combat/SwordSlashAttack1.fbx";
         private static readonly string[] BaseCtrlPaths = { "Assets/Animations/Character/PlayerAnimator.controller", "Assets/Resources/PlayerAnimator.controller" };
         private static readonly string[] OutFolders = { "Assets/Resources/Animations", "Assets/Animations/Character" };
+        private static readonly string[] Ual1CombatKeys = { "Sword_Attack" };
         private static readonly string[] Ual2CombatKeys = { "Sword_Regular_A", "Sword_Regular_B", "Sword_Regular_C", "Sword_Dash", "Sword_Heavy_Combo", "TreeChopping_Loop" };
 
         static CombatMeleeSetupTool() => EditorApplication.delayCall += EnsureExternalCombatAnimationsInstalled;
@@ -32,11 +36,19 @@ namespace ForjaGame.EditorTools
             if (ualImp != null && ConfigureExternalHumanoidImporter(ualImp, Ual2CombatKeys, isKayKit: false))
                 ualImp.SaveAndReimport();
 
-            if (File.Exists(KayKitMeleeFbx))
+            if (File.Exists(Ual1Fbx))
             {
-                var kkImp = AssetImporter.GetAtPath(KayKitMeleeFbx) as ModelImporter;
-                if (kkImp != null && ConfigureExternalHumanoidImporter(kkImp, null, isKayKit: true))
-                    kkImp.SaveAndReimport();
+                var ual1Imp = AssetImporter.GetAtPath(Ual1Fbx) as ModelImporter;
+                if (ual1Imp != null && ConfigureExternalHumanoidImporter(ual1Imp, Ual1CombatKeys, isKayKit: false))
+                    ual1Imp.SaveAndReimport();
+            }
+
+            foreach (string extFbx in new[] { KayKitMeleeFbx, PickDownFbx, SwordSlash1Fbx })
+            {
+                if (!File.Exists(extFbx)) continue;
+                var imp = AssetImporter.GetAtPath(extFbx) as ModelImporter;
+                if (imp != null && ConfigureExternalHumanoidImporter(imp, null, isKayKit: extFbx == KayKitMeleeFbx))
+                    imp.SaveAndReimport();
             }
 
             AvatarMask upperMask = EnsureCleanUpperBodyMask();
@@ -61,36 +73,34 @@ namespace ForjaGame.EditorTools
             string sliceHoriz = cMap.ContainsKey("KK1HSliceHoriz") ? "KK1HSliceHoriz" : (cMap.ContainsKey("KI1H_R") ? "KI1H_R" : "UalSwDash");
             string stab1H = cMap.ContainsKey("KK1HStab") ? "KK1HStab" : "UalSwDash";
             string right1H = cMap.ContainsKey("KI1H_R") ? "KI1H_R" : chop1H;
+            string sw1 = cMap.ContainsKey("ExtSwSlash1") ? "ExtSwSlash1" : right1H;
+            string sw2 = cMap.ContainsKey("Ual1SwAtk") ? "Ual1SwAtk" : right1H;
+            string pickDown = cMap.ContainsKey("ExtPickDown") ? "ExtPickDown" : "KI2H";
             string chop2H = cMap.ContainsKey("KK2HChop") ? "KK2HChop" : "KI2H";
             string slice2H = cMap.ContainsKey("KK2HSlice") ? "KK2HSlice" : "NoIKGS";
             string spin2H = cMap.ContainsKey("KK2HSpin") ? "KK2HSpin" : "NoIKGS";
             string stab2H = cMap.ContainsKey("KK2HStab") ? "KK2HStab" : "KIPole";
 
-            // Todos los combos usan mano derecha en 1H con swings completos (sin clips *_Rec) y AMBAS MANOS en 2H
+            // Todos los combos usan clips externos completos (Pico y Espada 1-2 con clips Mixamo descargados)
             var defs = new (string name, string stance, string[] a)[]
             {
-                // Espadas (Corto/Mediano/Largo): tajos amplios y estocadas reales para 1H; 2H estricto en Mandoble
-                ("SwordShort_Override", "Idle1H",  new[] { sliceDiag,  sliceHoriz, chop1H,     stab1H,      "UalSwC" }),
-                ("SwordMed_Override",   "Idle1H",  new[] { sliceHoriz, sliceDiag,  right1H,    "UalSwDash", "UalSwC" }),
-                ("Sword1H_Override",    "Idle1H",  new[] { sliceDiag,  sliceHoriz, chop1H,     "UalSwDash", "UalSwC" }),
+                ("SwordShort_Override", "Idle1H",  new[] { sw1,        sw2,        right1H,    stab1H,      "UalSwC" }),
+                ("SwordMed_Override",   "Idle1H",  new[] { sw1,        sw2,        right1H,    "UalSwDash", "UalSwC" }),
+                ("Sword1H_Override",    "Idle1H",  new[] { sw1,        sw2,        right1H,    "UalSwDash", "UalSwC" }),
                 ("SwordLong_Override",  "Idle2H",  new[] { "NoIKGS",   "KI2H",     slice2H,    spin2H,      chop2H }),
-                // Hachas: cortes y tajos descendentes reales (2H en larga)
-                ("AxeShort_Override",   "Idle1H",  new[] { chop1H,     sliceDiag,  "UalChop",  sliceHoriz,  jumpChop1H }),
-                ("AxeMed_Override",     "Idle1H",  new[] { chop1H,     "UalChop",  sliceDiag,  sliceHoriz,  chop2H }),
-                ("AxeLong_Override",    "Idle2H",  new[] { chop2H,     slice2H,    "KI2H",     "NoIKGS",    spin2H }),
-                // Martillos / Mazas: golpes contundentes verticales y barridos pesados
+                ("AxeShort_Override",   "Idle1H",  new[] { sliceDiag,  sliceHoriz, right1H,    "UalSwC",    jumpChop1H }),
+                ("AxeMed_Override",     "Idle1H",  new[] { sliceDiag,  sliceHoriz, right1H,    jumpChop1H,  chop2H }),
+                ("AxeLong_Override",    "Idle2H",  new[] { "KI2H",     "NoIKGS",   chop2H,     slice2H,     spin2H }),
                 ("HammerShort_Override","Idle1H",  new[] { chop1H,     "UalChop",  sliceDiag,  jumpChop1H,  chop2H }),
                 ("HammerMed_Override",  "Idle1H",  new[] { chop1H,     jumpChop1H, "UalChop",  sliceHoriz,  "KI2H" }),
                 ("HammerLong_Override", "Idle2H",  new[] { "KI2H",     chop2H,     "NoIKGS",   slice2H,     stab2H }),
-                // Pico: ÚNICO tipo de golpe de minería en los 5 slots
-                ("Pickaxe_Override",    "Idle2H",  new[] { "UalChop",  "UalChop",  "UalChop",  "UalChop",   "UalChop" }),
-                // Aliases legados consistentes
-                ("Axe1H_Override",      "Idle1H",  new[] { chop1H,     "UalChop",  sliceDiag,  sliceHoriz,  chop2H }),
+                ("Pickaxe_Override",    "Idle2H",  new[] { pickDown,   pickDown,   pickDown,   pickDown,    pickDown }),
+                ("Axe1H_Override",      "Idle1H",  new[] { sliceDiag,  sliceHoriz, right1H,    jumpChop1H,  chop2H }),
                 ("Hammer1H_Override",   "Idle1H",  new[] { chop1H,     jumpChop1H, "UalChop",  sliceHoriz,  "KI2H" }),
                 ("Hammer2H_Override",   "Idle2H",  new[] { "KI2H",     chop2H,     "NoIKGS",   slice2H,     stab2H }),
                 ("Heavy2H_Override",    "Idle2H",  new[] { "NoIKGS",   "KI2H",     slice2H,    chop2H,      spin2H }),
                 ("Polearm_Override",    "IdlePole",new[] { stab2H,     "NoIKSpear","KIPole",   slice2H,     "KI2H" }),
-                ("Dagger_Override",     "Idle1H",  new[] { stab1H,     sliceHoriz, sliceDiag,  "UalSwDash", chop1H })
+                ("Dagger_Override",     "Idle1H",  new[] { stab1H,     sw2,        sw1,        "UalSwDash", chop1H })
             };
 
             foreach (string folder in OutFolders)
@@ -122,11 +132,12 @@ namespace ForjaGame.EditorTools
                         if (!match) continue;
                     }
                     bool shouldLoop = isKayKit && (c.name.EndsWith("Idle") || c.name.EndsWith("Blocking"));
-                    if (!c.lockRootRotation || !c.lockRootHeightY || !c.lockRootPositionXZ || !c.keepOriginalPositionY || !c.heightFromFeet || c.loopTime != shouldLoop)
+                    bool shouldMirror = isKayKit && (c.name.Contains("2H_Attack_Chop") || c.name.Contains("2H_Attack_Slice") || c.name.Contains("2H_Attack_Stab") || c.name.Contains("Block_Attack"));
+                    if (!c.lockRootRotation || !c.lockRootHeightY || !c.lockRootPositionXZ || !c.keepOriginalPositionY || !c.heightFromFeet || c.loopTime != shouldLoop || c.mirror != shouldMirror)
                     {
                         c.lockRootRotation = true; c.keepOriginalOrientation = true;
                         c.lockRootHeightY = true; c.keepOriginalPositionY = true; c.heightFromFeet = true;
-                        c.lockRootPositionXZ = true; c.keepOriginalPositionXZ = true; c.loopTime = shouldLoop;
+                        c.lockRootPositionXZ = true; c.keepOriginalPositionXZ = true; c.loopTime = shouldLoop; c.mirror = shouldMirror;
                         clips[i] = c; dirty = true;
                     }
                 }
@@ -158,7 +169,10 @@ namespace ForjaGame.EditorTools
             AddSub(m, Ual2Fbx, "UalSwC",    "Sword_Regular_C");
             AddSub(m, Ual2Fbx, "UalSwDash", "Sword_Dash");
             AddSub(m, Ual2Fbx, "UalChop",   "TreeChopping_Loop");
-            AddFbx(m, "KI1H_R",    "Assets/Kevin Iglesias/Human Animations/Animations/Male/Combat/1H/HumanM@Attack1H01_R.fbx");
+            AddSub(m, Ual1Fbx, "Ual1SwAtk", "Sword_Attack");
+            AddFbx(m, "KI1H_R",      "Assets/Kevin Iglesias/Human Animations/Animations/Male/Combat/1H/HumanM@Attack1H01_R.fbx");
+            if (File.Exists(PickDownFbx)) AddFbx(m, "ExtPickDown", PickDownFbx);
+            if (File.Exists(SwordSlash1Fbx)) AddFbx(m, "ExtSwSlash1", SwordSlash1Fbx);
             if (File.Exists(KayKitMeleeFbx))
             {
                 AddSub(m, KayKitMeleeFbx, "KK1HChop",       "Melee_1H_Attack_Chop");

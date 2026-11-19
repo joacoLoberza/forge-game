@@ -31,10 +31,12 @@ namespace ForjaGame.Combat
         protected Transform _playerTransform;
         protected readonly EcologicalCaveBrain _ecoBrain = new();
         protected string _activeAnimKey = string.Empty;
-        protected bool _isAttacking, _isDead, _isEliteVariant;
+        protected bool _isAttacking, _isChargingAttack, _isArmoredWindup, _isDead, _isEliteVariant;
         protected float _stateEndTime = -1f, _stunnedUntil = -1f;
         public bool IsStunned => Time.time < _stunnedUntil;
         public bool IsAttackingOrWindup => _isAttacking;
+        public bool IsChargingAttack => _isChargingAttack;
+        public bool IsArmoredWindup => _isChargingAttack && _isArmoredWindup;
         public bool HasTargetEngaged => _playerTransform != null;
         protected Color _baseTintColor = Color.white, _emissionTintColor = Color.black;
 
@@ -44,6 +46,7 @@ namespace ForjaGame.Combat
         private float _knockbackUntil;
         private float _parryStunImmuneUntil = -1f;
         public bool CanBeParryStunned => IsAlive && Time.time >= _parryStunImmuneUntil;
+        public float PassiveSpeedMultiplier { get; set; } = 1f;
 
         protected float AccumulateSeparation<T>(System.Collections.Generic.IList<T> list, Vector3 myPos, float myRadius, float pad, ref Vector3 push) where T : CaveCreatureBase
         {
@@ -69,6 +72,8 @@ namespace ForjaGame.Combat
             return animator != null ? elapsedFallback * Mathf.Max(0.1f, animator.speed) : elapsedFallback;
         }
 
+        public static readonly System.Collections.Generic.List<CaveCreatureBase> ActiveCreatures = new();
+
         public event Action<CaveCreatureBase> CreatureDied;
         public bool IsAlive => !_isDead && currentHealth > 0;
         public bool IsEliteVariant => _isEliteVariant;
@@ -80,31 +85,21 @@ namespace ForjaGame.Combat
 
         protected virtual void OnEnable()
         {
+            if (!ActiveCreatures.Contains(this)) ActiveCreatures.Add(this);
             ResourceNodeController.OnVeinDisturbed += HandleVeinDisturbed;
             SpiderBroodNest.OnBroodThreatened += HandleBroodThreatened;
         }
 
         protected virtual void OnDisable()
         {
+            ActiveCreatures.Remove(this);
             ResourceNodeController.OnVeinDisturbed -= HandleVeinDisturbed;
             SpiderBroodNest.OnBroodThreatened -= HandleBroodThreatened;
         }
 
-        protected virtual void HandleVeinDisturbed(ResourceNodeController node, GameObject attacker)
-        {
-            if (node != null && IsAlive) _ecoBrain.NotifyNearbyVeinMined(node.transform.position, node);
-        }
-
-        protected virtual void HandleBroodThreatened(Vector3 nestPos)
-        {
-            if (IsAlive) _ecoBrain.NotifyBroodDisturbed(nestPos);
-        }
-
-        public virtual void ForceRitualAggro(Transform target)
-        {
-            _playerTransform = target;
-            _ecoBrain.ForceHostileAlert(25f);
-        }
+        protected virtual void HandleVeinDisturbed(ResourceNodeController node, GameObject attacker) { if (node != null && IsAlive) _ecoBrain.NotifyNearbyVeinMined(node.transform.position, node); }
+        protected virtual void HandleBroodThreatened(Vector3 nestPos) { if (IsAlive) _ecoBrain.NotifyBroodDisturbed(nestPos); }
+        public virtual void ForceRitualAggro(Transform target) { _playerTransform = target; _ecoBrain.ForceHostileAlert(25f); }
 
         public void SetCreatureTint(Color baseTint, Color emissionTint = default, bool isElite = false)
         {
@@ -123,18 +118,22 @@ namespace ForjaGame.Combat
             _knockbackUntil = Time.time + duration;
         }
 
-        public virtual void ApplyParryStun(float duration = 1.05f)
+        public void InterruptAttackWindupBrief(float duration)
         {
             if (!IsAlive) return;
-            if (Time.time < _parryStunImmuneUntil)
-            {
-                ApplyKnockback(-transform.forward, 1.8f, 0.12f);
-                return;
-            }
-            float effDur = _isEliteVariant ? Mathf.Min(duration, 0.78f) : Mathf.Min(duration, 1.08f);
-            _parryStunImmuneUntil = Time.time + 4.5f;
+            _stunnedUntil = Mathf.Max(_stunnedUntil, Time.time + Mathf.Clamp(duration, 0.25f, 1.0f));
+            _isAttacking = _isChargingAttack = _isArmoredWindup = false;
+            EnemyAttackTelegraph.Cancel(this); OnParryStunned();
+        }
+
+        public virtual void ApplyParryStun(float duration = 1.05f, bool ignoreImmunity = true)
+        {
+            if (!IsAlive) return;
+            if (!ignoreImmunity && Time.time < _parryStunImmuneUntil) { ApplyKnockback(-transform.forward, 1.8f, 0.12f); return; }
+            float effDur = _isEliteVariant ? Mathf.Min(duration, 0.85f) : Mathf.Min(duration, 1.15f);
+            _parryStunImmuneUntil = Time.time + 1.4f;
             _stunnedUntil = Mathf.Max(_stunnedUntil, Time.time + effDur);
-            _isAttacking = false;
+            _isAttacking = _isChargingAttack = _isArmoredWindup = false;
             EnemyAttackTelegraph.Cancel(this);
             OnParryStunned();
             ParryStunStarsEffect.AttachOrRefresh(this, effDur);
@@ -144,30 +143,37 @@ namespace ForjaGame.Combat
         {
             if (_cachedRenderers == null || _cachedRenderers.Length == 0) CacheRenderers();
             _mpb ??= new MaterialPropertyBlock();
-            Color baseC = Color.Lerp(_baseTintColor, col, strength);
+            Color baseC = Color.Lerp(_baseTintColor, col * 1.95f, strength);
             for (int i = 0; i < _cachedRenderers.Length; i++)
             {
                 var r = _cachedRenderers[i];
                 if (r == null || r is ParticleSystemRenderer) continue;
                 r.GetPropertyBlock(_mpb);
                 _mpb.SetColor(BaseColorProp, baseC); _mpb.SetColor(ColorProp, baseC);
-                _mpb.SetColor(EmissionColorProp, col * (strength * 0.9f));
+                _mpb.SetColor(EmissionColorProp, col * (strength * 2.50f));
                 r.SetPropertyBlock(_mpb);
             }
         }
 
         public void RefreshPersistentTint() => ApplyPersistentTintBlock();
-
         protected virtual void OnParryStunned() { }
+        protected virtual void OnAttackInterruptedByDamage() { }
 
         public virtual void TakeDamage(int amount)
         {
             if (!IsAlive) return;
             _ecoBrain.NotifyDamaged();
             currentHealth = Mathf.Max(0, currentHealth - amount);
+            CombatDamageNumberHUD.SpawnAbove(transform, amount, _isArmoredWindup, amount >= 35);
             ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzGolpeForja();
             OnHurtAudio();
-            StartCoroutine(FlashDamageRoutine());
+            if (_isChargingAttack && !_isArmoredWindup && currentHealth > 0)
+            {
+                _isChargingAttack = false; _isAttacking = false;
+                EnemyAttackTelegraph.Cancel(this);
+                OnAttackInterruptedByDamage();
+            }
+            if (!_isArmoredWindup) StartCoroutine(FlashDamageRoutine());
             if (currentHealth <= 0) Die();
         }
 
@@ -218,7 +224,7 @@ namespace ForjaGame.Combat
             {
                 var r = _cachedRenderers[i];
                 if (r == null) continue;
-                if (!hasCustomTint) { r.SetPropertyBlock(null); continue; }
+                if (!hasCustomTint) { _mpb.Clear(); r.SetPropertyBlock(null); continue; }
                 r.GetPropertyBlock(_mpb);
                 _mpb.SetColor(BaseColorProp, _baseTintColor);
                 _mpb.SetColor(ColorProp, _baseTintColor);

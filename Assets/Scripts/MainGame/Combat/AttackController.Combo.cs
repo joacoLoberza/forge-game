@@ -111,6 +111,7 @@ namespace ForjaGame.Combat
             }
             ForjaGame.Audio.ForgeAudioSystem.PlayWeaponSwing(transform.position, true);
             Vector3 bashCenter = transform.position + transform.forward * 1.25f + Vector3.up * 0.9f;
+            AlloyPassiveCombatResolver.OnWeaponBash(this, _equippedWeapon, bashCenter);
             Collider[] hits = Physics.OverlapSphere(bashCenter, 1.45f, targetLayers, QueryTriggerInteraction.Collide);
             bool hitAny = false;
 
@@ -232,15 +233,17 @@ namespace ForjaGame.Combat
 
         public void TriggerGuardBreak(float duration = 1.15f)
         {
+            if (PlayerHealthController.IsGodModeActive) return;
             _blockLockedUntil = Mathf.Max(_blockLockedUntil, Time.time + duration);
             CancelBlockForRoll();
         }
 
+        public void ClearStunAndGuardBreak() => _blockLockedUntil = -99f;
+
         public void CancelAttackForRoll()
         {
             if (!_isAttacking && !_hasBufferedNextStrike) return;
-            EndAttack();
-            _comboAvailableTime = Time.time;
+            EndAttack(); _comboAvailableTime = Time.time;
         }
     }
 }

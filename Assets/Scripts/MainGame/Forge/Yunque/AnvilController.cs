@@ -60,9 +60,10 @@ namespace ForjaGame.Forge
         public float RemainingMassRatio => _remainingMassRatio;
         public bool WasLastHitDulling { get; private set; }
         public bool IsIngotRuinedTooSmall { get; private set; }
+        public string LastCutBlockedMessage { get; private set; }
         public Vector3 WorkpieceCenterLocal => _deformableMesh != null ? _deformableMesh.bounds.center : Vector3.zero;
-        public Vector2 KeepPoint2D => IsCarvingHandle ? new Vector2((ValidateCurrentHandle().tangX1 + ValidateCurrentHandle().gripX0) * 0.5f, (ValidateCurrentHandle().tangCenterZ + ValidateCurrentHandle().gripCenterZ) * 0.5f) : new Vector2(WorkpieceCenterLocal.x, WorkpieceCenterLocal.z);
-        public bool GetCutPreview(List<Vector3> pts, bool flip, out List<Vector3> tris) => AnvilMeshCutter.GetCutPreviewTriangles(_deformableMesh, _columns, pts, KeepPoint2D, flip, out tris);
+        public Vector2 KeepPoint2D => IsCarvingHandle ? new Vector2(WorkpieceCenterLocal.x, WorkpieceCenterLocal.z) : new Vector2(WorkpieceCenterLocal.x, WorkpieceCenterLocal.z);
+        public bool GetCutPreview(List<Vector3> pts, bool flip, out List<Vector3> tris) => AnvilMeshCutter.GetCutPreviewTriangles(_deformableMesh, _columns, _perimIndices, pts, KeepPoint2D, flip, out tris);
 
         public event Action<float> EdgeProgressChanged;
         public event Action ReadyForQuenching, ForgingCompleted;
@@ -98,7 +99,7 @@ namespace ForjaGame.Forge
             if (activeIngotMeshFilter == null) return false;
 
             _currentIngot = ingot; _selectedWeaponType = weaponType;
-            forgingQuality = 1.0f; isForging = true;
+            forgingQuality = 1.0f; isForging = true; _polishShineProgress = 0f;
             isQuenched = false; _isEdgeComplete = false; WasLastHitDulling = false;
             currentHits = 0; _cutsPerformed = 0;
 
@@ -159,12 +160,13 @@ namespace ForjaGame.Forge
                 _forgedBladeMaterial = new Material(activeIngotMeshRenderer.material);
                 _forgedBladeMaterial.DisableKeyword("_NORMALMAP"); _forgedBladeMaterial.mainTexture = null;
                 foreach (var p in new[] { "_BaseMap", "_MainTex", "_EmissionMap", "_BumpMap" }) if (_forgedBladeMaterial.HasProperty(p)) _forgedBladeMaterial.SetTexture(p, null);
-                Color qCol = Color.Lerp(_currentMetalBaseColor, new Color(0.20f, 0.18f, 0.18f), 0.18f);
+                Color qCol = Color.Lerp(_currentMetalBaseColor, new Color(0.20f, 0.18f, 0.18f), Mathf.Lerp(0.18f, 0.04f, _polishShineProgress));
+                qCol = Color.Lerp(qCol, Color.white, _polishShineProgress * 0.12f);
                 _forgedBladeMaterial.color = qCol;
                 if (_forgedBladeMaterial.HasProperty("_BaseColor")) _forgedBladeMaterial.SetColor("_BaseColor", qCol);
                 if (_forgedBladeMaterial.HasProperty("_EmissionColor")) _forgedBladeMaterial.SetColor("_EmissionColor", Color.black);
-                if (_forgedBladeMaterial.HasProperty("_Metallic")) _forgedBladeMaterial.SetFloat("_Metallic", 0.90f);
-                if (_forgedBladeMaterial.HasProperty("_Smoothness")) _forgedBladeMaterial.SetFloat("_Smoothness", 0.72f);
+                if (_forgedBladeMaterial.HasProperty("_Metallic")) _forgedBladeMaterial.SetFloat("_Metallic", Mathf.Lerp(0.88f, 0.97f, _polishShineProgress));
+                if (_forgedBladeMaterial.HasProperty("_Smoothness")) _forgedBladeMaterial.SetFloat("_Smoothness", Mathf.Lerp(0.72f, 0.96f, _polishShineProgress));
             }
             ForgingCompleted?.Invoke(); return true;
         }
@@ -186,6 +188,7 @@ namespace ForjaGame.Forge
 
         public bool ApplyCut(List<Vector3> cutPointsLocal, bool? discardInside = null)
         {
+            LastCutBlockedMessage = string.Empty;
             if (!isForging || isQuenched || IsIngotRuinedTooSmall || cutPointsLocal == null || cutPointsLocal.Count == 0) return false;
             bool inTutorial = ForjaGame.UI.ForgeTutorialDirector.Instance != null && ForjaGame.UI.ForgeTutorialDirector.Instance.IsTutorialActive;
             int prevCols = _columns != null ? _columns.Length : 0;
@@ -199,17 +202,13 @@ namespace ForjaGame.Forge
                     if (activeIngotMeshFilter != null) activeIngotMeshFilter.mesh = null;
                     return true;
                 }
+                LastCutBlockedMessage = "Cannot cut empty side - press [F] to flip side or adjust points.";
                 return false;
             }
-            if (inTutorial && !IsCarvingHandle && (newColumns == null || newColumns.Length < Mathf.Max(22, prevCols / 2)))
-            { Destroy(newMesh); if (offcutMesh != null) Destroy(offcutMesh); return false; }
-            if (inTutorial && IsCarvingHandle)
-            {
-                float minX = float.MaxValue, maxX = float.MinValue;
-                if (newColumns != null) for (int i = 0; i < newColumns.Length; i++) { minX = Mathf.Min(minX, newColumns[i].x); maxX = Mathf.Max(maxX, newColumns[i].x); }
-                var checkVal = AnvilHandleCarver.ValidateHandle(newColumns, newPerimIndices, maxX > minX + 0.01f ? maxX - minX : handleBoardSize.x, _forgedBladeMesh != null ? _forgedBladeMesh.bounds.size.y : 0.24f);
-                if (!checkVal.isValid || checkVal.hasBrokenSection) { Destroy(newMesh); if (offcutMesh != null) Destroy(offcutMesh); return false; }
-            }
+            if (inTutorial && !IsCarvingHandle && (newColumns == null || newColumns.Length < Mathf.Max(14, prevCols / 3)))
+            { Destroy(newMesh); if (offcutMesh != null) Destroy(offcutMesh); LastCutBlockedMessage = "Tutorial: remaining blade would be too small - press [F] to flip!"; return false; }
+            if (IsCarvingHandle && (newColumns == null || newColumns.Length < 6))
+            { Destroy(newMesh); if (offcutMesh != null) Destroy(offcutMesh); LastCutBlockedMessage = "Remaining handle piece would be too small - press [F] to flip!"; return false; }
             _cutsPerformed++;
             if (offcutMesh != null && activeIngotMeshRenderer != null)
             {

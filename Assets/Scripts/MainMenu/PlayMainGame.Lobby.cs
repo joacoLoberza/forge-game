@@ -45,15 +45,17 @@ public partial class PlayMainGame
 
         _screenLobbyRight = CreateSpreadLayer(_bookRightPage, "LobbyRight");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenLobbyRight.transform, "LobbyTitleBanner", "WAR EXPEDITION LOBBY",
-            new Vector2(0f, 178f), new Vector2(344f, 44f), fontSize: 17f);
-        _lobbyHeaderInfoText = CreateMenuLabel(_screenLobbyRight.transform, "LobbySubtitle",
+            new Vector2(0f, 178f), new Vector2(354f, 44f), fontSize: 17f);
+        var serverCard = BookJournalTemplateBuilder.CreateOrGetPageInset(_screenLobbyRight.transform, "LobbyServerCard",
+            new Vector2(0f, 108f), new Vector2(348f, 64f), new Color(0.92f, 0.86f, 0.75f, 0.82f));
+        _lobbyHeaderInfoText = CreateMenuLabel(serverCard, "LobbySubtitle",
             "<i>Gather your blacksmith brothers before plunging into the depths</i>",
-            new Vector2(0f, 112f), new Vector2(340f, 44f), 13.5f, ForgeCanvasThemeStyler.SubInk, FontStyles.Italic);
+            Vector2.zero, new Vector2(326f, 52f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal);
         var startBtnObj = CreateMenuButton(_screenLobbyRight.transform, "BtnStartExpedition", "START EXPEDITION (PLAY)",
-            new Vector2(0f, 16f), new Vector2(324f, 52f), true, HostStartGameFromLobby);
+            new Vector2(0f, 12f), new Vector2(330f, 54f), true, HostStartGameFromLobby);
         _lobbyStartBtn = startBtnObj.GetComponent<Button>();
         CreateMenuButton(_screenLobbyRight.transform, "BtnLeaveLobby", "LEAVE LOBBY",
-            new Vector2(0f, -150f), new Vector2(240f, 42f), false, LeaveLobbyAndDisconnect);
+            new Vector2(0f, -154f), new Vector2(246f, 42f), false, LeaveLobbyAndDisconnect);
     }
 
     public void OpenLobbyRoom()

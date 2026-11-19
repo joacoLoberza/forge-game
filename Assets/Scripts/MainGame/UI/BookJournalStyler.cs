@@ -23,7 +23,7 @@ namespace ForjaGame.UI
             if (inv == null) return;
 
             Transform root = inv.transform;
-            var (leftRt, rightRt) = BookJournalTemplateBuilder.EnsureOpenBookShell(root);
+            var (leftRt, rightRt) = BookJournalTemplateBuilder.EnsureOpenBookShell(root, resetRootRect: true, bookScale: 1.22f);
 
             Transform leftPage = leftRt != null ? leftRt : root.Find("LeftPage");
             if (leftPage != null) StyleLeftPage(leftPage);

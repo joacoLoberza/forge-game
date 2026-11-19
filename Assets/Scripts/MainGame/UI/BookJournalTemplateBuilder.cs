@@ -16,13 +16,14 @@ namespace ForjaGame.UI
         public const float PageOffsetX = 216f;
         public const float PageOffsetY = -10f;
 
-        public static (RectTransform leftPage, RectTransform rightPage) EnsureOpenBookShell(Transform root, bool resetRootRect = true)
+        public static (RectTransform leftPage, RectTransform rightPage) EnsureOpenBookShell(Transform root, bool resetRootRect = true, float bookScale = 1.18f)
         {
             if (root == null) return (null, null);
 
             if (resetRootRect && root.TryGetComponent<RectTransform>(out var rt))
             {
-                rt.localRotation = Quaternion.identity; rt.localScale = Vector3.one;
+                rt.localRotation = Quaternion.identity;
+                rt.localScale = Vector3.one * Mathf.Clamp(bookScale, 0.85f, 1.35f);
                 rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
                 rt.anchoredPosition = Vector2.zero;
                 rt.sizeDelta = BookSize;
@@ -34,6 +35,8 @@ namespace ForjaGame.UI
             rootImg.color = new Color(0.20f, 0.13f, 0.09f, 0.99f);
             rootImg.raycastTarget = true;
 
+            EnsureBrassCornerClasps(root);
+
             // Pilas de papel detrás de las páginas abiertas
             EnsurePageStack(root, "BookPageStackLeft", new Vector2(-PageOffsetX - 2f, PageOffsetY - 3f));
             EnsurePageStack(root, "BookPageStackRight", new Vector2(PageOffsetX + 2f, PageOffsetY - 3f));
@@ -43,6 +46,54 @@ namespace ForjaGame.UI
 
             EnsureBookSpine(root);
             return (leftRt, rightRt);
+        }
+
+        private static void EnsureBrassCornerClasps(Transform root)
+        {
+            float x = BookSize.x * 0.5f - 18f;
+            float y = BookSize.y * 0.5f - 18f;
+            Color brass = new Color(0.74f, 0.58f, 0.28f, 0.85f);
+            EnsureClasp(root, "BookCornerTL", new Vector2(-x, y), brass);
+            EnsureClasp(root, "BookCornerTR", new Vector2(x, y), brass);
+            EnsureClasp(root, "BookCornerBL", new Vector2(-x, -y), brass);
+            EnsureClasp(root, "BookCornerBR", new Vector2(x, -y), brass);
+        }
+
+        private static void EnsureClasp(Transform root, string name, Vector2 pos, Color brass)
+        {
+            Transform existing = root.Find(name);
+            GameObject go = existing != null ? existing.gameObject : new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.SetActive(true);
+            go.transform.SetParent(root, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.localRotation = Quaternion.identity; rt.localScale = Vector3.one;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = new Vector2(18f, 18f);
+            var img = go.GetComponent<Image>();
+            img.sprite = BookTextureBuilder.GetSliderKnobSprite();
+            img.type = Image.Type.Simple;
+            img.color = brass;
+            img.raycastTarget = false;
+            go.transform.SetAsFirstSibling();
+        }
+
+        public static RectTransform CreateOrGetPageInset(Transform pageParent, string name, Vector2 pos, Vector2 size, Color? tint = null)
+        {
+            Transform existing = pageParent.Find(name);
+            GameObject go = existing != null ? existing.gameObject : new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(pageParent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.localRotation = Quaternion.identity; rt.localScale = Vector3.one;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = size;
+            var img = go.GetComponent<Image>();
+            img.sprite = BookTextureBuilder.GetParchmentBannerSprite();
+            img.type = Image.Type.Sliced;
+            img.color = tint ?? new Color(0.92f, 0.86f, 0.75f, 0.72f);
+            img.raycastTarget = false;
+            return rt;
         }
 
         public static RectTransform EnsurePageStack(Transform root, string stackName, Vector2 pos)

@@ -67,27 +67,68 @@ namespace ForjaGame.Combat
             _headOffsetY = Mathf.Clamp(maxY - transform.position.y + 0.25f, 1.0f, 3.8f);
         }
 
+        private static Mesh _starMesh;
+
         private void EnsureOrbitingStars()
         {
             if (_orbitRing != null) return;
+            if (_starMesh == null) _starMesh = BuildFivePointStarMesh();
             _orbitRing = new GameObject("ParryStunOrbitRing").transform;
             _orbitRing.SetParent(transform, false);
             _orbitRing.localPosition = new Vector3(0f, _headOffsetY, 0f);
+
             Shader s = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
-            var mat = new Material(s) { color = new Color(1f, 0.88f, 0.25f, 1f) };
+            var mat = new Material(s) { color = new Color(1f, 0.90f, 0.30f, 1f) };
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", mat.color);
-            for (int i = 0; i < 4; i++)
+
+            // Anillo tenue de mareo alrededor de la cabeza
+            var ringLr = _orbitRing.gameObject.AddComponent<LineRenderer>();
+            ringLr.useWorldSpace = false; ringLr.loop = true; ringLr.positionCount = 24;
+            ringLr.startWidth = ringLr.endWidth = 0.025f;
+            ringLr.sharedMaterial = AnvilStationMeshBuilder.CreateParticleMaterial("Mat_DizzyHalo", true);
+            ringLr.startColor = ringLr.endColor = new Color(1f, 0.86f, 0.25f, 0.42f);
+            for (int r = 0; r < 24; r++)
             {
-                float ang = i * Mathf.PI * 0.5f;
-                var star = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                star.name = $"StunStar_{i}";
-                if (star.TryGetComponent<Collider>(out var c)) Destroy(c);
-                star.transform.SetParent(_orbitRing, false);
-                star.transform.localPosition = new Vector3(Mathf.Cos(ang) * 0.55f, Mathf.Sin(i * 1.6f) * 0.06f, Mathf.Sin(ang) * 0.55f);
-                star.transform.localRotation = Quaternion.Euler(45f, i * 45f, 45f);
-                star.transform.localScale = Vector3.one * 0.14f;
-                star.GetComponent<Renderer>().sharedMaterial = mat;
+                float a = (r / 24f) * Mathf.PI * 2f;
+                ringLr.SetPosition(r, new Vector3(Mathf.Cos(a) * 0.62f, 0f, Mathf.Sin(a) * 0.62f));
             }
+
+            // 5 estrellas reales de 5 puntas girando e inclinándose en órbita
+            for (int i = 0; i < 5; i++)
+            {
+                float ang = i * (Mathf.PI * 2f / 5f);
+                var star = new GameObject($"StunStar_{i}", typeof(MeshFilter), typeof(MeshRenderer));
+                star.transform.SetParent(_orbitRing, false);
+                star.transform.localPosition = new Vector3(Mathf.Cos(ang) * 0.62f, Mathf.Sin(i * 1.8f) * 0.07f, Mathf.Sin(ang) * 0.62f);
+                star.transform.localRotation = Quaternion.Euler(22f, -ang * Mathf.Rad2Deg, 0f);
+                star.transform.localScale = Vector3.one * 0.24f;
+                star.GetComponent<MeshFilter>().sharedMesh = _starMesh;
+                star.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            }
+        }
+
+        private static Mesh BuildFivePointStarMesh()
+        {
+            var m = new Mesh { name = "Proc_StunStar5Pt" };
+            var verts = new Vector3[12]; // 0 = front tip, 1 = back tip, 2..11 = 10 outer/inner rim
+            verts[0] = new Vector3(0f, 0f, 0.16f);
+            verts[1] = new Vector3(0f, 0f, -0.16f);
+            for (int i = 0; i < 10; i++)
+            {
+                float r = (i % 2 == 0) ? 0.55f : 0.23f;
+                float a = i * (Mathf.PI / 5f) + Mathf.PI * 0.5f;
+                verts[2 + i] = new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r, 0f);
+            }
+            var tris = new int[60];
+            for (int i = 0; i < 10; i++)
+            {
+                int next = (i + 1) % 10;
+                tris[i * 6 + 0] = 0; tris[i * 6 + 1] = 2 + next; tris[i * 6 + 2] = 2 + i;
+                tris[i * 6 + 3] = 1; tris[i * 6 + 4] = 2 + i;    tris[i * 6 + 5] = 2 + next;
+            }
+            m.vertices = verts; m.triangles = tris;
+            m.RecalculateNormals(); m.RecalculateBounds();
+            return m;
         }
 
         private void EnsureSparksSystem()

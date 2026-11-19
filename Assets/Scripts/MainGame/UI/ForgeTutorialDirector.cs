@@ -39,15 +39,16 @@ namespace ForjaGame.UI
         private Light _beaconSpotLight, _floorWarmPoolLight;
         private Transform _stationBeaconRing;
         private Material _beaconRingMat;
-        private float _freePlayTipUntil = -1f, _mineBlockedTipUntil = -1f;
+        private float _freePlayTipUntil = -1f, _mineBlockedTipUntil = -1f, _rollEarlyWarnUntil = -1f;
         private bool _hasShownFreePlayTip;
         private int _dummyHits, _coalBeforeFirstVeinBreak;
         private bool _dummyBlocked, _dummyParried, _dummyRolled, _hasMinedFirstCoal, _firstCoalVeinBroken;
         private DestructibleTunnelWall _firstTunnelWall;
+        private AnvilHammerInput _anvilInput;
         private string _activeSpotlightLabel = string.Empty;
         private RectTransform _activeSpotlightTarget;
         private GUIStyle _tipBoxStyle, _tipTitleStyle, _tipBodyStyle, _stepLeftStyle;
-        private Texture2D _goldBorderTex, _darkBoxTex;
+        private Texture2D _goldBorderTex, _darkBoxTex, _goldRibbonTex;
 
         public TutorialStage CurrentStage => _stage;
         public bool IsTutorialActive => ForjaGame.Core.TutorialSettings.IsTutorialEnabled && _stage != TutorialStage.FreePlayDelve;
@@ -101,29 +102,23 @@ namespace ForjaGame.UI
             else ForgeAudioSystem.PlayItemSelect();
         }
 
-        public void NotifyDummyBlocked()
+        public void NotifyDummyBlocked() { if (!IsTutorialActive || _stage != TutorialStage.CombatTraining || _dummyHits < 3 || _dummyBlocked) return; _dummyBlocked = true; PlayerHealthController.LocalInstance?.RestoreHealthFull(); ForgeAudioSystem.PlayProcessComplete(0.90f); }
+        public void NotifyDummyParried() { if (!IsTutorialActive || _stage != TutorialStage.CombatTraining || _dummyHits < 3 || !_dummyBlocked || _dummyParried) return; _dummyParried = true; PlayerHealthController.LocalInstance?.RestoreHealthFull(); ForgeAudioSystem.PlayProcessComplete(0.94f); }
+        public void NotifyDummyRolled() { if (!IsTutorialActive || _stage != TutorialStage.CombatTraining || _dummyHits < 3 || !_dummyBlocked || !_dummyParried || _dummyRolled) return; _dummyRolled = true; PlayerHealthController.LocalInstance?.RestoreHealthFull(); ForgeAudioSystem.PlayProcessComplete(0.98f); EnterMineFirstEncounterStage(); }
+        public void NotifyDummyRollTooEarly() { _rollEarlyWarnUntil = Time.time + 2.4f; ForgeAudioSystem.PlayUIClick(); }
+
+        public void NotifyFirstWebWallBroken(DestructibleTunnelWall wall)
         {
-            if (!IsTutorialActive || _stage != TutorialStage.CombatTraining || _dummyHits < 3 || _dummyBlocked) return;
-            _dummyBlocked = true;
-            PlayerHealthController.LocalInstance?.RestoreHealthFull();
-            ForgeAudioSystem.PlayProcessComplete(0.90f);
+            if (wall != null && (_firstTunnelWall == null || wall == _firstTunnelWall)) _firstTunnelWall = wall;
+            if (IsTutorialActive) CompleteTutorialToFreePlay();
         }
 
-        public void NotifyDummyParried()
+        private void CompleteTutorialToFreePlay()
         {
-            if (!IsTutorialActive || _stage != TutorialStage.CombatTraining || _dummyHits < 3 || !_dummyBlocked || _dummyParried) return;
-            _dummyParried = true;
-            PlayerHealthController.LocalInstance?.RestoreHealthFull();
-            ForgeAudioSystem.PlayProcessComplete(0.94f);
-        }
-
-        public void NotifyDummyRolled()
-        {
-            if (!IsTutorialActive || _stage != TutorialStage.CombatTraining || _dummyHits < 3 || !_dummyBlocked || !_dummyParried || _dummyRolled) return;
-            _dummyRolled = true;
-            PlayerHealthController.LocalInstance?.RestoreHealthFull();
-            ForgeAudioSystem.PlayProcessComplete(0.98f);
-            EnterMineFirstEncounterStage();
+            if (_stage == TutorialStage.FreePlayDelve) return;
+            _stage = TutorialStage.FreePlayDelve; RestoreAllLockedButtons(); HideBeaconLights();
+            ForgeAudioSystem.PlayProcessComplete(1.0f);
+            if (!_hasShownFreePlayTip) { _hasShownFreePlayTip = true; _freePlayTipUntil = Time.time + 10.0f; }
         }
 
         private void EnterMineFirstEncounterStage()
@@ -177,12 +172,16 @@ namespace ForjaGame.UI
             if (_furnaceCtrl == null) _furnaceCtrl = FindFirstObjectByType<FurnaceController>(FindObjectsInactive.Include);
             if (_pressCtrl == null) _pressCtrl = FindFirstObjectByType<PressController>(FindObjectsInactive.Include);
             if (_anvilCtrl == null) _anvilCtrl = FindFirstObjectByType<AnvilController>(FindObjectsInactive.Include);
+            if (_anvilInput == null) _anvilInput = _anvilCtrl != null ? _anvilCtrl.GetComponent<AnvilHammerInput>() : FindFirstObjectByType<AnvilHammerInput>(FindObjectsInactive.Include);
             if (_furnaceStation == null) _furnaceStation = FindFirstObjectByType<FurnaceStationController>(FindObjectsInactive.Include);
             if (_pressStation == null) _pressStation = FindFirstObjectByType<PressStationController>(FindObjectsInactive.Include);
             if (_anvilStation == null) _anvilStation = FindFirstObjectByType<AnvilStationController>(FindObjectsInactive.Include);
             if (_firstTunnelWall == null)
-                foreach (var w in FindObjectsByType<DestructibleTunnelWall>(FindObjectsSortMode.None))
-                    if (w != null && w.transform.position.z < 50f) { _firstTunnelWall = w; break; }
+            {
+                var walls = DestructibleTunnelWall.ActiveWalls;
+                for (int i = 0; i < walls.Count; i++)
+                    if (walls[i] != null && walls[i].WallType == TunnelWallType.Web) { _firstTunnelWall = walls[i]; break; }
+            }
         }
 
         private void EvaluateTutorialStageProgression()
@@ -195,23 +194,13 @@ namespace ForjaGame.UI
 
             if (_stage == TutorialStage.MineFirstEncounter)
             {
-                bool spiderDead = ForjaGame.Resources.MineSpawnerController.FirstDoorSpider != null && !ForjaGame.Resources.MineSpawnerController.FirstDoorSpider.IsAlive;
-                var coalVein = ForjaGame.Resources.MineSpawnerController.FirstCoalVein;
-                int curCoal = inv != null ? inv.GetCount("Coal") : 0;
-                if (!_firstCoalVeinBroken)
+                if (_firstTunnelWall != null && !_firstTunnelWall.IsAlive) { CompleteTutorialToFreePlay(); return; }
+                if (!_hasMinedFirstCoal)
                 {
-                    if (coalVein != null && !coalVein.IsAlive && spiderDead) _firstCoalVeinBroken = true;
-                    else _coalBeforeFirstVeinBreak = curCoal;
-                }
-                else if (curCoal > _coalBeforeFirstVeinBreak)
-                {
-                    _hasMinedFirstCoal = true;
-                }
-                if (spiderDead && _hasMinedFirstCoal && (_firstTunnelWall == null || !_firstTunnelWall.IsAlive))
-                {
-                    _stage = TutorialStage.FreePlayDelve; RestoreAllLockedButtons();
-                    ForgeAudioSystem.PlayProcessComplete(1.0f);
-                    if (!_hasShownFreePlayTip) { _hasShownFreePlayTip = true; _freePlayTipUntil = Time.time + 18.0f; }
+                    var coalVein = ForjaGame.Resources.MineSpawnerController.FirstCoalVein;
+                    int curCoal = inv != null ? inv.GetCount("Coal") : 0;
+                    if (!_firstCoalVeinBroken) { if (coalVein != null && !coalVein.IsAlive) _firstCoalVeinBroken = true; else _coalBeforeFirstVeinBreak = curCoal; }
+                    else if (curCoal > _coalBeforeFirstVeinBreak) _hasMinedFirstCoal = true;
                 }
                 return;
             }

@@ -51,107 +51,103 @@ namespace ForjaGame.UI
             }
         }
 
+        private const string Div = "<color=#9E7E5B>────────────────────────────────</color>";
+
         private void RenderMineralDetails(string id, int count)
         {
-            string name = RawMaterialCatalog.GetDisplayName(id);
-            SetRightHeader(name, "Basic Resource / Fuel");
-
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"<b>Amount in possession:</b> {count} units\n");
-
+            SetRightHeader(RawMaterialCatalog.GetDisplayName(id), $"Raw Material  •  {count} in pouch");
+            var sb = new StringBuilder();
+            sb.AppendLine($"<color=#5C4026><b>STOCK:</b></color> <b>{count}</b> units\n{Div}");
             if (id == "Iron")
-            {
-                sb.AppendLine("<b>Base Metal: Iron</b>");
-                sb.AppendLine("• Base damage: <b>20</b> (Balanced)");
-                sb.AppendLine("• Attack speed: <b>1.0x</b> (Standard)");
-                sb.AppendLine("• Sharpness / Durability: <b>100</b> (High durability)");
-                sb.AppendLine("• Optimum smelting range: <b>780°C - 1000°C</b>");
-                sb.AppendLine("\n<i>The backbone of any alloy. Provides consistency and durability.</i>");
-            }
+                AppendSpecBlock(sb, "Base Structural Metal", new[] { ("Damage Base", "20 (Balanced)"), ("Swing Speed", "1.00x Standard"), ("Edge Longevity", "100 (High Durability)"), ("Smelt Window", "780°C – 1000°C") }, "Backbone of sturdy blades and Bastion alloys.");
             else if (id == "Copper")
-            {
-                sb.AppendLine("<b>Base Metal: Copper</b>");
-                sb.AppendLine("• Base damage: <b>14</b> (Light)");
-                sb.AppendLine("• Attack speed: <b>1.25x</b> (+25% faster)");
-                sb.AppendLine("• Sharpness / Durability: <b>75</b>");
-                sb.AppendLine("• Optimum smelting range: <b>560°C - 780°C</b>");
-                sb.AppendLine("\n<i>Light and ductile metal. Ideal for fast-striking weapons.</i>");
-            }
+                AppendSpecBlock(sb, "Light Conductive Metal", new[] { ("Damage Base", "14 (Light)"), ("Swing Speed", "1.25x (+25% Faster)"), ("Edge Longevity", "75 (Medium)"), ("Smelt Window", "560°C – 780°C") }, "Agile and ductile. Accelerates heavy weapons and pairs with Iron or Gold.");
             else if (id == "Gold")
-            {
-                sb.AppendLine("<b>Precious Metal: Gold</b>");
-                sb.AppendLine("• Base damage: <b>26</b> (Highest impact)");
-                sb.AppendLine("• Attack speed: <b>1.05x</b>");
-                sb.AppendLine("• Sharpness / Durability: <b>50</b> (Soft metal, dulls faster)");
-                sb.AppendLine("• Optimum smelting range: <b>670°C - 890°C</b>");
-                sb.AppendLine("\n<i>Dense and destructive metal. Raises damage at the cost of losing sharpness quickly.</i>");
-            }
+                AppendSpecBlock(sb, "Heavy Precious Metal", new[] { ("Damage Base", "26 (Highest Impact)"), ("Swing Speed", "1.05x (Agile)"), ("Edge Longevity", "50 (Soft Edge)"), ("Smelt Window", "670°C – 890°C") }, "Maximizes strike damage; alloy with Iron or Copper to unlock passives.");
             else if (id == "Coal")
-            {
-                sb.AppendLine("<b>Mineral Fuel</b>");
-                sb.AppendLine("• Heat power: <b>+150°C</b> per unit");
-                sb.AppendLine("• Usage: Fuels the furnace to reach optimum temperatures.");
-            }
-
+                AppendSpecBlock(sb, "Furnace Combustible", new[] { ("Thermal Output", "+150°C per chunk"), ("Station", "Smelting Furnace") }, "Feed coal cleanly to hold molten ore inside its optimum alloy window.");
             SetRightDescription(sb.ToString());
         }
 
         private void RenderBloomDetails(BloomData bloom)
         {
-            SetRightHeader(bloom.DisplayName, $"Smelted Bloom • {bloom.SizeLabel}");
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"<b>Purity:</b> <color={bloom.PurityColorHex}>{bloom.PurityPercentage}% [{bloom.PurityRank}]</color>");
-            sb.AppendLine($"<b>Size:</b> {bloom.SizeLabel}\n");
-            sb.AppendLine($"<b>{bloom.composition.GetCompositionDescription()}</b>\n");
-            sb.AppendLine("<b>Recommended Next Step:</b>");
-            sb.AppendLine("Take this Bloom to the <b>Mechanical Press</b> to consolidate it into a uniform Ingot.");
+            SetRightHeader(bloom.DisplayName, $"Smelted Bloom  •  {bloom.SizeLabel}");
+            var sb = new StringBuilder();
+            sb.AppendLine("<color=#5C4026><b>QUALITY & COMPOSITION</b></color>");
+            sb.AppendLine($"  ▸ <b>Purity:</b> <color={bloom.PurityColorHex}><b>{bloom.PurityPercentage}%</b> [{bloom.PurityRank}]</color>");
+            sb.AppendLine($"  ▸ <b>Size:</b> {bloom.SizeLabel}   •   <b>Press Tier:</b> Lv.{bloom.DifficultyLevel}");
+            sb.AppendLine($"  ▸ <b>Metals:</b> {bloom.composition.GetCompositionDescription()}\n{Div}");
+            AppendAlloyPassivePreview(sb, bloom.composition);
+            sb.AppendLine("\n<color=#5C4026><b>NEXT STATION:</b></color> Compress this Bloom at the <b>Mechanical Press</b> into a uniform Ingot.");
             SetRightDescription(sb.ToString());
         }
 
         private void RenderIngotDetails(IngotData ingot)
         {
-            SetRightHeader(ingot.DisplayName, $"Forged Ingot • {ingot.SizeLabel}");
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"<b>Purity:</b> <color={ingot.PurityColorHex}>{ingot.PurityPercentage}% [{ingot.PurityRank}]</color>");
-            sb.AppendLine($"<b>Size:</b> {ingot.SizeLabel}\n");
-            string compDesc = ingot.composition != null ? ingot.composition.GetCompositionDescription() : "Standard Forged Alloy";
-            sb.AppendLine($"<b>{compDesc}</b>\n");
-            sb.AppendLine("<b>Recommended Next Step:</b>");
-            sb.AppendLine("Take this Ingot to the <b>Anvil</b> to shape and assemble your weapon.");
+            SetRightHeader(ingot.DisplayName, $"Forged Ingot  •  {ingot.SizeLabel}");
+            var sb = new StringBuilder();
+            sb.AppendLine("<color=#5C4026><b>METALLURGY & PURITY</b></color>");
+            sb.AppendLine($"  ▸ <b>Purity:</b> <color={ingot.PurityColorHex}><b>{ingot.PurityPercentage}%</b> [{ingot.PurityRank}]</color>");
+            sb.AppendLine($"  ▸ <b>Mass Class:</b> {ingot.SizeLabel}");
+            sb.AppendLine($"  ▸ <b>Blend:</b> {ingot.composition?.GetCompositionDescription() ?? "Standard Forged Alloy"}\n{Div}");
+            AppendAlloyPassivePreview(sb, ingot.composition);
+            sb.AppendLine("\n<color=#5C4026><b>NEXT STATION:</b></color> Heat and hammer on the <b>Anvil</b> with a handle to forge a weapon.");
             SetRightDescription(sb.ToString());
         }
 
         private void RenderHandleDetails(HandleData handle, int count = 1)
         {
             if (handle == null) return;
-            string title = count > 1 ? $"{handle.DisplayName} x{count}" : handle.DisplayName;
-            SetRightHeader(title, "Weapon Handle");
-            StringBuilder sb = new StringBuilder();
-            if (count > 1) sb.AppendLine($"<b>Amount in possession:</b> {count} units\n");
-            sb.AppendLine($"<b>Length:</b> {handle.length}");
-            sb.AppendLine($"• Reach Multiplier: <b>x{handle.rangeModifier:F2}</b>");
-            string speedSign = handle.speedModifier >= 0 ? "+" : "";
-            sb.AppendLine($"• Speed Modifier: <b>{speedSign}{handle.speedModifier * 100:F0}%</b>\n");
-            sb.AppendLine("<i>Select the handle at the Anvil to balance reach against agility.</i>");
+            SetRightHeader(count > 1 ? $"{handle.DisplayName} x{count}" : handle.DisplayName, $"Weapon Hilt  •  {handle.length}");
+            var sb = new StringBuilder();
+            string sgn = handle.speedModifier >= 0 ? "+" : "";
+            AppendSpecBlock(sb, $"Hilt Ergonomics ({handle.length})", new[] {
+                ("Quantity", count > 1 ? $"{count} hilts" : "1 hilt"),
+                ("Reach Factor", $"x{handle.rangeModifier:F2}"),
+                ("Speed Offset", $"{sgn}{handle.speedModifier * 100:F0}%"),
+                ("Grip Stance", handle.length == HandleLength.Long ? "Two-Handed (2H)" : "One-Handed (1H)")
+            }, "Pair at the Anvil: Short hilts favor fast swings; Long hilts command wide 2H reach.");
             SetRightDescription(sb.ToString());
         }
 
         private void RenderWeaponDetails(WeaponStats weapon)
         {
-            SetRightHeader(weapon.DisplayName, $"Finished Weapon • {weapon.weaponType}");
-            StringBuilder sb = new StringBuilder();
-
-            sb.AppendLine($"<b>Effective Damage:</b> <size=120%><color=#9E5B00>{weapon.EffectiveDamage:F1}</color></size> (Base: {weapon.baseDamage:F1})");
-            sb.AppendLine($"<b>Remaining Sharpness:</b> {weapon.currentSharpness:F0}/{weapon.maxSharpness:F0} ({weapon.SharpnessRatio * 100:F0}%)");
-            sb.AppendLine($"<b>Attack Speed:</b> {weapon.attackSpeed:F2} hits/sec");
-            sb.AppendLine($"<b>Reach:</b> {weapon.attackRange:F2} m\n");
-
-            sb.AppendLine($"<b>Type:</b> {weapon.weaponType} | <b>Handle:</b> {weapon.handleLength}");
-            sb.AppendLine($"<b>Blade Purity:</b> {weapon.PurityPercentage}% [{weapon.qualityPrefix}]");
-            sb.AppendLine($"<b>{weapon.composition.GetCompositionDescription()}</b>\n");
-
-            sb.AppendLine("<size=85%><color=#5C4632>Note: In combat, sharpness gradually decreases up to 40%, but weapons never break.</color></size>");
+            string stance = weapon.GetCombatStance() == WeaponCombatStance.OneHanded ? "1-Handed" : "2-Handed";
+            SetRightHeader(weapon.DisplayName, $"{weapon.weaponType}  •  {stance}  •  {weapon.qualityPrefix}");
+            var sb = new StringBuilder();
+            float dps = weapon.EffectiveDamage * weapon.attackSpeed;
+            sb.AppendLine("<color=#5C4026><b>COMBAT PERFORMANCE</b></color>");
+            sb.AppendLine($"  ▸ <b>Damage:</b> <size=115%><color=#9E5B00><b>{weapon.EffectiveDamage:F1}</b></color></size> <size=90%>(Base {weapon.baseDamage:F1} • Est. {dps:F0} DPS)</size>");
+            sb.AppendLine($"  ▸ <b>Speed:</b> <b>{weapon.attackSpeed:F2}</b> hits/s   •   <b>Reach:</b> <b>{weapon.attackRange:F2} m</b>");
+            sb.AppendLine($"  ▸ <b>Edge:</b>  {BuildSharpBar(weapon.SharpnessRatio, 10)} <b>{weapon.SharpnessRatio * 100:F0}%</b> <size=85%>({weapon.currentSharpness:F0}/{weapon.maxSharpness:F0})</size>");
+            sb.AppendLine($"\n{Div}\n<color=#5C4026><b>CRAFTING & ALLOY PASSIVE</b></color>");
+            sb.AppendLine($"  ▸ <b>Build:</b> {weapon.ingotSize} Head + {weapon.handleLength} Hilt • Purity <b>{weapon.PurityPercentage}%</b>");
+            sb.AppendLine($"  ▸ <b>Metals:</b> {weapon.composition.GetCompositionDescription()}");
+            var passive = ForjaGame.Combat.AlloyPassiveResolver.Resolve(weapon);
+            sb.AppendLine($"  ★ <color={passive.ColorHex}><b>{passive.PassiveName}:</b></color> {passive.Summary}");
+            sb.AppendLine("\n<size=85%><color=#6B523B>Tip: Edge sharpness wears only down to 40% min; repair or reforge anytime.</color></size>");
             SetRightDescription(sb.ToString());
+        }
+
+        private static void AppendSpecBlock(StringBuilder sb, string heading, (string k, string v)[] rows, string tip)
+        {
+            sb.AppendLine($"<color=#5C4026><b>{heading.ToUpperInvariant()}</b></color>");
+            foreach (var (k, v) in rows) sb.AppendLine($"  ▸ <b>{k}:</b> {v}");
+            sb.AppendLine($"\n{Div}\n<size=92%><color=#4B3624><i>{tip}</i></color></size>");
+        }
+
+        private static void AppendAlloyPassivePreview(StringBuilder sb, AlloyComposition comp)
+        {
+            string matName = comp != null ? AlloyNameRegistry.ResolveAlloyMaterialName(comp.ingredients) : "Iron";
+            var passive = ForjaGame.Combat.AlloyPassiveResolver.ResolveByAlloyName(matName);
+            sb.AppendLine($"<color=#5C4026><b>ALLOY PROPERTY</b></color>");
+            sb.AppendLine($"  ★ <color={passive.ColorHex}><b>{passive.PassiveName}:</b></color> {passive.Summary}");
+        }
+
+        private static string BuildSharpBar(float ratio, int slots)
+        {
+            int filled = Mathf.Clamp(Mathf.RoundToInt(ratio * slots), 0, slots);
+            return "<color=#9E5B00>" + new string('■', filled) + "</color><color=#B8A690>" + new string('□', slots - filled) + "</color>";
         }
 
         private void SetRightHeader(string title, string category)

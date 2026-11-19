@@ -46,7 +46,7 @@ namespace ForjaGame.Combat
 
             var proj = go.AddComponent<SpiderWebProjectile>();
             proj._velocity = horizVel + Vector3.up * vertVel;
-            proj._damage = Mathf.Clamp(damage, 1, 2);
+            proj._damage = Mathf.Clamp(damage, 1, 10);
             if (proj._velocity.sqrMagnitude > 0.01f) go.transform.rotation = Quaternion.LookRotation(proj._velocity);
         }
 

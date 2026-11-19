@@ -30,6 +30,7 @@ namespace ForjaGame.Audio
         private readonly HashSet<int> _hookedButtons = new HashSet<int>();
         private float _masterVolume = 0.85f, _nextButtonScanTime;
         private int _titanRoarToggle, _titanSlamToggle;
+        private Camera _cachedMainCam; private bool _isMainMenuScene;
 
         public static ForgeAudioSystem Instance => EnsureInstance();
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -113,23 +114,22 @@ namespace ForjaGame.Audio
 
         private void UpdateAmbienceForScene(string sceneName)
         {
-            bool isMainMenu = !string.IsNullOrEmpty(sceneName) && sceneName.ToLower().Contains("menu");
+            _isMainMenuScene = !string.IsNullOrEmpty(sceneName) && sceneName.ToLowerInvariant().Contains("menu");
+            _cachedMainCam = null; _nextButtonScanTime = 0f;
             if (_forgeHearthLoop != null)
             {
-                if (isMainMenu) _forgeHearthLoop.Stop();
+                if (_isMainMenuScene) _forgeHearthLoop.Stop();
                 else if (!_forgeHearthLoop.isPlaying) _forgeHearthLoop.Play();
             }
         }
+
+        private Camera GetCachedCamera() => (_cachedMainCam != null && _cachedMainCam.isActiveAndEnabled) ? _cachedMainCam : (_cachedMainCam = Camera.main);
 
         private void Update()
         {
             UpdateCaveSpatialBlend();
             UpdateDynamicMusicAndStationFires();
-            if (Time.unscaledTime >= _nextButtonScanTime)
-            {
-                _nextButtonScanTime = Time.unscaledTime + 0.35f;
-                HookSceneButtons();
-            }
+            if (Time.unscaledTime >= _nextButtonScanTime) { _nextButtonScanTime = Time.unscaledTime + 2.5f; HookSceneButtons(); }
         }
 
         private void HookSceneButtons()
@@ -146,7 +146,7 @@ namespace ForjaGame.Audio
         private void UpdateCaveSpatialBlend()
         {
             if (_caveAmbienceLoop == null) return;
-            Camera cam = Camera.main;
+            Camera cam = GetCachedCamera();
             bool inCave = cam != null && cam.transform.position.z > 26.5f;
             _caveAmbienceLoop.volume = Mathf.MoveTowards(_caveAmbienceLoop.volume, inCave ? 0.14f : 0f, Time.unscaledDeltaTime * 0.15f);
         }
@@ -209,8 +209,12 @@ namespace ForjaGame.Audio
         public static void PlayHitImpact(Vector3 pos, bool isStoneOrArmor, bool isHeavy) { var s = EnsureInstance(); if (s != null) s.Play3D(isStoneOrArmor ? PickClip(s.hitStoneClip, s._procHitStone) : PickClip(s.hitFleshClip, s._procHitFlesh), pos, isHeavy ? 1.0f : 0.90f, Random.Range(0.92f, 1.06f)); }
         public static void PlayWallHit(Vector3 pos, int wallType, bool isEffective) { var s = EnsureInstance(); if (s != null) s.PlayStation2D(wallType == 0 ? s._procChiselCut : (wallType == 1 ? s._procWallWood : s._procHitStone), isEffective ? 1.0f : 0.85f, isEffective ? Random.Range(0.96f, 1.04f) : Random.Range(0.84f, 0.92f)); }
 
-        public static void PlayPickaxeStrike(Vector3 pos, bool depleted = false) =>
-            EnsureInstance()?.PlayStation2D(PickClip(_instance.pickaxeHitClip, _instance._procPickaxe), 0.96f, depleted ? 0.84f : Random.Range(0.95f, 1.08f));
+        public static void PlayPickaxeStrike(Vector3 pos, bool depleted = false)
+        {
+            var sys = EnsureInstance(); if (sys == null) return;
+            AudioClip hammer = PickClip(sys.hammerStrikeClip, depleted ? sys._procHammerGreat : sys._procHammerStrike) ?? sys._procPickaxe;
+            sys.PlayStation2D(hammer, 0.96f, depleted ? 0.88f : Random.Range(0.96f, 1.06f));
+        }
 
         public static void PlaySpiderSound(Vector3 pos, CreatureSoundType type)
         {

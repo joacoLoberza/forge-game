@@ -30,64 +30,35 @@ namespace ForjaGame.Combat
         };
 
         private int _sequenceIndex = 0;
-        private float _lastInputTime = 0f;
-        private float _bannerUntilTime = 0f;
-        private string _bannerTitle = string.Empty;
-        private string _bannerSubtitle = string.Empty;
-
+        private float _lastInputTime = 0f, _bannerUntilTime = 0f;
+        private string _bannerTitle = string.Empty, _bannerSubtitle = string.Empty;
         private GUIStyle _bannerBoxStyle, _bannerTitleStyle, _bannerSubStyle;
         private Texture2D _darkBoxTex;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoBootstrap()
         {
-            if (FindFirstObjectByType<KonamiCheatController>() == null)
-            {
-                var go = new GameObject("[KONAMI_CHEAT_CONTROLLER]");
-                go.AddComponent<KonamiCheatController>();
-                DontDestroyOnLoad(go);
-            }
+            if (FindFirstObjectByType<KonamiCheatController>() != null) return;
+            var go = new GameObject("[KONAMI_CHEAT_CONTROLLER]");
+            go.AddComponent<KonamiCheatController>(); DontDestroyOnLoad(go);
         }
 
         private void Awake()
         {
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-            SceneManager.sceneLoaded += OnSceneLoaded;
+            Instance = this; DontDestroyOnLoad(gameObject); SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
-        private void OnDestroy()
-        {
-            if (Instance == this)
-            {
-                SceneManager.sceneLoaded -= OnSceneLoaded;
-                DeactivateKonamiCode();
-            }
-        }
-
-        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-        {
-            // Se desactiva automáticamente al salir de la partida o cambiar de escena
-            DeactivateKonamiCode();
-        }
+        private void OnDestroy() { if (Instance == this) { SceneManager.sceneLoaded -= OnSceneLoaded; DeactivateKonamiCode(); } }
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode) => DeactivateKonamiCode();
 
         public static void DeactivateKonamiCode()
         {
-            IsGodModeActive = false;
-            PlayerHealthController.IsGodModeActive = false;
-            if (Instance != null)
-            {
-                Instance._sequenceIndex = 0;
-                Instance._bannerUntilTime = 0f;
-            }
+            IsGodModeActive = PlayerHealthController.IsGodModeActive = false;
+            if (Instance != null) { Instance._sequenceIndex = 0; Instance._bannerUntilTime = 0f; }
         }
 
-        private void Update()
-        {
-            PollKonamiInput();
-            if (IsGodModeActive) MaintainGodModeAndOneHitKill();
-        }
+        private void Update() { PollKonamiInput(); if (IsGodModeActive) MaintainGodModeAndOneHitKill(); }
 
         private void PollKonamiInput()
         {
@@ -145,7 +116,7 @@ namespace ForjaGame.Combat
             {
                 ApplyGodModeAndEquipSword();
                 _bannerTitle = "★ KONAMI CODE ACTIVATED ★";
-                _bannerSubtitle = "God Mode (Invulnerable) • 99,999 DMG (1-Hit Kill) • Dev Sword Equipped";
+                _bannerSubtitle = "God Mode • Immune to Stun • 1-Hit Kill Sword • Full Forge Arsenal";
                 ForgeAudioSystem.PlayAltarConsecrate();
                 PlayerCameraFollow.Instance?.TriggerImpulse(0.18f);
             }
@@ -164,14 +135,42 @@ namespace ForjaGame.Combat
         {
             var health = PlayerHealthController.LocalInstance ?? PlayerHealthController.Instance;
             health?.RestoreHealthFull();
+            health?.GetComponent<AttackController>()?.ClearStunAndGuardBreak();
+            health?.GetComponent<PlayerMovement>()?.ClearSlowdown();
 
             var equip = PlayerEquipmentController.LocalInstance ?? PlayerEquipmentController.Instance;
+            var inv = InventoryController.LocalInstance ?? InventoryController.Instance;
+            if (inv != null) GrantKonamiForgeArsenal(inv);
             if (equip != null)
             {
                 WeaponStats devSword = CreatePrebuiltGodSword();
-                var inv = InventoryController.LocalInstance ?? InventoryController.Instance;
                 inv?.AddWeapon(devSword);
                 equip.EquipWeapon(devSword);
+            }
+        }
+
+        private static void GrantKonamiForgeArsenal(InventoryController inv)
+        {
+            foreach (string ore in new[] { "Coal", "Copper", "Iron", "Gold" }) inv.AddItem(ore, 10);
+            for (int i = 0; i < 10; i++) inv.AddHandle(HandleData.CreateDefault());
+
+            (MetalType m, int amt)[][] recipes =
+            {
+                new[] { (MetalType.Copper, 10) },
+                new[] { (MetalType.Iron, 10) },
+                new[] { (MetalType.Gold, 10) },
+                new[] { (MetalType.Iron, 6), (MetalType.Copper, 4) }, // Ferric Bronze
+                new[] { (MetalType.Copper, 6), (MetalType.Gold, 4) }, // Rose Gold
+                new[] { (MetalType.Iron, 6), (MetalType.Gold, 4) },   // Blue Gold
+                new[] { (MetalType.Iron, 4), (MetalType.Copper, 3), (MetalType.Gold, 3) } // Orichalcum
+            };
+            foreach (var r in recipes)
+            {
+                var dict = new Dictionary<MetalType, int>();
+                foreach (var (m, amt) in r) dict[m] = amt;
+                var comp = AlloyComposition.FromOres(dict);
+                AlloyCodexRegistry.RegisterFromComposition(comp, false);
+                inv.AddIngot(new IngotData(ItemSize.Medium, comp, 1.0f));
             }
         }
 
@@ -179,37 +178,19 @@ namespace ForjaGame.Combat
         {
             PlayerHealthController.IsGodModeActive = true;
             var health = PlayerHealthController.LocalInstance ?? PlayerHealthController.Instance;
-            if (health != null && health.CurrentHealth < health.MaxHealth)
-            {
-                health.RestoreHealthFull();
-            }
+            if (health != null && health.CurrentHealth < health.MaxHealth) health.RestoreHealthFull();
         }
 
         public static WeaponStats CreatePrebuiltGodSword()
         {
-            var alloy = AlloyComposition.FromOres(new Dictionary<MetalType, int>
-            {
-                { MetalType.Iron, 6 },
-                { MetalType.Gold, 4 }
-            });
-
+            var alloy = AlloyComposition.FromOres(new Dictionary<MetalType, int> { { MetalType.Iron, 6 }, { MetalType.Gold, 4 } });
             return new WeaponStats
             {
-                id = "konami_dev_sword",
-                weaponName = "Dev Sword of the Gods (Human_Sword)",
-                weaponType = WeaponType.Sword,
-                ingotSize = ItemSize.Medium,
-                handleLength = HandleLength.Medium,
-                composition = alloy,
-                baseDamage = 99999f,
-                attackSpeed = 1.35f,
-                attackRange = 3.65f,
-                maxSharpness = 99999f,
-                currentSharpness = 99999f,
-                quality = 1.0f,
-                qualityPrefix = "Divine",
-                isFrontFaceDominant = true,
-                isPrebuiltModel = true
+                id = "konami_dev_sword", weaponName = "Dev Sword of the Gods (Human_Sword)", weaponType = WeaponType.Sword,
+                ingotSize = ItemSize.Medium, handleLength = HandleLength.Medium, composition = alloy,
+                baseDamage = 99999f, attackSpeed = 1.35f, attackRange = 3.65f,
+                maxSharpness = 99999f, currentSharpness = 99999f, quality = 1.0f, qualityPrefix = "Divine",
+                isFrontFaceDominant = true, isPrebuiltModel = true
             };
         }
 
@@ -217,12 +198,10 @@ namespace ForjaGame.Combat
         {
             if (Time.unscaledTime > _bannerUntilTime || string.IsNullOrEmpty(_bannerTitle)) return;
             EnsureGuiStyles();
-
             GUI.depth = -300;
             float w = 620f, h = 64f;
             Rect box = new Rect((Screen.width - w) * 0.5f, 26f, w, h);
             GUI.Box(box, GUIContent.none, _bannerBoxStyle);
-
             GUI.Label(new Rect(box.x + 14f, box.y + 7f, w - 28f, 24f), _bannerTitle, _bannerTitleStyle);
             GUI.Label(new Rect(box.x + 14f, box.y + 32f, w - 28f, 24f), _bannerSubtitle, _bannerSubStyle);
         }
@@ -231,13 +210,11 @@ namespace ForjaGame.Combat
         {
             if (_bannerBoxStyle != null) return;
             _darkBoxTex = new Texture2D(2, 2) { hideFlags = HideFlags.DontSave };
-            _darkBoxTex.SetPixels(new[] { new Color(0.10f, 0.07f, 0.05f, 0.95f), new Color(0.10f, 0.07f, 0.05f, 0.95f), new Color(0.10f, 0.07f, 0.05f, 0.95f), new Color(0.10f, 0.07f, 0.05f, 0.95f) });
-            _darkBoxTex.Apply();
-
+            Color c = new Color(0.10f, 0.07f, 0.05f, 0.95f);
+            _darkBoxTex.SetPixels(new[] { c, c, c, c }); _darkBoxTex.Apply();
             _bannerBoxStyle = new GUIStyle(GUI.skin.box) { normal = { background = _darkBoxTex } };
-            _bannerTitleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1.0f, 0.85f, 0.28f) } };
+            _bannerTitleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.85f, 0.28f) } };
             _bannerSubStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.94f, 0.90f, 0.82f) } };
-
             MedievalTypographyProvider.ApplyToGUIStyle(_bannerTitleStyle, 15, FontStyle.Bold);
             MedievalTypographyProvider.ApplyToGUIStyle(_bannerSubStyle, 12, FontStyle.Normal);
         }

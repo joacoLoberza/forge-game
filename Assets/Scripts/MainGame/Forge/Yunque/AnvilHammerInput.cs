@@ -27,6 +27,8 @@ namespace ForjaGame.Forge
         private AnvilToolMode _toolMode = AnvilToolMode.Hammer;
         private float _lastStrikeTime = -1f;
         private GUIStyle _hudStyle, _promptStyle, _btnActiveStyle, _btnInactiveStyle;
+        public static bool IsCutModeActiveWithPoints { get; private set; }
+        public AnvilToolMode CurrentToolMode => _toolMode; public int CutPointCount => _cutPoints.Count; public bool IsCutSideFlipped => _flipCutSide;
 
         private void Awake()
         {
@@ -43,8 +45,8 @@ namespace ForjaGame.Forge
 
         private void Update()
         {
-            if (ForjaGame.UI.PauseMenuPanel.IsGamePaused) { UpdateInteractiveGuides(false, true); return; }
-            if (!IsStationActive) { UpdateInteractiveGuides(false, true); return; }
+            if (ForjaGame.UI.PauseMenuPanel.IsGamePaused || !IsStationActive) { IsCutModeActiveWithPoints = false; UpdateInteractiveGuides(false, true); return; }
+            IsCutModeActiveWithPoints = _toolMode == AnvilToolMode.Cut && _cutPoints.Count >= 1;
             if (Cursor.lockState != CursorLockMode.None) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
 
             var asm = anvilController.GetComponent<AnvilAssemblyController>();
@@ -56,6 +58,7 @@ namespace ForjaGame.Forge
             {
                 anvilController.ThermalController.ToggleReheat();
                 ForjaGame.Audio.ForgeAudioSystem.PlayUITab();
+                ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyAnvilReheatToggled();
             }
 
             if (!isAsm) HandleToolModeHotkeys();
@@ -104,8 +107,14 @@ namespace ForjaGame.Forge
         private void PerformHammerStrike()
         {
             if (!RaycastIngotHorizontalPlane(out _, out Vector3 hitPoint)) return;
+            Vector2 mp = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
+            RaycastHit mHit = default;
+            bool rayHitMesh = interactionCamera != null && anvilController.ActiveIngotCollider != null
+                && anvilController.ActiveIngotCollider.Raycast(interactionCamera.ScreenPointToRay(mp), out mHit, 15f);
+            if (rayHitMesh) hitPoint = mHit.point;
+            bool hitIngot = (anvilController.ActiveIngotCollider == null || rayHitMesh) && anvilController.IsWorldPointOnIngot(hitPoint);
             float forceMult = EvaluateHammerTimingStrike(out float timingQuality);
-            if (anvilController.StrikeWithHammer(hitPoint, forceMult))
+            if (hitIngot && anvilController.StrikeWithHammer(hitPoint, forceMult))
             {
                 if (sparkVFXPrefab != null) Instantiate(sparkVFXPrefab, hitPoint, Quaternion.identity);
                 float tempNorm = anvilController.ThermalController != null ? Mathf.Clamp01((anvilController.ThermalController.CurrentTemperature - 250f) / 950f) : 0.7f;
@@ -114,10 +123,12 @@ namespace ForjaGame.Forge
                 ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(hitPoint, effQual, tempNorm);
                 float tempC = anvilController.ThermalController != null ? anvilController.ThermalController.CurrentTemperature : 850f;
                 ForjaGame.Hardware.ControladorLucesUDP.Instancia?.LuzGolpeForjaTemperatura(tempC, effQual);
+                ForjaGame.UI.ForgeTutorialDirector.Instance?.NotifyAnvilHammerStrike(timingQuality);
             }
             else
             {
-                ForjaGame.Audio.ForgeAudioSystem.PlayHammerStrike(hitPoint, 0.15f, 0.10f);
+                anvilController.ThermalController?.TriggerHammerSwingOnly(hitPoint);
+                ForjaGame.Audio.ForgeAudioSystem.PlayWeaponSwing(hitPoint, false);
             }
         }
 
@@ -191,26 +202,20 @@ namespace ForjaGame.Forge
 
         private void ExitOrPauseForging()
         {
-            RestoreCamera();
-            anvilController?.PauseForgingAndLeaveOnTable();
-            stationController?.ReleaseStation();
-            ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
+            RestoreCamera(); anvilController?.PauseForgingAndLeaveOnTable();
+            stationController?.ReleaseStation(); ForjaGame.Core.GameStateController.ChangeState(ForjaGame.Core.GameState.Exploration);
         }
 
         private void ReturnIngotAndReopenSelection()
         {
             if (anvilController != null && anvilController.CanRetrieveIngot)
-            {
-                var r = anvilController.CancelAndRetrieveIngot();
-                if (r != null) GetStationInteractorInventory()?.AddIngot(r);
-            }
+            { var r = anvilController.CancelAndRetrieveIngot(); if (r != null) GetStationInteractorInventory()?.AddIngot(r); }
             FindFirstObjectByType<UI.AnvilPanel>(FindObjectsInactive.Include)?.OpenToIngotSelection();
         }
 
         private void DiscardRuinedIngotAndReopenSelection()
         {
-            ResetCutState(true); anvilController?.ClearAnvilSurface();
-            ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
+            ResetCutState(true); anvilController?.ClearAnvilSurface(); ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
             FindFirstObjectByType<UI.AnvilPanel>(FindObjectsInactive.Include)?.OpenToIngotSelection();
         }
 
@@ -220,31 +225,21 @@ namespace ForjaGame.Forge
             var asm = anvilController.GetComponent<AnvilAssemblyController>();
             if (asm != null && asm.IsAssembling) return;
             InitStylesIfNeeded();
-
             if (anvilController.IsIngotRuinedTooSmall) { DrawIngotTooSmallWarningGUI(); return; }
-
             if (anvilController.CanRetrieveIngot)
             {
                 Rect r = new Rect(18f, 112f, 186f, 38f);
                 Vector2 mp = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
                 bool over = r.Contains(new Vector2(mp.x, Screen.height - mp.y));
                 if (GUI.Button(r, "← Change Ingot", _btnInactiveStyle) || (over && Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
-                {
-                    ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
-                    ReturnIngotAndReopenSelection();
-                    return;
-                }
+                { ForjaGame.Audio.ForgeAudioSystem.PlayUIClick(); ReturnIngotAndReopenSelection(); return; }
             }
-
             bool isQ = anvilController.QuenchDifferential != null && anvilController.QuenchDifferential.IsQuenching;
             if (!isQ) DrawToolToolbar();
-
             if (!isQ && _toolMode == AnvilToolMode.Cut) DrawCutPreviewGUI();
             else if (!isQ && _toolMode == AnvilToolMode.Polish) DrawPolishGUI();
             else if (!isQ && (anvilController == null || !anvilController.IsCarvingHandle)) DrawHammerBottomHUD();
-
-            if (anvilController.IsCarvingHandle && !isQ)
-                DrawHandleOverlayGUI();
+            if (anvilController.IsCarvingHandle && !isQ) DrawHandleOverlayGUI();
         }
     }
 }

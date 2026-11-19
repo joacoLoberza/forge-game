@@ -13,15 +13,23 @@ namespace ForjaGame.Forge
         private void RefreshCollider()
         {
             if (activeIngotMeshCollider != null && _deformableMesh != null)
-            {
-                activeIngotMeshCollider.sharedMesh = null; activeIngotMeshCollider.sharedMesh = _deformableMesh;
-            }
+            { activeIngotMeshCollider.sharedMesh = null; activeIngotMeshCollider.sharedMesh = _deformableMesh; }
+        }
+
+        public bool IsWorldPointOnIngot(Vector3 worldPoint)
+        {
+            if (activeIngotMeshFilter == null || _columns == null || _columns.Length == 0) return false;
+            Vector3 lp = activeIngotMeshFilter.transform.InverseTransformPoint(worldPoint);
+            float maxR = (hitInnerRadius * 1.15f) * (hitInnerRadius * 1.15f);
+            for (int k = 0; k < _columns.Length; k++)
+            { float dx = _columns[k].x - lp.x, dz = _columns[k].z - lp.z; if (dx * dx + dz * dz <= maxR) return true; }
+            return false;
         }
 
         public bool StrikeWithHammer(RaycastHit hit, float forceMultiplier = 1f) => StrikeWithHammer(hit.point, forceMultiplier);
         public bool StrikeWithHammer(Vector3 worldPoint, float forceMultiplier = 1f)
         {
-            if (!isForging || isQuenched || IsIngotRuinedTooSmall) return false;
+            if (!isForging || isQuenched || IsIngotRuinedTooSmall || !IsWorldPointOnIngot(worldPoint)) return false;
             currentHits++; DeformMeshAndFlattenLayer(worldPoint, Mathf.Clamp(forceMultiplier, 0.45f, 1.45f));
             EvaluateEdgeCompletion(); return true;
         }
@@ -124,22 +132,9 @@ namespace ForjaGame.Forge
 
             // Sincronizar vértices de la malla en tiempo real (superior, inferior y faldón perimetral)
             int M = _columns.Length, P = _perimIndices.Length;
-            for (int k = 0; k < M; k++)
-            {
-                Vector3 col = _columns[k];
-                _meshVertices[k] = col;
-                _meshVertices[M + k] = new Vector3(col.x, -col.y, col.z);
-            }
-            for (int p = 0; p < P; p++)
-            {
-                int k = _perimIndices[p];
-                Vector3 col = _columns[k];
-                _meshVertices[2 * M + p] = col;
-                _meshVertices[2 * M + P + p] = new Vector3(col.x, -col.y, col.z);
-            }
-
-            _deformableMesh.vertices = _meshVertices;
-            _deformableMesh.RecalculateNormals(); _deformableMesh.RecalculateBounds();
+            for (int k = 0; k < M; k++) { Vector3 col = _columns[k]; _meshVertices[k] = col; _meshVertices[M + k] = new Vector3(col.x, -col.y, col.z); }
+            for (int p = 0; p < P; p++) { int k = _perimIndices[p]; Vector3 col = _columns[k]; _meshVertices[2 * M + p] = col; _meshVertices[2 * M + P + p] = new Vector3(col.x, -col.y, col.z); }
+            _deformableMesh.vertices = _meshVertices; _deformableMesh.RecalculateNormals(); _deformableMesh.RecalculateBounds();
             RefreshCollider();
         }
 

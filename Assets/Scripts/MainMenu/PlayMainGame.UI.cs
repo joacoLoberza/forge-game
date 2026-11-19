@@ -46,7 +46,7 @@ public partial class PlayMainGame
         bookGo.transform.SetParent(rootGo.transform, false);
         _mainBookRoot = bookGo.transform;
 
-        var (leftRt, rightRt) = BookJournalTemplateBuilder.EnsureOpenBookShell(_mainBookRoot);
+        var (leftRt, rightRt) = BookJournalTemplateBuilder.EnsureOpenBookShell(_mainBookRoot, resetRootRect: true, bookScale: 1.24f);
         _bookLeftPage = leftRt;
         _bookRightPage = rightRt;
 
@@ -122,24 +122,29 @@ public partial class PlayMainGame
     {
         _screenTitleLeft = CreateSpreadLayer(_bookLeftPage, "TitleLeft");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenTitleLeft.transform, "TitleBanner", "CHRONICLES OF THE FORGE",
-            new Vector2(0f, 178f), new Vector2(354f, 48f), fontSize: 18.5f);
+            new Vector2(0f, 178f), new Vector2(358f, 50f), fontSize: 19f);
         CreateMenuLabel(_screenTitleLeft.transform, "Subtitle",
-            "<i>Underground Mining  •  Artisan Blacksmithing  •  LAN Co-op</i>",
-            new Vector2(0f, 128f), new Vector2(350f, 26f), 13.5f, ForgeCanvasThemeStyler.SubInk, FontStyles.Italic);
-        CreateMenuLabel(_screenTitleLeft.transform, "TitleLore",
-            "Light the smelting furnace, balance metal alloys under the mechanical press, shape sharp blades upon the anvil, and descend into the cavern to face the Titan.\n\n• <b>Singleplayer:</b> Forge at your own pace.\n• <b>Multiplayer LAN:</b> Gather up to 4 smiths together.",
-            new Vector2(0f, -10f), new Vector2(342f, 200f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
-        CreateMenuLabel(_screenTitleLeft.transform, "Credits", "Antigravity Forge Engine • Version 1.0",
+            "<i>Underground Mining  |  Artisan Blacksmithing  |  LAN Co-op</i>",
+            new Vector2(0f, 130f), new Vector2(352f, 24f), 13f, ForgeCanvasThemeStyler.SubInk, FontStyles.Italic);
+        var loreCard = BookJournalTemplateBuilder.CreateOrGetPageInset(_screenTitleLeft.transform, "LoreInsetCard",
+            new Vector2(0f, -14f), new Vector2(356f, 232f), new Color(0.92f, 0.86f, 0.75f, 0.80f));
+        CreateMenuLabel(loreCard, "TitleLore",
+            "Light the smelting furnace, balance metal alloys under the mechanical press, shape sharp blades upon the anvil, and descend into the cavern to face the Titan.\n\n<color=#6D3A10><b>- Singleplayer:</b></color> Forge at your own pace.\n<color=#6D3A10><b>- Multiplayer LAN:</b></color> Gather up to 4 smiths together.",
+            Vector2.zero, new Vector2(328f, 206f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
+        CreateMenuLabel(_screenTitleLeft.transform, "Credits", "Antigravity Forge Engine  |  Version 1.0",
             new Vector2(0f, -190f), new Vector2(340f, 24f), 11.5f, ForgeCanvasThemeStyler.SubInk, FontStyles.Italic);
 
         _screenTitleRight = CreateSpreadLayer(_bookRightPage, "TitleRight");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenTitleRight.transform, "TitleActionHdr", "EXPEDITION LEDGER",
-            new Vector2(0f, 178f), new Vector2(344f, 42f), fontSize: 17f);
-        CreateMenuButton(_screenTitleRight.transform, "BtnPlay", "PLAY", new Vector2(0f, 102f), new Vector2(316f, 52f), true, OpenModeSelection);
-        CreateMenuButton(_screenTitleRight.transform, "BtnLeaderboard", "HALL OF HEROES (SPEEDRUN)", new Vector2(0f, 38f), new Vector2(316f, 44f), false, OpenLeaderboardScreen);
-        CreateSectionDivider(_screenTitleRight.transform, "DivSettings", "WORKSHOP SETTINGS", new Vector2(0f, -20f));
-        BuildVolumeControlRow(_screenTitleRight.transform, new Vector2(0f, -68f));
-        CreateMenuButton(_screenTitleRight.transform, "BtnQuit", "QUIT GAME", new Vector2(0f, -158f), new Vector2(220f, 40f), false, QuitGame);
+            new Vector2(0f, 178f), new Vector2(354f, 44f), fontSize: 17.5f);
+        CreateMenuButton(_screenTitleRight.transform, "BtnPlay", "PLAY", new Vector2(0f, 106f), new Vector2(326f, 54f), true, OpenModeSelection);
+        CreateMenuButton(_screenTitleRight.transform, "BtnLeaderboard", "HALL OF HEROES (SPEEDRUN)", new Vector2(0f, 42f), new Vector2(326f, 46f), false, OpenLeaderboardScreen);
+        CreateSectionDivider(_screenTitleRight.transform, "DivSettings", "WORKSHOP SETTINGS", new Vector2(0f, -12f));
+        BuildVolumeControlRow(_screenTitleRight.transform, new Vector2(0f, -58f));
+        CreateMenuLabel(_screenTitleRight.transform, "Display2Tip",
+            "<i>Tip: Press [F10] in-game to toggle Display 2 Leaderboard</i>",
+            new Vector2(0f, -110f), new Vector2(340f, 24f), 11.5f, ForgeCanvasThemeStyler.SubInk, FontStyles.Italic);
+        CreateMenuButton(_screenTitleRight.transform, "BtnQuit", "QUIT GAME", new Vector2(0f, -162f), new Vector2(228f, 40f), false, QuitGame);
     }
 
     public static TMP_Text CreateMenuLabel(

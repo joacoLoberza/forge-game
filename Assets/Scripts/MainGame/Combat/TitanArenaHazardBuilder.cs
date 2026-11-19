@@ -14,7 +14,7 @@ namespace ForjaGame.Combat
     /// </summary>
     public static class TitanArenaHazardBuilder
     {
-        private static Material _magmaMat, _warningMat, _spireMat;
+        private static Material _magmaMat, _warningMat, _spireMat, _golemWaveMat;
 
         private static Material GetEmissiveMat(ref Material cache, string name, Color baseCol, Color emissiveCol)
         {
@@ -28,13 +28,23 @@ namespace ForjaGame.Combat
 
         public static void SpawnExpandingShockwave(Transform parent, Vector3 origin, float maxRadius, float duration, int damage)
         {
-            var go = new GameObject("TitanShockwaveRing");
-            go.transform.SetParent(parent, false);
+            var go = new GameObject("TitanShockwaveRing"); go.transform.SetParent(parent, false);
             float fy = CaveDungeonBuilder.GetFloorY(origin.x, origin.z);
             go.transform.position = new Vector3(origin.x, fy + 0.18f, origin.z);
             var runner = go.AddComponent<ShockwaveRingRunner>();
-            runner.Initialize(maxRadius, duration, damage,
+            runner.Initialize(1.6f, maxRadius, duration, damage,
                 GetEmissiveMat(ref _magmaMat, "Mat_TitanShockwave", new Color(1f, 0.44f, 0.12f), new Color(2.4f, 0.75f, 0.15f)));
+        }
+
+        public static void SpawnGolemArmoredShockwave(Vector3 origin, float maxRadius, int damage, CaveCreatureBase attacker)
+        {
+            var go = new GameObject("GolemArmorShockwave");
+            float fy = CaveDungeonBuilder.GetFloorY(origin.x, origin.z);
+            go.transform.position = new Vector3(origin.x, fy + 0.10f, origin.z);
+            var runner = go.AddComponent<ShockwaveRingRunner>();
+            runner.Initialize(0.55f, Mathf.Clamp(maxRadius, 3.2f, 4.6f), 0.46f, damage,
+                GetEmissiveMat(ref _golemWaveMat, "Mat_GolemArmorWave", new Color(1f, 0.74f, 0.14f), new Color(2.2f, 1.35f, 0.18f)),
+                0.18f, 0.26f, attacker);
         }
 
         public static void SpawnStalactiteBarrage(MonoBehaviour host, Transform parent, Vector3 targetCenter, int count, int damage)
@@ -167,20 +177,19 @@ namespace ForjaGame.Combat
         {
             private readonly Transform[] _segments = new Transform[20];
             private readonly HashSet<int> _hitPlayers = new();
-            private float _maxRadius, _duration, _elapsed;
+            private float _startRadius, _maxRadius, _duration, _elapsed, _segHeight, _segDepth;
             private int _damage;
+            private CaveCreatureBase _attacker;
 
-            public void Initialize(float maxR, float dur, int dmg, Material mat)
+            public void Initialize(float startR, float maxR, float dur, int dmg, Material mat, float segH = 0.42f, float segD = 0.55f, CaveCreatureBase attacker = null)
             {
-                _maxRadius = maxR; _duration = Mathf.Max(0.2f, dur); _damage = dmg;
+                _startRadius = startR; _maxRadius = maxR; _duration = Mathf.Max(0.2f, dur); _damage = dmg;
+                _segHeight = segH; _segDepth = segD; _attacker = attacker;
                 for (int i = 0; i < _segments.Length; i++)
                 {
-                    var seg = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    seg.name = $"WaveSeg_{i}";
-                    seg.transform.SetParent(transform, false);
+                    var seg = GameObject.CreatePrimitive(PrimitiveType.Cube); seg.name = $"WaveSeg_{i}"; seg.transform.SetParent(transform, false);
                     if (seg.TryGetComponent<Collider>(out var c)) UnitySafeUtility.DestroySafe(c);
-                    seg.GetComponent<MeshRenderer>().sharedMaterial = mat;
-                    _segments[i] = seg.transform;
+                    seg.GetComponent<MeshRenderer>().sharedMaterial = mat; _segments[i] = seg.transform;
                 }
             }
 
@@ -188,37 +197,37 @@ namespace ForjaGame.Combat
             {
                 _elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(_elapsed / _duration);
-                float r = Mathf.Lerp(1.6f, _maxRadius, t);
+                float r = Mathf.Lerp(_startRadius, _maxRadius, t);
                 float segLen = (2f * Mathf.PI * r / _segments.Length) * 1.08f;
-
                 for (int i = 0; i < _segments.Length; i++)
                 {
                     float ang = (i / (float)_segments.Length) * Mathf.PI * 2f;
                     Vector3 dir = new Vector3(Mathf.Cos(ang), 0f, Mathf.Sin(ang));
                     _segments[i].localPosition = dir * r;
                     _segments[i].localRotation = Quaternion.LookRotation(dir);
-                    _segments[i].localScale = new Vector3(segLen, 0.42f * (1f - t * 0.4f), 0.55f);
+                    _segments[i].localScale = new Vector3(segLen, _segHeight * (1f - t * 0.4f), _segDepth);
                 }
-
                 CheckWaveCollisions(r);
                 if (t >= 1f) UnitySafeUtility.DestroyGameObjectSafe(gameObject);
             }
 
             private void CheckWaveCollisions(float currentRadius)
             {
+                float maxY = _segHeight < 0.25f ? 0.50f : 0.62f;
                 foreach (var p in PlayerHealthController.AllPlayers)
                 {
                     if (p == null || p.CurrentHealth <= 0 || _hitPlayers.Contains(p.GetInstanceID())) continue;
                     Vector3 diff = p.transform.position - transform.position;
-                    if (diff.y > 0.62f || diff.y < -1.5f) continue;
+                    if (diff.y > maxY || diff.y < -1.5f) continue;
                     float dist = new Vector2(diff.x, diff.z).magnitude;
-                    if (Mathf.Abs(dist - currentRadius) <= 0.85f)
+                    if (Mathf.Abs(dist - currentRadius) <= (_segHeight < 0.25f ? 0.68f : 0.85f))
                     {
                         _hitPlayers.Add(p.GetInstanceID());
-                        p.TakeDamageFrom(_damage, null, true);
+                        p.TakeDamageFrom(_damage, _attacker, _attacker == null);
                         Vector3 kb = new Vector3(diff.x, 0f, diff.z).normalized;
+                        float push = _attacker != null ? 5.2f : 7.5f;
                         if (p.TryGetComponent<Rigidbody>(out var rb) && !rb.isKinematic)
-                            rb.linearVelocity = new Vector3(kb.x * 7.5f, 2.4f, kb.z * 7.5f);
+                            rb.linearVelocity = new Vector3(kb.x * push, 2.2f, kb.z * push);
                     }
                 }
             }

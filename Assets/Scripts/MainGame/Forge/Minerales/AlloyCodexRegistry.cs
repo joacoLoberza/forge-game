@@ -27,25 +27,25 @@ namespace ForjaGame.Forge
             {
                 Id = "FerricBronze", DisplayName = "Ferric Bronze",
                 FormulaText = "Iron + Copper", MysteryHint = "???  (2 Metals)",
-                EffectSummary = "Tough + Malleable", SwatchColor = new Color(0.84f, 0.58f, 0.36f)
+                EffectSummary = "Bastion: 0 stone wear + Guard Shockwave", SwatchColor = new Color(0.84f, 0.58f, 0.36f)
             },
             new DefinedAlloyEntry
             {
                 Id = "RoseGold", DisplayName = "Rose Gold",
                 FormulaText = "Copper + Gold", MysteryHint = "???  (2 Metals)",
-                EffectSummary = "Swift + Keen Edge", SwatchColor = new Color(0.98f, 0.64f, 0.44f)
+                EffectSummary = "Crimson Surge: +Stamina & Bleed Arc", SwatchColor = new Color(0.98f, 0.64f, 0.44f)
             },
             new DefinedAlloyEntry
             {
                 Id = "BlueGold", DisplayName = "Blue Gold",
                 FormulaText = "Iron + Gold", MysteryHint = "???  (2 Metals)",
-                EffectSummary = "Heavy Noble Strike", SwatchColor = new Color(0.72f, 0.80f, 0.96f)
+                EffectSummary = "Cobalt Tremor: Chain Arc & Stagger", SwatchColor = new Color(0.72f, 0.80f, 0.96f)
             },
             new DefinedAlloyEntry
             {
                 Id = "Orichalcum", DisplayName = "Orichalcum",
                 FormulaText = "Iron + Copper + Gold", MysteryHint = "???  (3 Metals)",
-                EffectSummary = "Mythic Tri-Metal", SwatchColor = new Color(1.00f, 0.78f, 0.24f)
+                EffectSummary = "Astral Nova: Heal + AoE Slow Pulse", SwatchColor = new Color(1.00f, 0.78f, 0.24f)
             }
         };
 

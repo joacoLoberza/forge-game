@@ -1,5 +1,5 @@
 ﻿=== LISTA DE ANIMACIONES DISPONIBLES EN EL PROYECTO ===
-Total AnimationClips encontrados: 120
+Total AnimationClips encontrados: 123
 [CLIP] mixamo.com | FileID: -203655887218126122 | GUID: fa6be11adee9b1e49b2f0a4172c17d13 | Length: 9,92s | Path: Assets/Animations/Character/Breathing Idle.fbx
 [CLIP] __preview__mixamo.com | FileID: 110800000 | GUID: fa6be11adee9b1e49b2f0a4172c17d13 | Length: 9,92s | Path: Assets/Animations/Character/Breathing Idle.fbx
 [CLIP] mixamo.com | FileID: -203655887218126122 | GUID: 06aad0fcd918b9f4d82e7b1393c81dc5 | Length: 0,63s | Path: Assets/Animations/Character/Running.fbx
@@ -256,6 +256,10 @@ Total AnimationClips encontrados: 120
 [CLIP] __preview__WalkCycle | FileID: 110800014 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 8,17s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
 [CLIP] Attack1 | FileID: 7572344613039948371 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
 [CLIP] Attack2 | FileID: 8114531597553069840 | GUID: c6fb6697904bf0a439cf4c2e0d964246 | Length: 2,50s | Path: Assets/Models/Character/titan-animation/source/Boss3_Titan.fbx
+[CLIP] PickaxeDownwardStrike | FileID: -203655887218126122 | GUID: 91a4c8d1e7324b50a8f11c23d4e5f601 | Length: 2,27s | Path: Assets/Resources/Animations/Combat/PickaxeDownwardStrike.fbx
+[CLIP] __preview__mixamo.com | FileID: 110800000 | GUID: 91a4c8d1e7324b50a8f11c23d4e5f601 | Length: 2,27s | Path: Assets/Resources/Animations/Combat/PickaxeDownwardStrike.fbx
+[CLIP] HumanM@Death01 | FileID: -6298473264308222846 | GUID: 1fb7052a334342bb8c5cf1b87cb007af | Length: 0,73s | Path: Assets/Resources/Animations/Combat/PlayerDeath.fbx
+[CLIP] __preview__HumanM@Death01 | FileID: 110800000 | GUID: 1fb7052a334342bb8c5cf1b87cb007af | Length: 1,00s | Path: Assets/Resources/Animations/Combat/PlayerDeath.fbx
 [CLIP] Melee_1H_Attack_Slice_Horizontal | FileID: -8653722278162725603 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,37s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
 [CLIP] T-Pose | FileID: -8312538846858333772 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 0,03s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
 [CLIP] Melee_Dualwield_Attack_Stab | FileID: -4620666395454361804 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,60s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
@@ -300,6 +304,8 @@ Total AnimationClips encontrados: 120
 [CLIP] Melee_Blocking | FileID: 6824622970789808875 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
 [CLIP] Melee_Dualwield_Attack_Chop | FileID: 7499313430951911929 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,27s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
 [CLIP] Melee_Block_Hit | FileID: 7887112853433613186 | GUID: 8098093adc8d8c040ad2a1e18b842698 | Length: 1,07s | Path: Assets/Resources/Animations/Combat/Rig_Medium_CombatMelee.fbx
+[CLIP] SwordSlashAttack1 | FileID: -203655887218126122 | GUID: 91a4c8d1e7324b50a8f11c23d4e5f602 | Length: 1,50s | Path: Assets/Resources/Animations/Combat/SwordSlashAttack1.fbx
+[CLIP] __preview__mixamo.com | FileID: 110800000 | GUID: 91a4c8d1e7324b50a8f11c23d4e5f602 | Length: 1,50s | Path: Assets/Resources/Animations/Combat/SwordSlashAttack1.fbx
 [CLIP] Armature|Jog_Fwd_Loop | FileID: -8815886378510225334 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
 [CLIP] Armature|Hit_Head | FileID: -8534173349268677819 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 0,43s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx
 [CLIP] Armature|Crouch_Idle_Loop | FileID: -7993625790543202706 | GUID: e529c111834244da815b1ea818bc32c9 | Length: 2,93s | Path: Assets/Resources/Animations/Roll/UAL1_Standard.fbx

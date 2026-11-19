@@ -161,6 +161,8 @@ namespace ForjaGame.Forge
             }
         }
 
+        public void TriggerHammerSwingOnly(Vector3 worldHitPos) { EnsureHammerAndSparks(); _lastStrikePos = worldHitPos; _strikeAnimTimer = 0.17f; }
+
         public void TriggerHammerStrikeAndSparks(Vector3 worldHitPos, float quality = 0.85f, bool isCut = false)
         {
             EnsureHammerAndSparks();

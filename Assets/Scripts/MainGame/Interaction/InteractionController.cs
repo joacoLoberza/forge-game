@@ -12,19 +12,23 @@ namespace ForjaGame.Interaction
         [SerializeField] private float interactionRadius = 2.4f;
 
         private readonly HashSet<IInteractable> _triggerInteractables = new();
+        private readonly HashSet<IInteractable> _candidateBuffer = new();
+        private readonly Collider[] _overlapBuffer = new Collider[24];
         private IInteractable _currentTarget;
-        private float _lastInteractTime = -1f;
+        private float _lastInteractTime = -1f, _nextScanTime = 0f;
         private int _lastInteractFrame = -1;
         private GUIStyle _promptStyle;
         private bool _validatedInteract;
         private PlayerInput _playerInput;
         private PlayerMovement _playerMovement;
+        private Unity.Netcode.NetworkObject _netObj;
 
         private void Awake()
         {
             EnsureInteractionSphere();
             _playerInput = GetComponent<PlayerInput>();
             _playerMovement = GetComponent<PlayerMovement>();
+            _netObj = GetComponent<Unity.Netcode.NetworkObject>();
         }
 
         private void EnsureInteractionSphere()
@@ -70,16 +74,16 @@ namespace ForjaGame.Interaction
 
         private void Update()
         {
-            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
-            if (netObj != null && !netObj.IsOwner) return;
+            if (_netObj != null && !_netObj.IsOwner) return;
 
-            _currentTarget = GetStationInsideInteractionSphere();
+            if (Time.unscaledTime >= _nextScanTime)
+            {
+                _nextScanTime = Time.unscaledTime + 0.08f;
+                _currentTarget = GetStationInsideInteractionSphere();
+            }
 
             var kb = Keyboard.current;
-            if (kb != null && kb.fKey.wasPressedThisFrame)
-            {
-                HandleInteractInput();
-            }
+            if (kb != null && kb.fKey.wasPressedThisFrame) HandleInteractInput();
         }
 
         public void OnInteract(InputAction.CallbackContext context)
@@ -121,13 +125,15 @@ namespace ForjaGame.Interaction
             var occupiedStation = ForjaGame.Forge.BaseForgeStationController.GetStationOccupiedBy(gameObject);
             if (occupiedStation != null)
             {
+                if (occupiedStation is ForjaGame.Forge.AnvilStationController && ForjaGame.Forge.AnvilHammerInput.IsCutModeActiveWithPoints)
+                    return;
                 if (ForjaGame.UI.ForgeTutorialDirector.Instance != null && !ForjaGame.UI.ForgeTutorialDirector.Instance.CanReleaseOccupiedStation(occupiedStation))
                     return;
                 occupiedStation.ReleaseStation();
                 return;
             }
 
-            IInteractable target = _currentTarget ?? GetStationInsideInteractionSphere();
+            IInteractable target = GetStationInsideInteractionSphere() ?? _currentTarget;
             if (target != null && target.CanInteract(gameObject))
             {
                 ForjaGame.Audio.ForgeAudioSystem.PlayUIClick();
@@ -142,46 +148,29 @@ namespace ForjaGame.Interaction
             Vector3 sphereCenter = transform.position + Vector3.up * 0.9f;
             float sphereRadius = Mathf.Max(interactionRadius, 2.4f);
 
-            var candidates = new HashSet<IInteractable>(_triggerInteractables);
-            candidates.RemoveWhere(item => item == null || (item is MonoBehaviour mb && mb == null));
+            _candidateBuffer.Clear();
+            foreach (var t in _triggerInteractables)
+                if (t != null && !(t is MonoBehaviour tm && tm == null)) _candidateBuffer.Add(t);
 
-            Collider[] hits = Physics.OverlapSphere(sphereCenter, sphereRadius, ~0, QueryTriggerInteraction.Collide);
-            for (int i = 0; i < hits.Length; i++)
+            int hitCount = Physics.OverlapSphereNonAlloc(sphereCenter, sphereRadius, _overlapBuffer, ~0, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < hitCount; i++)
             {
-                Collider col = hits[i];
+                Collider col = _overlapBuffer[i];
                 if (col == null || col.gameObject == gameObject || col.transform.IsChildOf(transform)) continue;
-
                 IInteractable found = col.GetComponentInParent<IInteractable>() ?? col.GetComponentInChildren<IInteractable>();
-                if (found != null && !candidates.Contains(found))
-                {
-                    candidates.Add(found);
-                }
+                if (found != null) _candidateBuffer.Add(found);
             }
 
             IInteractable best = null;
             float closestDist = float.PositiveInfinity;
-
-            foreach (IInteractable cand in candidates)
+            foreach (IInteractable cand in _candidateBuffer)
             {
                 if (cand is not MonoBehaviour mb) continue;
-
-                Vector3 targetPos = mb.transform.position;
                 Collider col = mb.GetComponentInChildren<Collider>() ?? mb.GetComponent<Collider>();
-                if (col != null)
-                {
-                    targetPos = col.ClosestPoint(sphereCenter);
-                }
-
+                Vector3 targetPos = col != null ? col.ClosestPoint(sphereCenter) : mb.transform.position;
                 float dist = Vector3.Distance(sphereCenter, targetPos);
-                if (dist > sphereRadius) continue;
-
-                if (dist < closestDist)
-                {
-                    closestDist = dist;
-                    best = cand;
-                }
+                if (dist <= sphereRadius && dist < closestDist) { closestDist = dist; best = cand; }
             }
-
             return best;
         }
 
@@ -201,8 +190,8 @@ namespace ForjaGame.Interaction
 
         private void OnGUI()
         {
-            var netObj = GetComponent<Unity.Netcode.NetworkObject>();
-            if (netObj != null && !netObj.IsOwner) return;
+            if (Event.current.type != EventType.Repaint) return;
+            if (_netObj != null && !_netObj.IsOwner) return;
 
             if (_currentTarget == null || !_currentTarget.CanInteract(gameObject) || ForjaGame.Core.GameLoopController.IsEndScreenOpen || Cursor.lockState == CursorLockMode.None) return;
 

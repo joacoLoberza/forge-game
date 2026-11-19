@@ -49,15 +49,20 @@ namespace ForjaGame.UI
                 {
                     sRt.localRotation = Quaternion.identity; sRt.localScale = Vector3.one;
                     sRt.anchorMin = sRt.anchorMax = sRt.pivot = new Vector2(0.5f, 0.5f);
-                    sRt.anchoredPosition = new Vector2(0f, -20f);
-                    sRt.sizeDelta = new Vector2(380f, 380f);
+                    sRt.anchoredPosition = new Vector2(0f, -22f);
+                    sRt.sizeDelta = new Vector2(382f, 384f);
                 }
+
+                var sImg = scroll.GetComponent<Image>() ?? scroll.gameObject.AddComponent<Image>();
+                sImg.sprite = BookTextureBuilder.GetParchmentBannerSprite();
+                sImg.type = Image.Type.Sliced;
+                sImg.color = new Color(0.92f, 0.87f, 0.77f, 0.78f);
 
                 if (scroll.viewport != null)
                 {
                     scroll.viewport.anchorMin = Vector2.zero; scroll.viewport.anchorMax = Vector2.one;
                     scroll.viewport.pivot = new Vector2(0.5f, 0.5f);
-                    scroll.viewport.anchoredPosition = scroll.viewport.sizeDelta = Vector2.zero;
+                    scroll.viewport.offsetMin = new Vector2(6f, 6f); scroll.viewport.offsetMax = new Vector2(-6f, -6f);
                     if (scroll.viewport.GetComponent<RectMask2D>() == null && scroll.viewport.GetComponent<Mask>() == null)
                         scroll.viewport.gameObject.AddComponent<RectMask2D>();
                 }
@@ -143,14 +148,19 @@ namespace ForjaGame.UI
                     sRt.localRotation = Quaternion.identity; sRt.localScale = Vector3.one;
                     sRt.anchorMin = sRt.anchorMax = sRt.pivot = new Vector2(0.5f, 0.5f);
                     sRt.anchoredPosition = new Vector2(0f, -14f);
-                    sRt.sizeDelta = new Vector2(375f, 294f);
+                    sRt.sizeDelta = new Vector2(378f, 294f);
                 }
+
+                var sImg = scroll.GetComponent<Image>() ?? scroll.gameObject.AddComponent<Image>();
+                sImg.sprite = BookTextureBuilder.GetParchmentBannerSprite();
+                sImg.type = Image.Type.Sliced;
+                sImg.color = new Color(0.92f, 0.87f, 0.77f, 0.78f);
 
                 if (scroll.viewport != null)
                 {
                     scroll.viewport.anchorMin = Vector2.zero; scroll.viewport.anchorMax = Vector2.one;
                     scroll.viewport.pivot = new Vector2(0.5f, 0.5f);
-                    scroll.viewport.anchoredPosition = scroll.viewport.sizeDelta = Vector2.zero;
+                    scroll.viewport.offsetMin = new Vector2(8f, 6f); scroll.viewport.offsetMax = new Vector2(-8f, -6f);
                     if (scroll.viewport.GetComponent<RectMask2D>() == null && scroll.viewport.GetComponent<Mask>() == null)
                         scroll.viewport.gameObject.AddComponent<RectMask2D>();
                 }
@@ -196,26 +206,7 @@ namespace ForjaGame.UI
             {
                 if (b.name.ToLowerInvariant().Contains("equip"))
                 {
-                    var bRt = b.GetComponent<RectTransform>();
-                    bRt.anchorMin = bRt.anchorMax = bRt.pivot = new Vector2(0.5f, 0f);
-                    bRt.anchoredPosition = new Vector2(0f, 16f);
-                    bRt.sizeDelta = new Vector2(250f, 38f);
-                    var bImg = b.GetComponent<Image>() ?? b.gameObject.AddComponent<Image>();
-                    bImg.sprite = BookTextureBuilder.GetPrimaryActionButtonSprite();
-                    bImg.type = Image.Type.Sliced;
-                    bImg.color = Color.white;
-                    var bTxt = b.GetComponentInChildren<TMP_Text>(true);
-                    if (bTxt != null)
-                    {
-                        MedievalTypographyProvider.ApplyToTMP(bTxt);
-                        bTxt.fontSize = 14f;
-                        bTxt.enableAutoSizing = true;
-                        bTxt.fontSizeMin = 11f;
-                        bTxt.fontSizeMax = 14.5f;
-                        bTxt.fontStyle = FontStyles.Bold;
-                        bTxt.color = new Color(1f, 0.96f, 0.85f, 1f);
-                        bTxt.alignment = TextAlignmentOptions.Center;
-                    }
+                    ForgeCanvasThemeStyler.StyleForgeButton(b, primary: true, page, new Vector2(0f, -196f), new Vector2(264f, 40f));
                 }
             }
         }

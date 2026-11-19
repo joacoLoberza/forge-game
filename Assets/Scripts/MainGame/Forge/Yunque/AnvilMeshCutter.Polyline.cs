@@ -75,11 +75,11 @@ namespace ForjaGame.Forge
             TryAddPt(pts[K - 1], b1);
             fullPts.Add(b1); fullVerts.Add(InsertBoundaryVertex(e1, b1, tE1, verts, tris));
 
+            bool flipOpen = discardInside == true;
+            if (fullPts.Count == 2) { SliceTrianglesByLine(fullPts[0], fullPts[1], keepPoint, verts, tris, discardedTris, flipOpen); return; }
             HashSet<long> openCutEdges = new HashSet<long>();
             for (int s = 0; s < fullPts.Count - 1; s++)
                 SubdivideAlongSegment(fullPts[s], fullPts[s + 1], fullVerts[s], fullVerts[s + 1], verts, tris, openCutEdges);
-
-            bool flipOpen = discardInside == true;
             BfsKeepComponent(keepPoint, false, false, fullPts, verts, tris, openCutEdges, discardedTris, flipOpen);
         }
 

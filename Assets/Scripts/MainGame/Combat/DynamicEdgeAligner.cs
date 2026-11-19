@@ -142,7 +142,7 @@ namespace ForjaGame.Combat
             _lastTipWorldPos = currentTipPos;
 
             float targetTwist = 0f;
-            if (isAttacking && _attackTimer > 0.12f && _attackTimer < 0.55f && tipVelocity.sqrMagnitude > 2.0f)
+            if (isAttacking && !isPickaxeOrTool && _attackTimer > 0.12f && _attackTimer < 0.55f && tipVelocity.sqrMagnitude > 2.0f)
             {
                 if (Vector3.Dot(tipVelocity.normalized, transform.forward) > -0.25f)
                 {
@@ -181,7 +181,7 @@ namespace ForjaGame.Combat
             if (isAttacking)
             {
                 ClearHandIK(AvatarIKGoal.RightHand);
-                if (isTwoHandedWeapon && !isPickaxeOrTool && (layerIndex == 1 || (layerIndex == 0 && !isUpperBodyAttack)))
+                if (isTwoHandedWeapon && (layerIndex == 1 || (layerIndex == 0 && !isUpperBodyAttack)))
                     ApplyLeftHandGripIK(0.90f);
                 else
                     ClearHandIK(AvatarIKGoal.LeftHand);

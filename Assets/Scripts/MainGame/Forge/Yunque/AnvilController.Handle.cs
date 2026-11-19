@@ -50,6 +50,7 @@ namespace ForjaGame.Forge
             isForging = true;
             isQuenched = false;
             IsCarvingHandle = true;
+            _polishShineProgress = 0f;
 
             // Dimensiones completas del tablero base de madera: 1.60m de largo, 7cm espesor, 14cm ancho
             handleBoardSize = new Vector3(InitialHandleBoardLength, 0.07f, 0.14f);

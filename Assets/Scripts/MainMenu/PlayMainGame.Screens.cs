@@ -9,47 +9,57 @@ public partial class PlayMainGame
     {
         _screenModeLeft = CreateSpreadLayer(_bookLeftPage, "ModeLeft");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenModeLeft.transform, "ModeLeftBanner", "PATHS TO THE DEEP",
-            new Vector2(0f, 178f), new Vector2(344f, 44f), fontSize: 17.5f);
-        CreateMenuLabel(_screenModeLeft.transform, "ModeGuide",
-            "<b>Singleplayer</b>\nEnter the depths alone, craft every weapon yourself, and climb the solo speedrun ledger.\n\n" +
-            "<b>Multiplayer (LAN)</b>\nConnect via local IP (up to 4 smiths), share the workshop stations, and battle cave creatures side by side.",
-            new Vector2(0f, 6f), new Vector2(344f, 240f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
-        CreateMenuButton(_screenModeLeft.transform, "BtnBackTitle", "« BACK TO TITLE",
-            new Vector2(0f, -166f), new Vector2(220f, 40f), false, ReturnToTitleScreen);
+            new Vector2(0f, 178f), new Vector2(354f, 44f), fontSize: 17.5f);
+        var soloCard = BookJournalTemplateBuilder.CreateOrGetPageInset(_screenModeLeft.transform, "SoloInfoCard",
+            new Vector2(0f, 70f), new Vector2(354f, 114f), new Color(0.92f, 0.86f, 0.75f, 0.80f));
+        CreateMenuLabel(soloCard, "SoloInfoText",
+            "<color=#6D3A10><b>SINGLEPLAYER</b></color>\nEnter the depths alone, craft every weapon yourself, and climb the solo speedrun ledger.",
+            Vector2.zero, new Vector2(328f, 94f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
+        var lanCard = BookJournalTemplateBuilder.CreateOrGetPageInset(_screenModeLeft.transform, "LanInfoCard",
+            new Vector2(0f, -58f), new Vector2(354f, 118f), new Color(0.92f, 0.86f, 0.75f, 0.80f));
+        CreateMenuLabel(lanCard, "LanInfoText",
+            "<color=#1E5B2D><b>MULTIPLAYER (LAN CO-OP)</b></color>\nConnect via local IP (up to 4 smiths), share workshop stations, and battle cave creatures together.",
+            Vector2.zero, new Vector2(328f, 98f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
+        CreateMenuButton(_screenModeLeft.transform, "BtnBackTitle", "BACK TO TITLE",
+            new Vector2(0f, -168f), new Vector2(226f, 40f), false, ReturnToTitleScreen);
 
         _screenModeRight = CreateSpreadLayer(_bookRightPage, "ModeRight");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenModeRight.transform, "ModeTitleBanner", "SELECT GAME MODE",
-            new Vector2(0f, 178f), new Vector2(344f, 44f), fontSize: 17.5f);
+            new Vector2(0f, 178f), new Vector2(354f, 44f), fontSize: 17.5f);
         CreateMenuButton(_screenModeRight.transform, "BtnSingleplayer",
-            "<b>SINGLEPLAYER</b>\n<size=11.5>Master the anvil alone • Slay the Titan</size>",
-            new Vector2(0f, 70f), new Vector2(336f, 76f), true, OpenSingleplayerSetup);
-        CreateSectionDivider(_screenModeRight.transform, "DivMulti", "OR CO-OP", new Vector2(0f, 6f));
+            "<b>SINGLEPLAYER</b>\n<size=11.5>Master the anvil alone  |  Slay the Titan</size>",
+            new Vector2(0f, 70f), new Vector2(342f, 80f), true, OpenSingleplayerSetup);
+        CreateSectionDivider(_screenModeRight.transform, "DivMulti", "OR CO-OP", new Vector2(0f, 4f));
         CreateMenuButton(_screenModeRight.transform, "BtnMultiplayer",
             "<b>MULTIPLAYER (LAN)</b>\n<size=11.5>Host or join a team session by IP</size>",
-            new Vector2(0f, -60f), new Vector2(336f, 76f), true, OpenMultiplayerSetup);
+            new Vector2(0f, -62f), new Vector2(342f, 80f), true, OpenMultiplayerSetup);
     }
 
     private void BuildSingleplayerSetupSpread()
     {
         _screenSingleLeft = CreateSpreadLayer(_bookLeftPage, "SingleLeft");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenSingleLeft.transform, "SingleLeftHdr", "APPRENTICE LEDGER",
-            new Vector2(0f, 178f), new Vector2(344f, 44f), fontSize: 17f);
-        CreateMenuLabel(_screenSingleLeft.transform, "SingleLore",
-            "Every forged blade carries the mark of its creator.\n\nEnter your blacksmith name on the right page so it appears in your workshop codex, combat health bar, and speedrun hall of heroes.",
-            new Vector2(0f, 12f), new Vector2(340f, 210f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
-        CreateMenuButton(_screenSingleLeft.transform, "BtnBackMode", "« BACK",
-            new Vector2(0f, -166f), new Vector2(200f, 40f), false, OpenModeSelection);
+            new Vector2(0f, 178f), new Vector2(354f, 44f), fontSize: 17f);
+        var loreInset = BookJournalTemplateBuilder.CreateOrGetPageInset(_screenSingleLeft.transform, "SingleLoreCard",
+            new Vector2(0f, 10f), new Vector2(354f, 224f), new Color(0.92f, 0.86f, 0.75f, 0.80f));
+        CreateMenuLabel(loreInset, "SingleLore",
+            "Every forged blade carries the mark of its creator.\n\nEnter your blacksmith name on the right page so it appears in your workshop codex, combat health bar, and speedrun Hall of Heroes.",
+            Vector2.zero, new Vector2(326f, 198f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
+        CreateMenuButton(_screenSingleLeft.transform, "BtnBackMode", "BACK",
+            new Vector2(0f, -168f), new Vector2(204f, 40f), false, OpenModeSelection);
 
         _screenSingleRight = CreateSpreadLayer(_bookRightPage, "SingleRight");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenSingleRight.transform, "SingleTitleBanner", "SINGLEPLAYER PROFILE",
-            new Vector2(0f, 178f), new Vector2(344f, 44f), fontSize: 17f);
-        CreateMenuLabel(_screenSingleRight.transform, "LabelPlayerName", "<b>CHARACTER NAME:</b>",
-            new Vector2(0f, 78f), new Vector2(320f, 26f), 14f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Bold);
+            new Vector2(0f, 178f), new Vector2(354f, 44f), fontSize: 17f);
+        var profileBox = BookJournalTemplateBuilder.CreateOrGetPageInset(_screenSingleRight.transform, "SingleProfileBox",
+            new Vector2(0f, 54f), new Vector2(348f, 114f), new Color(0.92f, 0.86f, 0.75f, 0.78f));
+        CreateMenuLabel(profileBox, "LabelPlayerName", "<b>CHARACTER NAME:</b>",
+            new Vector2(0f, 30f), new Vector2(316f, 24f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Bold);
         _singlePlayerNameInput = CreateMedievalInputField(
-            _screenSingleRight.transform, "InputSingleName", GameSessionData.PlayerName, "Enter your name...",
-            new Vector2(0f, 32f), new Vector2(316f, 46f), 20);
+            profileBox, "InputSingleName", GameSessionData.PlayerName, "Enter your name...",
+            new Vector2(0f, -14f), new Vector2(316f, 46f), 20);
         CreateMenuButton(_screenSingleRight.transform, "BtnStartSingle", "START JOURNEY",
-            new Vector2(0f, -56f), new Vector2(316f, 52f), true, () =>
+            new Vector2(0f, -66f), new Vector2(326f, 54f), true, () =>
             {
                 string pName = _singlePlayerNameInput != null ? _singlePlayerNameInput.text : "";
                 GameSessionData.SaveSession(pName, "Solo Blacksmith", false);
@@ -61,16 +71,20 @@ public partial class PlayMainGame
     {
         _screenMultiLeft = CreateSpreadLayer(_bookLeftPage, "MultiLeft");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenMultiLeft.transform, "MultiLeftBanner", "LAN EXPEDITION GUIDE",
-            new Vector2(0f, 178f), new Vector2(344f, 44f), fontSize: 17f);
-        CreateMenuLabel(_screenMultiLeft.transform, "MultiGuideText",
-            $"<b>1. Host:</b> Share your local IP with teammates:\n<color=#6D3F12><b>{_detectedLocalIp}</b></color> (Port <b>{port}</b>)\n\n" +
+            new Vector2(0f, 178f), new Vector2(354f, 44f), fontSize: 17f);
+        ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenMultiLeft.transform, "HostIpPlaque", $"LOCAL IP:  {_detectedLocalIp} : {port}",
+            new Vector2(0f, 124f), new Vector2(354f, 34f), fontSize: 13f);
+        var guideBox = BookJournalTemplateBuilder.CreateOrGetPageInset(_screenMultiLeft.transform, "MultiGuideCard",
+            new Vector2(0f, -4f), new Vector2(354f, 186f), new Color(0.92f, 0.86f, 0.75f, 0.80f));
+        CreateMenuLabel(guideBox, "MultiGuideText",
+            "<b>1. Host:</b> Share the IP address shown above with your teammates.\n\n" +
             "<b>2. Client:</b> Enter the Host IP address on the facing page and click Join.\n\n" +
-            "<i>All teammates share the workshop and delve progression simultaneously.</i>",
-            new Vector2(0f, 10f), new Vector2(344f, 230f), 13.5f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
+            "<i>All teammates share workshop stations and delve progression simultaneously.</i>",
+            Vector2.zero, new Vector2(328f, 166f), 13f, ForgeCanvasThemeStyler.DarkInk, FontStyles.Normal).alignment = TextAlignmentOptions.TopLeft;
         _statusLabel = CreateMenuLabel(_screenMultiLeft.transform, "StatusBanner", _statusMessage,
-            new Vector2(0f, -110f), new Vector2(344f, 44f), 12.5f, ForgeCanvasThemeStyler.SubInk, FontStyles.Bold);
-        CreateMenuButton(_screenMultiLeft.transform, "BtnBackMulti", "« BACK",
-            new Vector2(0f, -166f), new Vector2(200f, 40f), false, OpenModeSelection);
+            new Vector2(0f, -120f), new Vector2(348f, 36f), 12.5f, ForgeCanvasThemeStyler.SubInk, FontStyles.Bold);
+        CreateMenuButton(_screenMultiLeft.transform, "BtnBackMulti", "BACK",
+            new Vector2(0f, -168f), new Vector2(204f, 40f), false, OpenModeSelection);
 
         _screenMultiRight = CreateSpreadLayer(_bookRightPage, "MultiRight");
         ForgeCanvasThemeStyler.CreateOrGetTitleBanner(_screenMultiRight.transform, "MultiTitleBanner", "MULTIPLAYER LAN",

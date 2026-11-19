@@ -14,9 +14,6 @@ namespace ForjaGame.Combat
     /// </summary>
     public partial class TitanBossController
     {
-        private GUIStyle _bossBoxStyle, _bossTitleStyle;
-        private Texture2D _bossBarBg, _bossBarFill;
-
         private bool _isChasingTarget;
 
         private void Update()
@@ -194,23 +191,7 @@ namespace ForjaGame.Combat
             if (!IsAlive || GameLoopController.IsEndScreenOpen) return;
             Transform p = PlayerMovement.LocalInstance != null ? PlayerMovement.LocalInstance.transform : _playerTransform;
             if (p == null || p.position.z < 482f) return;
-
-            if (_bossBoxStyle == null)
-            {
-                _bossBarBg = MakeSolidTex(new Color(0.10f, 0.07f, 0.06f, 0.94f));
-                _bossBarFill = MakeSolidTex(new Color(0.88f, 0.22f, 0.14f, 1.0f));
-                _bossBoxStyle = new GUIStyle(GUI.skin.box) { normal = { background = MakeSolidTex(new Color(0.14f, 0.09f, 0.07f, 0.94f)) } };
-                _bossTitleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.84f, 0.42f) } };
-                MedievalTypographyProvider.ApplyToGUIStyle(_bossTitleStyle, 15, FontStyle.Bold);
-            }
-            Rect box = new Rect((Screen.width - 520f) * 0.5f, 18f, 520f, 58f);
-            GUI.Box(box, GUIContent.none, _bossBoxStyle);
-            GUI.Label(new Rect(box.x + 14f, box.y + 6f, 492f, 22f), $"⚔ ABYSSAL SANCTUM TITAN — {currentHealth} / {maxHealth} HP ⚔", _bossTitleStyle);
-            Rect barBg = new Rect(box.x + 22f, box.y + 34f, 476f, 14f);
-            GUI.DrawTexture(barBg, _bossBarBg);
-            GUI.DrawTexture(new Rect(barBg.x + 2f, barBg.y + 2f, (barBg.width - 4f) * Mathf.Clamp01((float)currentHealth / Mathf.Max(1, maxHealth)), barBg.height - 4f), _bossBarFill);
+            EnemyHealthBarHUD.DrawPlayerStyledHealthPlaque(new Rect((Screen.width - 520f) * 0.5f, 18f, 520f, 52f), "⚔ ABYSSAL SANCTUM TITAN ⚔", currentHealth, maxHealth);
         }
-
-        private static Texture2D MakeSolidTex(Color c) { var t = new Texture2D(2, 2) { hideFlags = HideFlags.DontSave }; t.SetPixels(new[] { c, c, c, c }); t.Apply(); return t; }
     }
 }
